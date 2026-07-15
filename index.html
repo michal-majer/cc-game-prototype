@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>BONEYARD — Cmentarzysko</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="480" height="270"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <span class="hud-item">ZŁOM <b id="hud-scrap">0</b></span>
+    <span class="hud-item">DOCHÓD <b id="hud-income">+0</b>/8s</span>
+    <span class="hud-item">FALA <b id="hud-wave">0</b></span>
+    <span class="hud-item" id="hud-next-wrap">NASTĘPNA: <b id="hud-next">--</b></span>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toasts"></div>
+
+  <!-- Build menu -->
+  <div id="buildmenu" class="panel hidden"></div>
+
+  <!-- Card overlay -->
+  <div id="cards" class="overlay hidden">
+    <div class="overlay-inner">
+      <h2 id="cards-title">WYBIERZ FALĘ</h2>
+      <p id="cards-sub">Trudniejsza fala = większa nagroda</p>
+      <div id="cards-row"></div>
+      <p class="hint">SPACJA podczas przerwy: odpal falę od razu, +25% do mnożnika</p>
+    </div>
+  </div>
+
+  <!-- Commander overlay -->
+  <div id="commanders" class="overlay">
+    <div class="overlay-inner">
+      <h1 class="title">BONEYARD</h1>
+      <p class="tagline">Twoi zabici stają się twoim murem — a mur odcina ci dochód.</p>
+      <h2>WYBIERZ DOWÓDCĘ</h2>
+      <div id="commanders-row"></div>
+    </div>
+  </div>
+
+  <!-- Game over overlay -->
+  <div id="gameover" class="overlay hidden">
+    <div class="overlay-inner">
+      <h1 id="go-title">SZTAB PADŁ</h1>
+      <p id="go-stats"></p>
+      <button id="go-restart" class="bigbtn">JESZCZE RAZ</button>
+    </div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
