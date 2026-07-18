@@ -39,14 +39,27 @@ style.css         HUD: mobile-first, ostry i klikalny na dotyk
 vendor/
   pixi.min.mjs    PixiJS 8 (ESM), wczytywany lokalnie
 src/
-  game.js         mechanika 1:1 + render Pixi + kamera + input + HUD
+  config.js       WSZYSTKIE stałe i tablice balansu (+ BAL = 4 liczby ruchome)
+  state.js        S — jeden współdzielony obiekt stanu + say() + SECT
+  effects.js      wybuchy (cząsteczki)
+  economy.js      ruda: żyły, wydobycie, odrost
+  sectors.js      trzy mini-sztaby (przejmowanie terenu)
+  buildings.js    stawianie, moc, poziomy, technologia, walidacja kratek
+  enemy.js        AI wroga, bastion, wywiad, kontry
+  cards.js        talia (rozkazy) + otwarcia
+  sim.js          rdzeń: obrażenia, spawn, fala, krok update(dt), linia
+  render.js       render świata na Pixi + kamera (pan/pinch)
+  hud.js          HUD w DOM (paski, pasek budowy, suwak, karty, log)
+  input.js        dotyk/mysz (pan/tap) + przyciski + klawiatura
+  game.js         punkt wejścia: newRun + pętla; index.html ładuje ten plik
   audio.js        proceduralne boom/siren + rejestr własnych próbek
   assets.js       manifest tekstur (opt-in) + loader
 assets/           tu wrzucasz PNG/dźwięki (patrz assets/README.md)
 ```
 
-Wszystkie pokrętła balansu są u góry `src/game.js` (sekcja KONFIG / TABELE) —
-te same stałe co w oryginale.
+Zależności idą w jedną stronę:
+`config → state → (economy · sectors · buildings · enemy · cards · sim) → render · hud · input → game`.
+Cały balans jest w `src/config.js` — te same stałe co w oryginale.
 
 ## Dodawanie grafiki i dźwięku
 
