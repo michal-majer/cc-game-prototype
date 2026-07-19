@@ -1,0 +1,10 @@
+node_modules/
+package.json
+package-lock.json
+*.png
+.DS_Store
+
+# assety gry mają się commitować mimo globalnego *.png
+!assets/
+!assets/**
+!assets/**/*.png
