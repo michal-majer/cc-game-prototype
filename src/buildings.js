@@ -97,7 +97,7 @@ export function recalcPower(){
   S.offBrown=nBrown;
   const r=radarLvl();
   if (S.hadRadar>r && r===0) say('UTRATA ŁĄCZNOŚCI — WYWIAD OFFLINE','bad');
-  if (S.hadRadar<r && r===1) say('RADAR I — ROZPOZNAJESZ TO, CO CIĘ BIJE','good');
+  if (S.hadRadar<r && r===1) say('RADAR I — WIDZISZ ICH KSZTAŁTY; TYP ROZPOZNASZ W ZWARCIU','good');
   if (S.hadRadar<r && r===2) say('RADAR II — PEŁNA WIDOCZNOŚĆ','good');
   S.hadRadar=r;
 }
