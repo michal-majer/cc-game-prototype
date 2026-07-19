@@ -51,12 +51,14 @@ export const CO = {
 
 // --- ruda / bastion / ekonomia ---
 export const ORE_RATE  = 2;
-// Odrost/s żyły — jednocześnie „sączek", który rafineria ciągnie z wypalonej
-// żyły (fizycznie to samo: to, co zdąży odrosnąć, od razu wraca do rafinerii).
-// Musi ≥ ORE_RATE, żeby rafineria I poziomu UTRZYMYWAŁA pole (drenaż 2/s), a nie
-// wypalała je do zera. Ulepszona (bRate 5/8) nadal przedrenuje → wybór: burst
-// teraz kontra stały dochód. Odrost pustej żyły 0→450: ~110 s zamiast ~560 s.
-export const ORE_REGEN = 4;
+// Odrost rudy — ROZPRZĘGNIĘTY na dwie prędkości (regrow wybiera po fladze pull):
+//  · ORE_REGEN — żyła SPOCZYNKOWA (nietknięta): szybkie odbicie, pusta 0→450 ~90 s.
+//  · ORE_SIP   — żyła CZYNNA (pod rafinerią): = drenaż I poz. (ORE_RATE), więc pole
+//                się UTRZYMUJE (netto 0), a z zachowania masy sączek wypalonego pola
+//                = ORE_SIP × kratki. Trzymaj mały — przy 4 pole sączyło ~24/s bez końca.
+// Rozdzielone, bo jedna liczba sterowała i odbiciem, i sączkiem (firehose).
+export const ORE_REGEN = 5;
+export const ORE_SIP   = 2;
 export const ORE_YOUNG = 0.25;
 export const BAS_HP    = 2200;   // twardszy: nie da się wygrać szybką dekapitacją, front trwa dłużej
 export const BAS_DMG   = 34;
@@ -65,7 +67,7 @@ export const BAS_RATE  = 0.8;
 export const BAS_SPL_R = 35;
 export const BAS_SPL_N = 3;
 export const WAVE_TIME = 30;     // rzadsze fale → mniej jednostek naraz, każda znaczy więcej (patrz waveInterval)
-export const TERR_MAX  = 32;     // teren to główny silnik dochodu — powód, by bić się o mini-sztaby
+export const TERR_MAX  = 24;     // teren wciąż mocny powód, by bić się o mini-sztaby, ale bez firehose (32 lało za dużo)
 export const ETERR_SEC = 65;
 export const SELL_BACK = 0.5;
 export const MAXLVL    = 3;
@@ -76,9 +78,9 @@ export const CAP_RATE  = 6;   // wolniejsze przejmowanie (~17 s) → sektor to t
 
 // --- BALANS RUCHOMY (karty + resetTables) ---
 // EBUILD_EVERY: co ile fal wróg dokłada budynek. Wyżej = wolniejsza eskalacja.
-// 1.4 przy rzadszych falach (WAVE_TIME 30) trzyma napór wroga w ryzach, ale nie
-// pozwala mu zostać w tyle ekonomicznie — dłuższa gra bez robienia jej za łatwą.
-export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:1.4 };
+// 1.0 (1 budynek/falę) — przy rzadszych falach (WAVE_TIME 30) 1.4 dawało mizernego
+// wroga na fali 4 (2 piech. + 1 czołg). 1.0 nadrabia rozbudowę, nie robiąc powodzi.
+export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:1.0 };
 
 // --- budynki ---
 export const B = {
@@ -167,7 +169,7 @@ const B0 = JSON.parse(JSON.stringify(B));
 export function resetTables(){
   for (const k in U0){ for (const f in U[k]) delete U[k][f]; Object.assign(U[k], U0[k]); }
   for (const k in B0){ for (const f in B[k]) delete B[k][f]; Object.assign(B[k], B0[k]); }
-  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=1.4;
+  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=1.0;
 }
 
 // --- czyste helpery siatki (bez stanu) ---
