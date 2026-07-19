@@ -16,8 +16,15 @@ import { renderCards, syncOverlays } from './hud.js';
 export const DECK = [
   {n:'WETERANI',       k:'WOJSKO', d:'piechota +20% HP (60 → 72)',
    f:()=>{ U.inf.hp=72; }},
-  {n:'PANCERZ SPAWANY',k:'WOJSKO', d:'czołg i kolos +2 pancerza',
-   f:()=>{ U.tank.arm+=2; U.kolos.arm+=2; }},
+  // --- osobne, POWTARZALNE tory ulepszeń (tylko Twoja armia) ---
+  {n:'DRYL BOJOWY',    k:'WOJSKO', d:'żołnierze (piech.+rak.) +2 atak · można wielokrotnie', repeat:true,
+   f:()=>{ S.pBonus.atkS+=2; }},
+  {n:'KAMIZELKI',      k:'WOJSKO', d:'żołnierze (piech.+rak.) +2 pancerz · można wielokrotnie', repeat:true,
+   f:()=>{ S.pBonus.armS+=2; }},
+  {n:'DZIAŁA GŁÓWNE',   k:'WOJSKO', d:'opancerzeni (czołg+kolos) +4 atak · można wielokrotnie', repeat:true,
+   f:()=>{ S.pBonus.atkA+=4; }},
+  {n:'DODATKOWE PŁYTY', k:'WOJSKO', d:'opancerzeni (czołg+kolos) +2 pancerz · można wielokrotnie', repeat:true,
+   f:()=>{ S.pBonus.armA+=2; }},
   {n:'ZAPALNIKI',      k:'WOJSKO', d:'artyleria: odłamki ×3 → ×4',
    f:()=>{ U.arty.spl=4; }},
   {n:'BENZYNA 100',    k:'WOJSKO', d:'łazik: prędkość 55 → 72',
@@ -77,7 +84,7 @@ export function openDraft(src, tytul, pod){
 export function takeCard(c){
   c.f();
   recalcPower();               // karty stawiają budynki i ruszają moc
-  S.deck=S.deck.filter(x=>x!==c);
+  if (!c.repeat) S.deck=S.deck.filter(x=>x!==c);   // powtarzalne tory zostają w talii
   S.draft=null; S.state='play';
   say('◆ '+c.n+' — '+c.d,'good');
   boom(0.4);

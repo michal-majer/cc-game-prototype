@@ -77,10 +77,10 @@ export const CAP_R     = 118;
 export const CAP_RATE  = 6;   // wolniejsze przejmowanie (~17 s) → sektor to trwały bój, nie pstryknięcie
 
 // --- BALANS RUCHOMY (karty + resetTables) ---
-// EBUILD_EVERY: co ile fal wróg dokłada budynek. Wyżej = wolniejsza eskalacja.
-// 1.0 (1 budynek/falę) — przy rzadszych falach (WAVE_TIME 30) 1.4 dawało mizernego
-// wroga na fali 4 (2 piech. + 1 czołg). 1.0 nadrabia rozbudowę, nie robiąc powodzi.
-export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:1.0 };
+// EBUILD_EVERY: co ile fal wróg dokłada budynek. Niżej = szybsza eskalacja.
+// 0.85 (~1,18 budynku/falę) — bastion padał za szybko (wygrana fala 8), więc
+// wróg napiera mocniej, trudniej utrzymać push na NATARCIE. ~90% tempa oryginału.
+export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:0.85 };
 
 // --- budynki ---
 export const B = {
@@ -129,6 +129,9 @@ export const BACK_MUL  = 0.4;
 export const CONTACT = 90;
 export const SEEN_HOLD = 2;
 export const NOUP = ['lab'];
+// klasy dla osobnych ulepszeń gracza (karty): żołnierze vs opancerzeni
+export const isSoldier = t => t==='inf' || t==='rkt';
+export const isArmored = t => t==='tank' || t==='kolos';
 
 // --- budynki wroga (skład fali) ---
 export const EB = {
@@ -169,7 +172,7 @@ const B0 = JSON.parse(JSON.stringify(B));
 export function resetTables(){
   for (const k in U0){ for (const f in U[k]) delete U[k][f]; Object.assign(U[k], U0[k]); }
   for (const k in B0){ for (const f in B[k]) delete B[k][f]; Object.assign(B[k], B0[k]); }
-  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=1.0;
+  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=0.85;
 }
 
 // --- czyste helpery siatki (bez stanu) ---

@@ -56,6 +56,7 @@
     <div id="intel-comp" class="intel-comp"></div>
     <div id="intel-hint" class="intel-hint"></div>
     <div id="intel-intent" class="intel-intent"></div>
+    <div id="intel-army" class="intel-army"></div>
   </div>
 
   <!-- Łączność / log -->
@@ -73,6 +74,16 @@
 
   <!-- Podpowiedź / status pod kursorem (desktop) i przy budowie -->
   <div id="tip" class="hud hidden"></div>
+
+  <!-- Panel ulepszenia (po tapnięciu w budynek: co da kolejny poziom + koszt) -->
+  <div id="upgrade" class="hud hidden">
+    <div class="up-info">
+      <div id="up-name" class="up-name"></div>
+      <div id="up-eff" class="up-eff"></div>
+    </div>
+    <button id="up-btn" class="up-btn"></button>
+    <button id="up-close" class="up-close" aria-label="zamknij">✕</button>
+  </div>
 
   <!-- Karty (draft) -->
   <div id="cards" class="overlay hidden">

@@ -56,6 +56,7 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 .intel-comp .u{ display:inline-block; margin-right:10px; }
 .intel-hint{ color:var(--warn); font-size:10px; }
 .intel-intent{ font-weight:700; font-size:11px; margin-top:2px; }
+.intel-army{ font-size:10px; color:var(--ok); margin-top:3px; }
 
 /* ---------- log ---------- */
 #log{ left:calc(8px + var(--safe-l)); bottom:calc(150px + var(--safe-b)); width:230px;
@@ -109,6 +110,21 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 /* ---------- tip ---------- */
 #tip{ background:#080c0dee; border:1px solid var(--gridHi); border-radius:3px;
   padding:5px 8px; font-size:10px; pointer-events:none; z-index:9; max-width:220px; }
+
+/* ---------- panel ulepszenia ---------- */
+#upgrade{ left:50%; transform:translateX(-50%); bottom:calc(148px + var(--safe-b));
+  z-index:10; display:flex; align-items:center; gap:8px; max-width:min(380px,94vw);
+  background:#0e1416f2; border:1px solid var(--warn); border-radius:6px; padding:7px 8px; }
+#upgrade .up-info{ display:flex; flex-direction:column; line-height:1.25; min-width:0; }
+#up-name{ font-weight:700; font-size:12px; color:var(--txt); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+#up-eff{ font-size:10px; color:var(--ok); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#up-btn{ font-family:inherit; font-weight:700; font-size:12px; color:#0f1315; white-space:nowrap;
+  background:var(--ok); border:none; border-radius:4px; padding:9px 12px; cursor:pointer; min-height:38px; }
+#up-btn:active{ filter:brightness(1.15); }
+#up-btn.poor{ background:var(--panelHi); color:var(--dim); border:1px solid var(--gridHi); }
+#up-close{ font-family:inherit; font-size:13px; color:var(--dim); background:transparent;
+  border:none; cursor:pointer; padding:6px 6px; min-height:38px; }
 
 /* ---------- overlaye ---------- */
 .overlay{ position:absolute; inset:0; z-index:20; display:flex; align-items:center;
