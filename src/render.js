@@ -356,8 +356,8 @@ function drawUnits(){
   const rl=radarLvl();
   for (const u of S.units){
     const v=ensureUnitView(u), d=U[u.type], s=d.sz, p=u.side==='p';
-    const vis   = p || u.nearT>0 || rl>=2;
-    const known = p || (u.seenT>0);
+    const vis   = p || u.nearT>0 || rl>=1;   // radar I: widać ich kształty (kwadraty/prostokąty) na całym polu
+    const known = p || (u.seenT>0);          // rozpoznanie typu: w zwarciu (radar I) lub wszędzie (radar II)
     v.visible=vis; if (!vis) continue;
     v.x=u.x; v.y=u.y;
     v.spr.visible=known; v.fog.visible=!known;

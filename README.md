@@ -76,4 +76,6 @@ Szczegóły i konwencje nazw: `assets/README.md`.
 Bastion po prawej **jest bazą wroga** — im bardziej go rozbijesz, tym słabsze jego
 fale. Żyły rudy odrastają, ale kratka pod budynkiem to martwa kratka. Zajęty teren
 (sektory) płaci Ci kredyty — a oddany płaci wrogowi. Bez radaru wroga widzisz
-dopiero w zwarciu. Co 5 fal dostajesz rozkaz ze sztabu — jedną z trzech kart.
+dopiero w zwarciu; radar I pokazuje jego kształty na całym polu (typ rozpoznasz
+w zwarciu), radar II daje pełną widoczność. Co 5 fal dostajesz rozkaz ze sztabu —
+jedną z trzech kart.
