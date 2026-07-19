@@ -58,24 +58,24 @@ export const ORE_RATE  = 2;
 // teraz kontra stały dochód. Odrost pustej żyły 0→450: ~110 s zamiast ~560 s.
 export const ORE_REGEN = 4;
 export const ORE_YOUNG = 0.25;
-export const BAS_HP    = 1500;
+export const BAS_HP    = 2200;   // twardszy: nie da się wygrać szybką dekapitacją, front trwa dłużej
 export const BAS_DMG   = 34;
 export const BAS_RANGE = 150;
 export const BAS_RATE  = 0.8;
 export const BAS_SPL_R = 35;
 export const BAS_SPL_N = 3;
-export const WAVE_TIME = 20;
-export const TERR_MAX  = 20;
+export const WAVE_TIME = 30;     // rzadsze fale → mniej jednostek naraz, każda znaczy więcej (patrz waveInterval)
+export const TERR_MAX  = 32;     // teren to główny silnik dochodu — powód, by bić się o mini-sztaby
 export const ETERR_SEC = 65;
 export const SELL_BACK = 0.5;
 export const MAXLVL    = 3;
 export const RAID_PAY  = 0.4;
 export const HQ_COST   = 350;
 export const CAP_R     = 118;
-export const CAP_RATE  = 11;
+export const CAP_RATE  = 6;   // wolniejsze przejmowanie (~17 s) → sektor to trwały bój, nie pstryknięcie
 
 // --- BALANS RUCHOMY (karty + resetTables) ---
-export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:1.15 };
+export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:1.8 };
 
 // --- budynki ---
 export const B = {
@@ -164,7 +164,7 @@ const B0 = JSON.parse(JSON.stringify(B));
 export function resetTables(){
   for (const k in U0){ for (const f in U[k]) delete U[k][f]; Object.assign(U[k], U0[k]); }
   for (const k in B0){ for (const f in B[k]) delete B[k][f]; Object.assign(B[k], B0[k]); }
-  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=1.15;
+  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=1.8;
 }
 
 // --- czyste helpery siatki (bez stanu) ---
