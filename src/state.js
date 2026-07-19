@@ -13,7 +13,7 @@ export const S = {
   // ekonomia / czas
   money:0, wave:0, timer:0, frontX:0,
   // prezentacja / faza
-  shake:0, state:'play', endReason:'', sel:null,
+  shake:0, state:'play', endReason:'', sel:null, upSel:null,
   // meta / kontrolki
   best:0, newArm:0, speed:1, raidPay:0, raidShow:0,
   // dziennik / doktryna

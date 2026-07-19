@@ -10,7 +10,7 @@ import { S, say } from './state.js';
 import { isMuted } from './audio.js';
 import { incomeRate, oreBreak, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { terrIncome } from './sectors.js';
-import { radarLvl, unlocked, reqText } from './buildings.js';
+import { radarLvl, unlocked, reqText, canUp, upCost, upText } from './buildings.js';
 import { eComp, eRatio } from './enemy.js';
 import { takeCard } from './cards.js';
 import { setStance } from './sim.js';
@@ -32,7 +32,7 @@ export function buildBar(){
   const sell=document.createElement('div'); sell.className='tile sell'; sell.dataset.type='SELL';
   sell.innerHTML=`<span class="ico">✂</span><span class="nm">ROZBIÓRKA</span>`+
                  `<span class="cost warn">zwrot 50%</span><span class="desc">obiekty 50% · żyły 40%</span>`;
-  sell.addEventListener('click', ()=>{ S.sel = S.sel==='SELL'?null:'SELL'; });
+  sell.addEventListener('click', ()=>{ S.sel = S.sel==='SELL'?null:'SELL'; S.upSel=null; });
   bar.appendChild(sell);
 }
 function updateBar(){
@@ -63,7 +63,7 @@ function updateBar(){
 }
 function onBuildTile(t){
   if (!unlocked(t)){ say('WYMAGA: '+reqText(t).toUpperCase(),'warn'); toast('WYMAGA: '+reqText(t)); return; }
-  S.sel = S.sel===t ? null : t;
+  S.sel = S.sel===t ? null : t; S.upSel=null;
 }
 
 /* --------------------------- suwak linii --------------------------------- */
@@ -209,4 +209,26 @@ export function updateHUD(){
   updateBar();
   updateStanceSlider();
   updateLog();
+  updateUpgradePanel();
+}
+
+/* ---- panel ulepszenia budynku (po tapnięciu; koszt + efekt kolejnego poziomu) ---- */
+function updateUpgradePanel(){
+  const el=qs('upgrade');
+  const b = (S.state==='play' && !S.sel && S.upSel && S.buildings.includes(S.upSel)) ? S.upSel : null;
+  if (!b){ el.classList.add('hidden'); if (S.upSel && !S.buildings.includes(S.upSel)) S.upSel=null; return; }
+  el.classList.remove('hidden');
+  qs('up-name').textContent = B[b.type].name+' '+'I'.repeat(b.lvl);
+  const can = canUp(b), btn=qs('up-btn');
+  if (can){
+    const cost=upCost(b), afford=S.money>=cost;
+    qs('up-eff').textContent = '▲ '+upText(b);
+    qs('up-eff').style.color = CO.ok;
+    btn.style.display=''; btn.textContent='ULEPSZ · '+cost+' kr';
+    btn.classList.toggle('poor', !afford);
+  } else {
+    qs('up-eff').textContent = 'MAKS. POZIOM';
+    qs('up-eff').style.color = CO.dim;
+    btn.style.display='none';
+  }
 }
