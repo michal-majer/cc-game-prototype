@@ -31,14 +31,14 @@ export const DECK = [
    f:()=>{ BAL.CLEAR_SALV=0.7; }},
   {n:'KOMPRESJA',      k:'RUDA',   d:'elektrownia +3 mocy (6 → 9)',
    f:()=>{ B.power.sup=9; }},
-  {n:'MOBILIZACJA',    k:'KRATKI', d:'barak: 2 piechoty zamiast 1, na każdym poziomie',
-   f:()=>{ B.barracks.count=2; }},
+  {n:'MOBILIZACJA',    k:'KRATKI', d:'barak i wyrzutnia: 2 jednostki zamiast 1, na każdym poziomie',
+   f:()=>{ B.barracks.count=2; B.rocket.count=2; }},
   {n:'SZTAB POLOWY',   k:'KRATKI', d:'sztab: +10% zamiast +7% na poziom',
    f:()=>{ BAL.HQ_STEP=0.10; }},
   {n:'SABOTAŻ',        k:'WRÓG',   d:'bastion −250 HP natychmiast',
    f:()=>{ S.bastion.maxHp-=250; S.bastion.hp=Math.max(1,S.bastion.hp-250);
            explode(S.bastion.x,S.bastion.y,30,CO.warn); boom(0.9); S.shake=Math.max(S.shake,20); }},
-  {n:'BLOKADA',        k:'WRÓG',   d:'ich rozbudowa: co 1,5 fali → co 2,2',
+  {n:'BLOKADA',        k:'WRÓG',   d:'ich rozbudowa: co 1,15 fali → co 2,2',
    f:()=>{ BAL.EBUILD_EVERY=2.2; }},
 ];
 
