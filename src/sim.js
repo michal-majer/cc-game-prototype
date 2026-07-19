@@ -70,7 +70,10 @@ export function doWave(){
     wheels: S.buildings.filter(b=>b.type==='workshop' && b.powered).length,
     arty:   S.buildings.filter(b=>b.type==='arty' && b.powered).length,
   });
-  S.eBuildDebt += 1/BAL.EBUILD_EVERY;
+  // wolny początek: wróg rozbudowuje się powoli przez pierwsze ~5 fal, potem pełne
+  // tempo (EBUILD_EVERY). Trzyma napór z dala od startu, nie ruszając późnej gry.
+  const earlyRamp = Math.min(1, S.wave/5);   // fala1: 0.2 → fala5+: 1.0
+  S.eBuildDebt += earlyRamp/BAL.EBUILD_EVERY;
   while (S.eBuildDebt >= 1){ S.eBuildDebt -= 1; eBuild(); }
 }
 
