@@ -70,9 +70,10 @@ export function doWave(){
     wheels: S.buildings.filter(b=>b.type==='workshop' && b.powered).length,
     arty:   S.buildings.filter(b=>b.type==='arty' && b.powered).length,
   });
-  // wolny początek: wróg rozbudowuje się powoli przez pierwsze ~5 fal, potem pełne
-  // tempo (EBUILD_EVERY). Trzyma napór z dala od startu, nie ruszając późnej gry.
-  const earlyRamp = Math.min(1, S.wave/5);   // fala1: 0.2 → fala5+: 1.0
+  // Leciutki oddech na 1. fali, potem PEŁNE tempo już od 2. Poprzednie S.wave/5
+  // zamrażało wroga do ~fali 5 (3 budynki na fali 4 = 2 piechoty + czołg, żenada).
+  // Teraz wróg realnie rośnie od startu, a i tak walczy garść, nim ruszy masa.
+  const earlyRamp = Math.min(1, 0.6 + S.wave*0.2);   // fala1: 0.8 → fala2+: 1.0
   S.eBuildDebt += earlyRamp/BAL.EBUILD_EVERY;
   while (S.eBuildDebt >= 1){ S.eBuildDebt -= 1; eBuild(); }
 }

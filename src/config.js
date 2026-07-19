@@ -67,7 +67,7 @@ export const ORE_RATE  = 3;
 //                chcesz więcej, przenieś rafinerię na odrośniętą żyłę.
 export const ORE_REGEN = 5;
 export const ORE_SIP   = 1;
-export const ORE_YOUNG = 0.08;   // startowe wypełnienie żyły (chude — patrz genOre; było 0.25 = za dużo rudy na zaoranie)
+export const ORE_YOUNG = 0.11;   // startowe wypełnienie żyły (0.08→0.11: pola głębsze = silnik trwa dłużej; wciąż za chude na fortunę z zaorania — patrz genOre)
 export const BAS_HP    = 2200;   // twardszy: nie da się wygrać szybką dekapitacją, front trwa dłużej
 export const BAS_DMG   = 34;
 export const BAS_RANGE = 150;

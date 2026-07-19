@@ -20,12 +20,11 @@ export function genOre(){
   };
   seedIn(0, 2);            // pole górne
   seedIn(ROWS-3, ROWS-1);  // pole dolne (rozdzielone od górnego w pionie)
-  for (let t=0;t<200 && seeds.length<3;t++){   // najwyżej 1 dodatkowa żyła (mniej rudy na zaoranie)
-    const c=2+(Math.random()*5|0), r=(Math.random()*ROWS)|0;
-    if (far(c,r)) seeds.push({c,r});
-  }
+  // DWA pola — bez losowej trzeciej żyły. „Mniej, ale dłuższe": jedno górne,
+  // jedno dolne, każde WIĘKSZE i głębsze, więc rafineria ciągnie z niego dłużej,
+  // zanim spadnie do sączka. Dwie rafinerie na dwa pola = pełna decyzja o placem.
   for (const s of seeds){
-    const cells=[{c:s.c,r:s.r}], size=3+(Math.random()*2|0);   // 3–4 kratki na żyłę
+    const cells=[{c:s.c,r:s.r}], size=4+(Math.random()*2|0);   // 4–5 kratek na żyłę (głębsze pole = dłuższy silnik)
     for (let t=0;t<40 && cells.length<size;t++){
       const b=cells[(Math.random()*cells.length)|0];
       const d=[[0,1],[0,-1],[1,0],[-1,0]][(Math.random()*4)|0];
@@ -34,13 +33,36 @@ export function genOre(){
       if (cells.some(x=>x.c===nc&&x.r===nr)) continue;
       cells.push({c:nc,r:nr});
     }
-    // MŁODA ruda — pola startują chude (ORE_YOUNG..+0.22 ≈ 8–30% z 450 = ~36–135/kratkę),
-    // żeby zaoranie na starcie dawało grosze, nie fortunę. Odrost spoczynkowy (5/s)
-    // sam je napełni; rafineria i tak ciągnie bRate z każdej kratki >5.
-    const mat = ORE_YOUNG + Math.random()*0.22;
+    // MŁODA ruda — pola startują umiarkowanie chude (ORE_YOUNG..+0.20 ≈ 11–31% z 450
+    // = ~50–140/kratkę), żeby zaoranie na starcie nie było fortuną, ale głębiej niż
+    // wcześniej: silnik trwa dłużej. Odrost spoczynkowy (5/s) i tak dopełnia pole.
+    const mat = ORE_YOUNG + Math.random()*0.20;
     for (const x of cells){ S.grid[x.r][x.c].ore=Math.round(BAL.ORE_MAX*mat); S.grid[x.r][x.c].seam=true; }
   }
   for (let r=1;r<=4;r++) for (let c=0;c<=1;c++){ S.grid[r][c].ore=0; S.grid[r][c].seam=false; }
+}
+
+// Karta bonus (NOWE ZŁOŻE): dokłada świeżą, bogatą żyłę w wolnym miejscu siatki.
+// Comeback-lever, gdy pola się wypaliły — „+1 ruda na planszy" z talii.
+export function seedSeam(){
+  const empty = (c,r) => { const g=S.grid[r]&&S.grid[r][c]; return g && !g.b && !g.seam && g.ore<=0; };
+  const seeds=[];
+  for (let r=0;r<ROWS;r++) for (let c=2;c<COLS;c++) if (empty(c,r)) seeds.push({c,r});
+  if (!seeds.length){ say('BRAK MIEJSCA NA NOWĄ ŻYŁĘ','warn'); return false; }
+  const s = seeds[(Math.random()*seeds.length)|0];
+  const cells=[{c:s.c,r:s.r}], size=4+(Math.random()*2|0);   // 4–5 kratek, jak pola startowe
+  for (let t=0;t<40 && cells.length<size;t++){
+    const b=cells[(Math.random()*cells.length)|0];
+    const d=[[0,1],[0,-1],[1,0],[-1,0]][(Math.random()*4)|0];
+    const nc=b.c+d[0], nr=b.r+d[1];
+    if (nc<2||nc>=COLS||nr<0||nr>=ROWS) continue;
+    if (!empty(nc,nr) || cells.some(x=>x.c===nc&&x.r===nr)) continue;
+    cells.push({c:nc,r:nr});
+  }
+  // Świeże złoże z karty jest BOGATE (~55% capa) — to nagroda, ma od razu robić robotę.
+  for (const x of cells){ S.grid[x.r][x.c].ore=Math.round(BAL.ORE_MAX*0.55); S.grid[x.r][x.c].seam=true; }
+  say('◆ NOWE ZŁOŻE — '+cells.length+' KRATEK RUDY','good');
+  return true;
 }
 
 export function oreAround(t,c,r){
