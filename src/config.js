@@ -138,6 +138,9 @@ export const BACK_MUL  = 0.4;
 export const CONTACT = 90;
 export const SEEN_HOLD = 2;
 export const NOUP = ['lab'];
+// klasy dla osobnych ulepszeń gracza (karty): żołnierze vs opancerzeni
+export const isSoldier = t => t==='inf' || t==='rkt';
+export const isArmored = t => t==='tank' || t==='kolos';
 
 // --- budynki wroga (skład fali) ---
 export const EB = {
