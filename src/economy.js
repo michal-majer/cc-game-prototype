@@ -2,7 +2,7 @@
    FRONT — ruda: generacja żył, wydobycie, odrost, statystyki złóż.
    ========================================================================= */
 
-import { COLS, ROWS, ORE_REGEN, ORE_YOUNG, BAL, ringOf } from './config.js';
+import { COLS, ROWS, ORE_REGEN, ORE_SIP, ORE_YOUNG, BAL, ringOf } from './config.js';
 import { S, say } from './state.js';
 import { bRate } from './buildings.js';
 
@@ -57,7 +57,7 @@ export function incomeRate(){
     for (const [cc,rr] of ringOf(b.type,b.c,b.r)){
       const g=S.grid[rr][cc];
       if (!g.seam) continue;
-      inc += g.ore > 5 ? bRate(b) : ORE_REGEN;
+      inc += g.ore > 5 ? bRate(b) : ORE_SIP;
     }
   }
   return inc;
@@ -72,7 +72,7 @@ export function oreBreak(){
       if (g.ore>5){ rich++; richRate+=bRate(b); } else sip++;
     }
   }
-  return {rich, richRate, sip, sipRate:sip*ORE_REGEN};
+  return {rich, richRate, sip, sipRate:sip*ORE_SIP};
 }
 export function seamsAlive(){
   let n=0;
@@ -90,11 +90,14 @@ export function seamsTapped(){
 export function regrow(dt){
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
     const g=S.grid[r][c];
+    const tapped=g.pull;   // czynna w POPRZEDNIEJ klatce (extract ustawia pull po regrow)
     g.pull=false;
     if (!g.seam) continue;
     g.prevOre = g.ore;   // migawka sprzed odrostu — trend (odrost vs wydobycie) liczy render
     if (g.b || g.ore>=BAL.ORE_MAX) continue;
-    g.ore = Math.min(BAL.ORE_MAX, g.ore + ORE_REGEN*dt);
+    // czynna żyła odrasta wolno (=drenaż I poz., podtrzymanie + mały sączek),
+    // spoczynkowa szybko (odbicie pola, które zostawiłeś w spokoju)
+    g.ore = Math.min(BAL.ORE_MAX, g.ore + (tapped?ORE_SIP:ORE_REGEN)*dt);
   }
 }
 export function extract(dt){
