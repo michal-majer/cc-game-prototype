@@ -7,7 +7,7 @@
 import * as PIXI from '../vendor/pixi.min.mjs';
 import {
   CO, U, B, BASE_X, BASE_Y, CELL, COLS, ROWS, BASE_R, LANE_Y, LANE_HALF, BAS_X,
-  STANCES, CAP_R, TERR_MAX, ORE_REGEN, EHOLD_X, BAL, HEX, clamp, ringOf, cellAt
+  STANCES, CAP_R, TERR_MAX, ORE_SIP, EHOLD_X, BAL, HEX, clamp, ringOf, cellAt
 } from './config.js';
 import { S, SECT, lineX } from './state.js';
 import { buildTex, unitTex, tex } from './assets.js';
@@ -221,7 +221,7 @@ function drawBaseGrid(g){
         const net = cell.ore - (cell.prevOre==null?cell.ore:cell.prevOre);   // odrost − wydobycie w tej klatce
         if (f>=0.97)        wt('▲ PEŁNA',        x+CELL/2, y+CELL-6, 6, CO.ok);   // odrost utrzymuje żyłę na maksie
         else if (net>1e-6)  wt('▲ ODRASTA',      x+CELL/2, y+CELL-6, 6, CO.ok);   // odrost > wydobycie — rośnie
-        else if (f<=0.03)   wt('SĄCZY +'+ORE_REGEN, x+CELL/2, y+CELL-6, 6, CO.ok);
+        else if (f<=0.03)   wt('SĄCZY +'+ORE_SIP, x+CELL/2, y+CELL-6, 6, CO.ok);
         else                wt('SCHYŁEK',        x+CELL/2, y+CELL-6, 6, CO.red);  // wydobycie > odrost — spada
       } else if (f<0.995){
         g.rect(x+7,y+CELL-11,CELL-14,4).fill('#000000');

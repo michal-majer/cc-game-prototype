@@ -4,7 +4,7 @@
    ========================================================================= */
 
 import {
-  CO, B, U, BAR, STANCES, TERR_MAX, WAVE_TIME, ORE_REGEN, BAS_HP, EPATIENCE, EPAT_MASS
+  CO, B, U, BAR, STANCES, TERR_MAX, WAVE_TIME, ORE_SIP, BAS_HP, EPATIENCE, EPAT_MASS
 } from './config.js';
 import { S, say } from './state.js';
 import { isMuted } from './audio.js';
@@ -161,7 +161,7 @@ export function updateHUD(){
   let note='', ncol=CO.dim;
   if (seamsAlive()===0){ note='POLE MARTWE — NIC NIE ODROŚNIE'; ncol=CO.bad; }
   else if (seamsTapped()===0){ note='◄ RUDA LEŻY — PRZENIEŚ RAFINERIĘ'; ncol=CO.bad; }
-  else if (ob.rich>0){ const net=ob.richRate-ob.rich*ORE_REGEN;
+  else if (ob.rich>0){ const net=ob.richRate-ob.rich*ORE_SIP;
     if (net<=0.5){ note='złoża się utrzymują — odrost nadąża'; ncol=CO.ok; }
     else { note='złoża na '+Math.ceil(ot/net/WAVE_TIME)+' fal'; ncol=CO.dim; } }
   else { note='SĄCZEK +'+ob.sipRate.toFixed(1)+'/s — BEZ KOŃCA'; ncol=CO.ok; }
