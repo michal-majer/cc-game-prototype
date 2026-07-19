@@ -20,7 +20,7 @@ export function genOre(){
   };
   seedIn(0, 2);            // pole górne
   seedIn(ROWS-3, ROWS-1);  // pole dolne (rozdzielone od górnego w pionie)
-  for (let t=0;t<200 && seeds.length<4;t++){   // 1–2 luźne żyły dla urozmaicenia
+  for (let t=0;t<200 && seeds.length<3;t++){   // najwyżej 1 dodatkowa żyła (mniej rudy na zaoranie)
     const c=2+(Math.random()*5|0), r=(Math.random()*ROWS)|0;
     if (far(c,r)) seeds.push({c,r});
   }
@@ -34,7 +34,10 @@ export function genOre(){
       if (cells.some(x=>x.c===nc&&x.r===nr)) continue;
       cells.push({c:nc,r:nr});
     }
-    const mat = ORE_YOUNG + Math.random()*(1-ORE_YOUNG);
+    // MŁODA ruda — pola startują chude (ORE_YOUNG..+0.22 ≈ 8–30% z 450 = ~36–135/kratkę),
+    // żeby zaoranie na starcie dawało grosze, nie fortunę. Odrost spoczynkowy (5/s)
+    // sam je napełni; rafineria i tak ciągnie bRate z każdej kratki >5.
+    const mat = ORE_YOUNG + Math.random()*0.22;
     for (const x of cells){ S.grid[x.r][x.c].ore=Math.round(BAL.ORE_MAX*mat); S.grid[x.r][x.c].seam=true; }
   }
   for (let r=1;r<=4;r++) for (let c=0;c<=1;c++){ S.grid[r][c].ore=0; S.grid[r][c].seam=false; }

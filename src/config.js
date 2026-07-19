@@ -59,7 +59,7 @@ export const ORE_RATE  = 2;
 // Rozdzielone, bo jedna liczba sterowała i odbiciem, i sączkiem (firehose).
 export const ORE_REGEN = 5;
 export const ORE_SIP   = 2;
-export const ORE_YOUNG = 0.25;
+export const ORE_YOUNG = 0.08;   // startowe wypełnienie żyły (chude — patrz genOre; było 0.25 = za dużo rudy na zaoranie)
 export const BAS_HP    = 2200;   // twardszy: nie da się wygrać szybką dekapitacją, front trwa dłużej
 export const BAS_DMG   = 34;
 export const BAS_RANGE = 150;

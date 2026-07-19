@@ -156,7 +156,7 @@ export function updateHUD(){
   const ob=oreBreak(), ot=oreTotal(), of=S.oreStart?ot/S.oreStart:0, dry=of<0.25&&ob.rich>0;
   qs('ore').textContent=Math.floor(ot);
   qs('ore').style.color = dry?CO.bad:CO.ore;
-  qs('ore-bar').style.width=(of*100)+'%';
+  qs('ore-bar').style.width=(Math.min(1,of)*100)+'%';   // odrost może przebić start — nie przelewaj paska
   qs('ore-bar').style.background = dry?CO.bad:CO.ore;
   let note='', ncol=CO.dim;
   if (seamsAlive()===0){ note='POLE MARTWE — NIC NIE ODROŚNIE'; ncol=CO.bad; }
