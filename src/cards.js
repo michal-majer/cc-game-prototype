@@ -38,7 +38,7 @@ export const DECK = [
   {n:'SABOTAŻ',        k:'WRÓG',   d:'bastion −250 HP natychmiast',
    f:()=>{ S.bastion.maxHp-=250; S.bastion.hp=Math.max(1,S.bastion.hp-250);
            explode(S.bastion.x,S.bastion.y,30,CO.warn); boom(0.9); S.shake=Math.max(S.shake,20); }},
-  {n:'BLOKADA',        k:'WRÓG',   d:'ich rozbudowa: co 1,15 fali → co 2,2',
+  {n:'BLOKADA',        k:'WRÓG',   d:'ich rozbudowa: co 0,7 fali → co 2,2',
    f:()=>{ BAL.EBUILD_EVERY=2.2; }},
 ];
 

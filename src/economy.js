@@ -2,7 +2,7 @@
    FRONT — ruda: generacja żył, wydobycie, odrost, statystyki złóż.
    ========================================================================= */
 
-import { COLS, ROWS, ORE_REGEN, ORE_SIP, ORE_YOUNG, BAL, ringOf } from './config.js';
+import { COLS, ROWS, BASE_INCOME, ORE_REGEN, ORE_SIP, ORE_YOUNG, BAL, ringOf } from './config.js';
 import { S, say } from './state.js';
 import { bRate } from './buildings.js';
 
@@ -54,7 +54,7 @@ export function oreTotal(){
   return n;
 }
 export function incomeRate(){
-  let inc=3;
+  let inc=BASE_INCOME;
   for (const b of S.buildings){
     if (b.type!=='refinery' || !b.powered) continue;
     for (const [cc,rr] of ringOf(b.type,b.c,b.r)){
@@ -104,7 +104,7 @@ export function regrow(dt){
   }
 }
 export function extract(dt){
-  let got=3*dt;
+  let got=BASE_INCOME*dt;
   for (const b of S.buildings){
     if (b.type!=='refinery' || !b.powered) continue;
     for (const [cc,rr] of ringOf(b.type,b.c,b.r)){
