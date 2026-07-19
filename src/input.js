@@ -16,6 +16,16 @@ import { newRun } from './game.js';
 
 const qs = id => document.getElementById(id);
 
+// ulepszenie budynku — wołane z drugiego tapnięcia i z przycisku ULEPSZ w panelu
+function doUpgrade(b){
+  if (!b || !canUp(b)){ toast('MAKS. POZIOM'); return; }
+  const cost=upCost(b);
+  if (S.money<cost){ say('BRAK ŚRODKÓW — '+cost+' kr.','warn'); toast('BRAK ŚRODKÓW — '+cost+' kr.'); return; }
+  S.money-=cost; b.lvl++;
+  say('ULEPSZONO — '+B[b.type].name+' '+'I'.repeat(b.lvl),'good');
+  b.flash=1; explode(b.x,b.y,10,B[b.type].col); boom(0.1); recalcPower();
+}
+
 function worldTap(px,py){
   if (S.state!=='play') return;
   const w=screenToWorld(px,py);
@@ -42,12 +52,10 @@ function worldTap(px,py){
     return;
   }
   if (!S.sel){
-    const b=g.b; if (!b || !canUp(b)) return;
-    const cost=upCost(b);
-    if (S.money<cost){ say('BRAK ŚRODKÓW — '+cost+' kr.','warn'); toast('BRAK ŚRODKÓW — '+cost+' kr.'); return; }
-    S.money-=cost; b.lvl++;
-    say('ULEPSZONO — '+B[b.type].name+' '+'I'.repeat(b.lvl),'good');
-    b.flash=1; explode(b.x,b.y,10,B[b.type].col); boom(0.1); recalcPower();
+    const b=g.b;
+    if (!b){ S.upSel=null; return; }        // tap w puste pole → zamknij panel ulepszenia
+    if (S.upSel!==b){ S.upSel=b; return; }   // 1. tap: pokaż panel (co ulepszy i za ile)
+    doUpgrade(b);                            // 2. tap w ten sam budynek: potwierdź
     return;
   }
   // budowa
@@ -122,6 +130,8 @@ function initButtons(){
   qs('ready').addEventListener('click', ()=>{ resumeAudio(); S.ready=true; syncOverlays(); });
   qs('end-btn').addEventListener('click', ()=>newRun());
   qs('log-toggle').addEventListener('click', ()=>qs('log').classList.toggle('show'));
+  qs('up-btn').addEventListener('click', ()=>{ resumeAudio(); doUpgrade(S.upSel); });
+  qs('up-close').addEventListener('click', ()=>{ S.upSel=null; });
 
   addEventListener('keydown', e=>{
     if (S.state==='draft'){
@@ -129,7 +139,7 @@ function initButtons(){
       if (i!==undefined && S.draft && S.draft[i]) takeCard(S.draft[i]);
       return;
     }
-    if (e.code==='Escape') S.sel=null;
+    if (e.code==='Escape'){ S.sel=null; S.upSel=null; }
     if (e.code==='Space'){ e.preventDefault();
       if (S.state!=='play'){ newRun(); return; }
       if (!S.ready){ S.ready=true; syncOverlays(); return; }
