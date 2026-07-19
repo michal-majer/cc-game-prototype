@@ -75,7 +75,10 @@ export const CAP_R     = 118;
 export const CAP_RATE  = 6;   // wolniejsze przejmowanie (~17 s) → sektor to trwały bój, nie pstryknięcie
 
 // --- BALANS RUCHOMY (karty + resetTables) ---
-export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:1.8 };
+// EBUILD_EVERY: co ile fal wróg dokłada budynek. Wyżej = wolniejsza eskalacja.
+// 1.4 przy rzadszych falach (WAVE_TIME 30) trzyma napór wroga w ryzach, ale nie
+// pozwala mu zostać w tyle ekonomicznie — dłuższa gra bez robienia jej za łatwą.
+export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:1.4 };
 
 // --- budynki ---
 export const B = {
@@ -164,7 +167,7 @@ const B0 = JSON.parse(JSON.stringify(B));
 export function resetTables(){
   for (const k in U0){ for (const f in U[k]) delete U[k][f]; Object.assign(U[k], U0[k]); }
   for (const k in B0){ for (const f in B[k]) delete B[k][f]; Object.assign(B[k], B0[k]); }
-  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=1.8;
+  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=1.4;
 }
 
 // --- czyste helpery siatki (bez stanu) ---
