@@ -1,0 +1,45 @@
+name: Pages + podgląd PR
+
+# Żywa strona z main w korzeniu gh-pages, a każdy PR w podkatalogu
+# pr-preview/pr-N/ — dzięki temu jedno źródło Pages (gałąź gh-pages) obsługuje
+# i produkcję, i podglądy PR-ów obok siebie.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+# Serializuj wszystkie deploye na gh-pages, żeby pushe się nie ścigały.
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # push na gałąź gh-pages
+  pull-requests: write   # komentarz z linkiem do podglądu
+
+jobs:
+  # main → korzeń gh-pages (żywa strona). Nie kasuje podglądów PR-ów.
+  deploy-main:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: .
+          clean: true
+          clean-exclude: |
+            pr-preview/
+
+  # każdy PR → gh-pages/pr-preview/pr-N/ (znika po zamknięciu/merge'u PR-a)
+  preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: .

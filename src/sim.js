@@ -19,6 +19,13 @@ import { eDecide, eBuild, eComp } from './enemy.js';
 import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor } from './buildings.js';
 import { openDraft } from './cards.js';
 
+// Odstęp do następnej fali. Wolniejszy początek: pierwsze fale rzadziej, żeby
+// garść jednostek realnie biła się o mini-sztaby, zanim ruszy masa. Rozpędza
+// się do WAVE_TIME (fala 0: +20 s → fala 5+: 0). Trzymaj < 60 s (format HUD 0:SS).
+export function waveInterval(){
+  return WAVE_TIME + Math.max(0, 5 - S.wave) * 4;
+}
+
 export function dmgTo(t, amount, srcType, ap){
   const src = srcType ? U[srcType] : null;
   let m=1;
@@ -70,8 +77,8 @@ export function update(dt){
   updSect(dt);
   S.money += extract(dt) + terrIncome()*dt;
   S.timer -= dt;
-  if (Number.isNaN(S.timer)) S.timer=WAVE_TIME;
-  if (S.timer<=0){ doWave(); S.timer=WAVE_TIME; }
+  if (Number.isNaN(S.timer)) S.timer=waveInterval();
+  if (S.timer<=0){ doWave(); S.timer=waveInterval(); }
   S.newArm -= dt;
   S.eTerrBank += eTerrCtrl()*(100/ETERR_SEC)*dt;
   if (S.eTerrBank>=100){

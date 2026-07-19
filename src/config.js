@@ -51,26 +51,34 @@ export const CO = {
 
 // --- ruda / bastion / ekonomia ---
 export const ORE_RATE  = 2;
-export const ORE_REGEN = 0.8;
+// Odrost/s żyły — jednocześnie „sączek", który rafineria ciągnie z wypalonej
+// żyły (fizycznie to samo: to, co zdąży odrosnąć, od razu wraca do rafinerii).
+// Musi ≥ ORE_RATE, żeby rafineria I poziomu UTRZYMYWAŁA pole (drenaż 2/s), a nie
+// wypalała je do zera. Ulepszona (bRate 5/8) nadal przedrenuje → wybór: burst
+// teraz kontra stały dochód. Odrost pustej żyły 0→450: ~110 s zamiast ~560 s.
+export const ORE_REGEN = 4;
 export const ORE_YOUNG = 0.25;
-export const BAS_HP    = 1500;
+export const BAS_HP    = 2200;   // twardszy: nie da się wygrać szybką dekapitacją, front trwa dłużej
 export const BAS_DMG   = 34;
 export const BAS_RANGE = 150;
 export const BAS_RATE  = 0.8;
 export const BAS_SPL_R = 35;
 export const BAS_SPL_N = 3;
-export const WAVE_TIME = 20;
-export const TERR_MAX  = 20;
+export const WAVE_TIME = 30;     // rzadsze fale → mniej jednostek naraz, każda znaczy więcej (patrz waveInterval)
+export const TERR_MAX  = 32;     // teren to główny silnik dochodu — powód, by bić się o mini-sztaby
 export const ETERR_SEC = 65;
 export const SELL_BACK = 0.5;
 export const MAXLVL    = 3;
 export const RAID_PAY  = 0.4;
 export const HQ_COST   = 350;
 export const CAP_R     = 118;
-export const CAP_RATE  = 11;
+export const CAP_RATE  = 6;   // wolniejsze przejmowanie (~17 s) → sektor to trwały bój, nie pstryknięcie
 
 // --- BALANS RUCHOMY (karty + resetTables) ---
-export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:1.15 };
+// EBUILD_EVERY: co ile fal wróg dokłada budynek. Wyżej = wolniejsza eskalacja.
+// 1.4 przy rzadszych falach (WAVE_TIME 30) trzyma napór wroga w ryzach, ale nie
+// pozwala mu zostać w tyle ekonomicznie — dłuższa gra bez robienia jej za łatwą.
+export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:1.4 };
 
 // --- budynki ---
 export const B = {
@@ -78,7 +86,7 @@ export const B = {
             atk:{dmg:30, range:330, rate:0.65}, desc:'broni całej bazy · 330 px'},
   power:   {name:'ELEKTROWNIA',  short:'PRĄD',  fp:[1,1], cost:100, hp:200,  col:'#e8b23a', ico:'⚡', sup:6, req:[],
             desc:'+6 mocy · 1×1'},
-  refinery:{name:'RAFINERIA',    short:'RAF.',  fp:[2,2], cost:200, hp:250,  col:'#5fd18a', ico:'$', drn:2, req:[],
+  refinery:{name:'RAFINERIA',    short:'RAF.',  fp:[2,2], cost:250, hp:250,  col:'#5fd18a', ico:'$', drn:2, req:[],
             desc:'+6 kr./s za przyległą rudę'},
   barracks:{name:'BARAK',        short:'BARAK', fp:[1,1], cost:150, hp:200,  col:'#6fa8dc', ico:'i', drn:2, req:[],
             unit:'inf', count:1, desc:'co falę: 1× Piechota · 1×1'},
@@ -159,7 +167,7 @@ const B0 = JSON.parse(JSON.stringify(B));
 export function resetTables(){
   for (const k in U0){ for (const f in U[k]) delete U[k][f]; Object.assign(U[k], U0[k]); }
   for (const k in B0){ for (const f in B[k]) delete B[k][f]; Object.assign(B[k], B0[k]); }
-  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=1.15;
+  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=1.4;
 }
 
 // --- czyste helpery siatki (bez stanu) ---

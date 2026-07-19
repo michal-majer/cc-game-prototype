@@ -218,8 +218,11 @@ function drawBaseGrid(g){
         for (let i=0;i<n;i++) g.rect(x+9+((i*17+r*7+c*5)%(CELL-22)), y+9+((i*23+c*11+r*3)%(CELL-22)),5,5).fill(CO.ore);
       }
       if (cell.pull){
-        if (f<=0.03) wt('SĄCZY +'+ORE_REGEN, x+CELL/2, y+CELL-6, 6, CO.ok);
-        else if (f<0.34) wt('SCHYŁEK', x+CELL/2, y+CELL-6, 6, CO.red);
+        const net = cell.ore - (cell.prevOre==null?cell.ore:cell.prevOre);   // odrost − wydobycie w tej klatce
+        if (f>=0.97)        wt('▲ PEŁNA',        x+CELL/2, y+CELL-6, 6, CO.ok);   // odrost utrzymuje żyłę na maksie
+        else if (net>1e-6)  wt('▲ ODRASTA',      x+CELL/2, y+CELL-6, 6, CO.ok);   // odrost > wydobycie — rośnie
+        else if (f<=0.03)   wt('SĄCZY +'+ORE_REGEN, x+CELL/2, y+CELL-6, 6, CO.ok);
+        else                wt('SCHYŁEK',        x+CELL/2, y+CELL-6, 6, CO.red);  // wydobycie > odrost — spada
       } else if (f<0.995){
         g.rect(x+7,y+CELL-11,CELL-14,4).fill('#000000');
         g.rect(x+7,y+CELL-11,(CELL-14)*f,4).fill(CO.ore);

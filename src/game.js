@@ -8,7 +8,7 @@
                           render (Pixi) + hud (DOM) + input
    ========================================================================= */
 
-import { resetTables, DOCTRINES, BAS_HP, BAS_X, LANE_Y, WAVE_TIME,
+import { resetTables, DOCTRINES, BAS_HP, BAS_X, LANE_Y,
          FRONT_MIN, FRONT_MAX, COLS, ROWS, cellAt } from './config.js';
 import { S, say, SECT } from './state.js';
 import { loadAssets } from './assets.js';
@@ -16,7 +16,7 @@ import { genOre, oreTotal } from './economy.js';
 import { resetSect } from './sectors.js';
 import { mkBuilding, recalcPower } from './buildings.js';
 import { openDraft, OPEN, DECK } from './cards.js';
-import { update } from './sim.js';
+import { update, waveInterval } from './sim.js';
 import { initPixi, app, cam, WV, screenToWorld, clearViews, renderFrame } from './render.js';
 import { buildBar, buildStanceSlider, syncOverlays, updateHUD } from './hud.js';
 import { initInput, worldTap } from './input.js';
@@ -25,7 +25,7 @@ export function newRun(){
   resetTables();
   resetSect();
   S.grid=[];
-  for (let r=0;r<ROWS;r++){ S.grid[r]=[]; for(let c=0;c<COLS;c++) S.grid[r][c]={ore:0,seam:false,pull:false,b:null}; }
+  for (let r=0;r<ROWS;r++){ S.grid[r]=[]; for(let c=0;c<COLS;c++) S.grid[r][c]={ore:0,seam:false,pull:false,b:null,prevOre:0}; }
   genOre();
   S.oreStart=oreTotal();
   S.buildings=[]; S.units=[]; S.fx=[]; S.corpses=[]; S.tracers=[]; S.projs=[];
@@ -34,7 +34,7 @@ export function newRun(){
   S.bastion = {x:BAS_X, y:LANE_Y, hp:BAS_HP, maxHp:BAS_HP, side:'e', cd:0, flash:0, dead:false};
   S.doc = DOCTRINES[(Math.random()*DOCTRINES.length)|0];
   S.eBase = [...S.doc.start];
-  S.money=200; S.wave=0; S.timer=WAVE_TIME; S.frontX=(FRONT_MIN+FRONT_MAX)/2;
+  S.money=250; S.wave=0; S.timer=waveInterval(); S.frontX=(FRONT_MIN+FRONT_MAX)/2;  // start = koszt rafinerii: zawsze stać na jedną (karty otwarcia i tak nadpisują)
   S.deck=[...DECK]; S.draft=null;
   S.shake=0; S.state='play'; S.endReason=''; S.sel=null; S.hadRadar=0; S.offBrown=0;
   S.alertCd=0; S.ecoCd=0; S.si=0; S.fieldDead=false; S.newArm=0; S.fullCd=0;
