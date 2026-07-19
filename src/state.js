@@ -16,6 +16,8 @@ export const S = {
   shake:0, state:'play', endReason:'', sel:null, upSel:null,
   // meta / kontrolki
   best:0, newArm:0, speed:1, raidPay:0, raidShow:0,
+  // ulepszenia armii TYLKO gracza (karty) — atak/pancerz osobno dla klas
+  pBonus:{ atkS:0, armS:0, atkA:0, armA:0 },   // S=żołnierze (inf,rkt) · A=opancerzeni (tank,kolos)
   // dziennik / doktryna
   log:[], logDirty:true, hadRadar:0, doc:null,
   // moc / ekonomia pochodna

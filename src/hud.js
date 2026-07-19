@@ -194,6 +194,10 @@ export function updateHUD(){
   else { const pat=EPATIENCE*Math.max(0.25,1-eN/EPAT_MASS);
     intent.textContent='masują '+eN+' · ×'+r.toFixed(2)+' · RUSZAJĄ ZA '+Math.max(0,Math.ceil(pat-S.eHoldT))+' s';
     intent.style.color=S.eHoldT>pat*0.6?CO.warn:CO.dim; }
+  // bieżące ulepszenia Twojej armii (karty)
+  const pb=S.pBonus;
+  qs('intel-army').textContent = (pb.atkS||pb.armS||pb.atkA||pb.armA)
+    ? '▐ TWOI — żołnierze ⚔+'+pb.atkS+' ⛊+'+pb.armS+'  ·  opancerzeni ⚔+'+pb.atkA+' ⛊+'+pb.armA : '';
 
   // kontrolki
   const push=S.si===STANCES.length-1, sb=qs('stance-btn');
