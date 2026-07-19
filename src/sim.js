@@ -8,7 +8,7 @@ import {
   U, B, CO, BASE_R, LANE_Y, LANE_HALF, BAS_X, FRONT_MIN, FRONT_MAX, EHOLD_X,
   BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC,
   COUNTER, HUNT_LEASH, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
-  isHeavy, BAL
+  isHeavy, isSoldier, isArmored, BAL
 } from './config.js';
 import { S, say, lineX } from './state.js';
 import { boom, siren } from './audio.js';
@@ -26,12 +26,16 @@ export function waveInterval(){
   return WAVE_TIME + Math.max(0, 5 - S.wave) * 4;
 }
 
+// bonusy TYLKO gracza (karty) — atak/pancerz osobno dla klas
+export const pAtk = t => isArmored(t)?S.pBonus.atkA : isSoldier(t)?S.pBonus.atkS : 0;
+export const pArm = t => isArmored(t)?S.pBonus.armA : isSoldier(t)?S.pBonus.armS : 0;
+
 export function dmgTo(t, amount, srcType, ap){
   const src = srcType ? U[srcType] : null;
   let m=1;
   if (src && src.strong && src.strong.includes(t.type)) m=COUNTER;
   let d = amount*m;
-  const arm = (U[t.type] && U[t.type].arm) || 0;
+  const arm = ((U[t.type] && U[t.type].arm) || 0) + (t.side==='p' ? pArm(t.type) : 0);
   if (arm && !ap && !(src && src.ap)) d = Math.max(1, d-arm);
   t.hp -= d; t.flash=1;
   if (t.side==='e' && U[t.type]) S.eDmgWave += d;
@@ -160,7 +164,7 @@ export function update(dt){
     if (t && bd<=d.range && bd>=(d.minR||0)){
       u.cd -= dt;
       if (u.cd<=0){
-        const out = d.dmg * (u.side==='p'?pBuff():1);
+        const out = d.dmg * (u.side==='p'?pBuff():1) + (u.side==='p'?pAtk(u.type):0);
         if (d.proj){
           // pocisk leci — obrażenia dopiero na trafieniu (patrz updProj)
           S.projs.push({ x:u.x, y:u.y, tx:t.x, ty:t.y, tgt:t,
