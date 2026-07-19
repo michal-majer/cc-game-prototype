@@ -34,7 +34,7 @@ export function newRun(){
   S.bastion = {x:BAS_X, y:LANE_Y, hp:BAS_HP, maxHp:BAS_HP, side:'e', cd:0, flash:0, dead:false};
   S.doc = DOCTRINES[(Math.random()*DOCTRINES.length)|0];
   S.eBase = [...S.doc.start];
-  S.money=200; S.wave=0; S.timer=waveInterval(); S.frontX=(FRONT_MIN+FRONT_MAX)/2;
+  S.money=250; S.wave=0; S.timer=waveInterval(); S.frontX=(FRONT_MIN+FRONT_MAX)/2;  // start = koszt rafinerii: zawsze stać na jedną (karty otwarcia i tak nadpisują)
   S.deck=[...DECK]; S.draft=null;
   S.shake=0; S.state='play'; S.endReason=''; S.sel=null; S.hadRadar=0; S.offBrown=0;
   S.alertCd=0; S.ecoCd=0; S.si=0; S.fieldDead=false; S.newArm=0; S.fullCd=0;

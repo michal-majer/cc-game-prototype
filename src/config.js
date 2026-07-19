@@ -86,7 +86,7 @@ export const B = {
             atk:{dmg:30, range:330, rate:0.65}, desc:'broni całej bazy · 330 px'},
   power:   {name:'ELEKTROWNIA',  short:'PRĄD',  fp:[1,1], cost:100, hp:200,  col:'#e8b23a', ico:'⚡', sup:6, req:[],
             desc:'+6 mocy · 1×1'},
-  refinery:{name:'RAFINERIA',    short:'RAF.',  fp:[2,2], cost:200, hp:250,  col:'#5fd18a', ico:'$', drn:2, req:[],
+  refinery:{name:'RAFINERIA',    short:'RAF.',  fp:[2,2], cost:250, hp:250,  col:'#5fd18a', ico:'$', drn:2, req:[],
             desc:'+6 kr./s za przyległą rudę'},
   barracks:{name:'BARAK',        short:'BARAK', fp:[1,1], cost:150, hp:200,  col:'#6fa8dc', ico:'i', drn:2, req:[],
             unit:'inf', count:1, desc:'co falę: 1× Piechota · 1×1'},
