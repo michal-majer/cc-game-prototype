@@ -51,7 +51,12 @@ export const CO = {
 
 // --- ruda / bastion / ekonomia ---
 export const ORE_RATE  = 2;
-export const ORE_REGEN = 0.8;
+// Odrost/s żyły — jednocześnie „sączek", który rafineria ciągnie z wypalonej
+// żyły (fizycznie to samo: to, co zdąży odrosnąć, od razu wraca do rafinerii).
+// Musi ≥ ORE_RATE, żeby rafineria I poziomu UTRZYMYWAŁA pole (drenaż 2/s), a nie
+// wypalała je do zera. Ulepszona (bRate 5/8) nadal przedrenuje → wybór: burst
+// teraz kontra stały dochód. Odrost pustej żyły 0→450: ~110 s zamiast ~560 s.
+export const ORE_REGEN = 4;
 export const ORE_YOUNG = 0.25;
 export const BAS_HP    = 1500;
 export const BAS_DMG   = 34;

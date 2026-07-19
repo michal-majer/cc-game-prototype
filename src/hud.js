@@ -162,7 +162,8 @@ export function updateHUD(){
   if (seamsAlive()===0){ note='POLE MARTWE — NIC NIE ODROŚNIE'; ncol=CO.bad; }
   else if (seamsTapped()===0){ note='◄ RUDA LEŻY — PRZENIEŚ RAFINERIĘ'; ncol=CO.bad; }
   else if (ob.rich>0){ const net=ob.richRate-ob.rich*ORE_REGEN;
-    note='złoża na '+Math.ceil(ot/Math.max(1,net)/WAVE_TIME)+' fal'; ncol=CO.dim; }
+    if (net<=0.5){ note='złoża się utrzymują — odrost nadąża'; ncol=CO.ok; }
+    else { note='złoża na '+Math.ceil(ot/net/WAVE_TIME)+' fal'; ncol=CO.dim; } }
   else { note='SĄCZEK +'+ob.sipRate.toFixed(1)+'/s — BEZ KOŃCA'; ncol=CO.ok; }
   qs('ore-note').textContent=note; qs('ore-note').style.color=ncol;
   // fala

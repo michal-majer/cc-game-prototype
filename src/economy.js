@@ -7,14 +7,25 @@ import { S, say } from './state.js';
 import { bRate } from './buildings.js';
 
 export function genOre(){
+  // Dwa osobne pola rudy — strefa górna i dolna — żeby DWIE rafinerie miały
+  // sens (jedno pole = jedna rafineria). Wcześniej ruda potrafiła zlać się w
+  // jeden klaster: opłacało się postawić jedną raf., a resztę zaorać na gotówkę.
   const seeds=[];
-  for (let t=0;t<300 && seeds.length<4;t++){
+  const far = (c,r) => !seeds.some(s=>Math.abs(s.c-c)+Math.abs(s.r-r)<3);
+  const seedIn = (r0,r1) => {
+    for (let t=0;t<200;t++){
+      const c=2+(Math.random()*5|0), r=r0+(Math.random()*(r1-r0+1)|0);
+      if (far(c,r)){ seeds.push({c,r}); return; }
+    }
+  };
+  seedIn(0, 2);            // pole górne
+  seedIn(ROWS-3, ROWS-1);  // pole dolne (rozdzielone od górnego w pionie)
+  for (let t=0;t<200 && seeds.length<4;t++){   // 1–2 luźne żyły dla urozmaicenia
     const c=2+(Math.random()*5|0), r=(Math.random()*ROWS)|0;
-    if (seeds.some(s=>Math.abs(s.c-c)+Math.abs(s.r-r)<2)) continue;
-    seeds.push({c,r});
+    if (far(c,r)) seeds.push({c,r});
   }
   for (const s of seeds){
-    const cells=[{c:s.c,r:s.r}], size=2+(Math.random()*2|0);
+    const cells=[{c:s.c,r:s.r}], size=3+(Math.random()*2|0);   // 3–4 kratki na żyłę
     for (let t=0;t<40 && cells.length<size;t++){
       const b=cells[(Math.random()*cells.length)|0];
       const d=[[0,1],[0,-1],[1,0],[-1,0]][(Math.random()*4)|0];
