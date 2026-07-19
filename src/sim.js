@@ -153,24 +153,19 @@ export function update(dt){
     if (t && bd<=d.range && bd>=(d.minR||0)){
       u.cd -= dt;
       if (u.cd<=0){
-        let m=1;
         const out = d.dmg * (u.side==='p'?pBuff():1);
-        if (d.spl){
-          const foes = (u.side==='p'?eU:pU)
-            .filter(o=>o.hp>0 && Math.hypot(o.x-t.x,o.y-t.y)<=d.splR)
-            .sort((a,b)=>Math.hypot(a.x-t.x,a.y-t.y)-Math.hypot(b.x-t.x,b.y-t.y))
-            .slice(0,d.spl);
-          for (const o of foes) m=Math.max(m, dmgTo(o,out,u.type));
-          if (t.hp!==undefined && !foes.includes(t)) dmgTo(t,out,u.type);
-          explode(t.x,t.y,16,CO.warn); boom(0.13);
+        if (d.proj){
+          // pocisk leci — obrażenia dopiero na trafieniu (patrz updProj)
+          S.projs.push({ x:u.x, y:u.y, tx:t.x, ty:t.y, tgt:t,
+                         spd:d.proj, side:u.side, src:u.type, dmg:out });
         } else {
-          m=dmgTo(t,out,u.type);
-        }
-        S.tracers.push({x1:u.x,y1:u.y,x2:t.x,y2:t.y,t:m>1?0.13:0.07,
-                      c:m>1?'#ffe680':(u.side==='p'?CO.blue:CO.red), w:m>1?2.8:1});
-        if (m>1) for (let k=0;k<4;k++){
-          const a=Math.random()*6.283, sp=45+Math.random()*70;
-          S.fx.push({x:t.x,y:t.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.2,c:'#ffe680',r:2.4});
+          const m=dmgTo(t,out,u.type);
+          S.tracers.push({x1:u.x,y1:u.y,x2:t.x,y2:t.y,t:m>1?0.13:0.07,
+                        c:m>1?'#ffe680':(u.side==='p'?CO.blue:CO.red), w:m>1?2.8:1});
+          if (m>1) for (let k=0;k<4;k++){
+            const a=Math.random()*6.283, sp=45+Math.random()*70;
+            S.fx.push({x:t.x,y:t.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.2,c:'#ffe680',r:2.4});
+          }
         }
         u.cd=d.rate;
       }
@@ -258,12 +253,51 @@ export function update(dt){
   }
   S.frontX += (Math.max(FRONT_MIN,Math.min(FRONT_MAX,target))-S.frontX) * Math.min(1,dt*2.5);
 
+  updProj(dt);
+
   for (let i=S.fx.length-1;i>=0;i--){
     const p=S.fx[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.94; p.vy*=0.94; p.life-=dt;
     if (p.life<=0) S.fx.splice(i,1);
   }
   for (let i=S.tracers.length-1;i>=0;i--){ S.tracers[i].t-=dt; if (S.tracers[i].t<=0) S.tracers.splice(i,1); }
   if (S.shake>0) S.shake=Math.max(0, S.shake-dt*30);
+}
+
+/* -------------------------- pociski (lot + trafienie) --------------------
+   Artyleria i rakietowiec nie biją już natychmiast — wypuszczają pocisk,
+   który leci do celu i zadaje obrażenia dopiero na trafieniu. Pocisk
+   jednostkowy (rakieta) namierza żywy cel; odłamkowy (artyleria) leci w
+   miejsce, gdzie cel był w chwili strzału — szybkie cele mogą uciec. */
+function updProj(dt){
+  for (let i=S.projs.length-1;i>=0;i--){
+    const p=S.projs[i], d=U[p.src];
+    if (!d.spl && p.tgt && p.tgt.hp>0){ p.tx=p.tgt.x; p.ty=p.tgt.y; }  // rakieta namierza
+    const dx=p.tx-p.x, dy=p.ty-p.y, L=Math.hypot(dx,dy)||1, step=p.spd*dt;
+    if (L<=step){ p.x=p.tx; p.y=p.ty; impact(p); S.projs.splice(i,1); }
+    else { p.x+=dx/L*step; p.y+=dy/L*step; }
+  }
+}
+
+function impact(p){
+  const d=U[p.src];
+  if (d.spl){
+    const foes = S.units
+      .filter(o=>o.side!==p.side && o.hp>0 && Math.hypot(o.x-p.x,o.y-p.y)<=d.splR)
+      .sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))
+      .slice(0,d.spl);
+    for (const o of foes) dmgTo(o,p.dmg,p.src);
+    explode(p.x,p.y,16,CO.warn); boom(0.13);
+  } else {
+    const t=p.tgt;
+    if (t && t.hp>0){
+      const m=dmgTo(t,p.dmg,p.src);
+      if (m>1) for (let k=0;k<4;k++){
+        const a=Math.random()*6.283, sp=45+Math.random()*70;
+        S.fx.push({x:t.x,y:t.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.2,c:'#ffe680',r:2.4});
+      }
+    }
+    explode(p.x,p.y,6,p.side==='p'?CO.blue:CO.red);
+  }
 }
 
 // --- linia (jedyna decyzja w trakcie walki) ---

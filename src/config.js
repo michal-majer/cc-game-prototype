@@ -107,10 +107,10 @@ export const BAR = ['power','refinery','barracks','rocket','bunker','workshop','
 // --- jednostki ---
 export const U = {
   inf:  {name:'Piechota',    hp:60,  dmg:9,  range:26,  spd:26, rate:0.75, sz:4,  strong:['rkt']},
-  rkt:  {name:'Rakietowiec', hp:50,  dmg:15, range:74,  spd:22, rate:1.15, sz:4,  strong:['tank','kolos','lazik'], ap:true},
+  rkt:  {name:'Rakietowiec', hp:50,  dmg:15, range:74,  spd:22, rate:1.15, sz:4,  strong:['tank','kolos','lazik'], ap:true, proj:200},
   tank: {name:'Czołg',       hp:190, dmg:19, range:36,  spd:34, rate:0.95, sz:8,  strong:['inf'], arm:5},
   lazik:{name:'Łazik',       hp:90,  dmg:11, range:30,  spd:55, rate:0.5,  sz:6,  strong:['arty','inf'], hunt:'arty'},
-  arty: {name:'Artyleria',   hp:70,  dmg:24, range:175, spd:15, rate:3.0,  sz:7,  strong:[], spl:3, splR:34, minR:60},
+  arty: {name:'Artyleria',   hp:70,  dmg:24, range:175, spd:15, rate:3.0,  sz:7,  strong:[], spl:3, splR:34, minR:60, proj:150},
   kolos:{name:'Kolos',       hp:430, dmg:32, range:44,  spd:21, rate:1.1,  sz:11, strong:['inf'], arm:6},
 };
 export const COUNTER   = 2.0;

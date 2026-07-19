@@ -377,6 +377,14 @@ function drawOver(){
   for (const t of S.tracers){
     g.moveTo(t.x1,t.y1).lineTo(t.x2,t.y2).stroke({width:t.w||1, color:t.c, alpha:Math.min(1,t.t/0.07)});
   }
+  for (const p of S.projs){
+    const shell = !!U[p.src].spl;
+    const col = p.side==='p' ? CO.blue : CO.red;
+    const dx=p.tx-p.x, dy=p.ty-p.y, L=Math.hypot(dx,dy)||1;
+    g.moveTo(p.x-dx/L*9, p.y-dy/L*9).lineTo(p.x,p.y)
+     .stroke({width: shell?2.4:1.8, color:col, alpha:0.55});
+    g.circle(p.x, p.y, shell?3:2.2).fill({color: shell?CO.warn:col});
+  }
   for (const p of S.fx){
     g.rect(p.x-p.r/2,p.y-p.r/2,p.r,p.r).fill({color:p.c, alpha:Math.max(0,p.life*2)});
   }
