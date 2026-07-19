@@ -91,7 +91,9 @@ export function regrow(dt){
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
     const g=S.grid[r][c];
     g.pull=false;
-    if (!g.seam || g.b || g.ore>=BAL.ORE_MAX) continue;
+    if (!g.seam) continue;
+    g.prevOre = g.ore;   // migawka sprzed odrostu — trend (odrost vs wydobycie) liczy render
+    if (g.b || g.ore>=BAL.ORE_MAX) continue;
     g.ore = Math.min(BAL.ORE_MAX, g.ore + ORE_REGEN*dt);
   }
 }

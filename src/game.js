@@ -25,7 +25,7 @@ export function newRun(){
   resetTables();
   resetSect();
   S.grid=[];
-  for (let r=0;r<ROWS;r++){ S.grid[r]=[]; for(let c=0;c<COLS;c++) S.grid[r][c]={ore:0,seam:false,pull:false,b:null}; }
+  for (let r=0;r<ROWS;r++){ S.grid[r]=[]; for(let c=0;c<COLS;c++) S.grid[r][c]={ore:0,seam:false,pull:false,b:null,prevOre:0}; }
   genOre();
   S.oreStart=oreTotal();
   S.buildings=[]; S.units=[]; S.fx=[]; S.corpses=[]; S.tracers=[];
