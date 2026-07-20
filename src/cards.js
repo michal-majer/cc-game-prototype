@@ -38,6 +38,8 @@ export const DECK = [
    f:()=>{ BAL.CLEAR_SALV=0.7; }},
   {n:'NOWE ZŁOŻE',     k:'RUDA',   d:'świeża bogata żyła (~5 kratek) w wolnym miejscu',
    f:()=>{ seedSeam(); }},
+  {n:'BRYGADY GÓRNICZE',k:'RUDA',  d:'każda rafineria +1 harvester za darmo (o ile ma wolną żyłę)',
+   f:()=>{ S.harvBonus=(S.harvBonus||0)+1; }},
   {n:'KOMPRESJA',      k:'RUDA',   d:'elektrownia +3 mocy (6 → 9)',
    f:()=>{ B.power.sup=9; }},
   {n:'MOBILIZACJA',    k:'KRATKI', d:'barak i wyrzutnia: 2 jednostki zamiast 1, na każdym poziomie',

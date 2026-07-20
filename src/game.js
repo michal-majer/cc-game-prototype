@@ -38,7 +38,7 @@ export function newRun(){
   S.deck=[...DECK]; S.draft=null;
   S.shake=0; S.state='play'; S.endReason=''; S.sel=null; S.upSel=null; S.hadRadar=0; S.offBrown=0;
   S.alertCd=0; S.ecoCd=0; S.si=0; S.fieldDead=false; S.newArm=0; S.fullCd=0;
-  S.raidPay=0; S.raidShow=0; S.pBonus={atkS:0,armS:0,atkA:0,armA:0}; S.eIntel=[]; S.eStance='hold'; S.ePush=0; S.eHoldT=0;
+  S.raidPay=0; S.raidShow=0; S.harvBonus=0; S.pBonus={atkS:0,armS:0,atkA:0,armA:0}; S.eIntel=[]; S.eStance='hold'; S.ePush=0; S.eHoldT=0;
   S.eDmgWave=0; S.eThink=0; S.eTerrBank=0; S.eCounterCd=0; S.eArmCd=0; S.eBuildN=0; S.eBuildDebt=0;
   S.log=[]; S.logDirty=true; S.ready=false;
 
