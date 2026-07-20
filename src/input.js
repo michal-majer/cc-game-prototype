@@ -18,6 +18,7 @@ const qs = id => document.getElementById(id);
 
 // ulepszenie budynku — wołane z drugiego tapnięcia i z przycisku ULEPSZ w panelu
 function doUpgrade(b){
+  if (b && (b.build||0)>0){ toast('W BUDOWIE'); return; }
   if (!b || !canUp(b)){ toast('MAKS. POZIOM'); return; }
   const cost=upCost(b);
   if (S.money<cost){ say('BRAK ŚRODKÓW — '+cost+' kr.','warn'); toast('BRAK ŚRODKÓW — '+cost+' kr.'); return; }
@@ -44,8 +45,10 @@ function worldTap(px,py){
     const b=g.b; if (!b) return;
     if (b.type==='hq'){ say('SZTABU NIE SPRZEDASZ','warn'); toast('SZTABU NIE SPRZEDASZ'); return; }
     let put=B[b.type].cost; for (let l=1;l<b.lvl;l++) put+=B[b.type].cost*l;
-    const back=Math.floor(put*SELL_BACK); S.money+=back;
-    say('ROZEBRANO — '+B[b.type].name+' · +'+back+' kr.','good');
+    const frac=clamp(b.hp/b.maxHp,0,1);          // uszkodzony budynek wart mniej przy rozbiórce: 50% z WARTOŚCI, nie z pełnego kosztu
+    const back=Math.floor(put*SELL_BACK*frac); S.money+=back;
+    const underC=(b.build||0)>0;
+    say((underC?'ANULOWANO BUDOWĘ — ':'ROZEBRANO — ')+B[b.type].name+' · +'+back+' kr.','good');
     if (b._view){ b._view.destroy({children:true}); b._view=null; }
     clearCells(b); S.buildings.splice(S.buildings.indexOf(b),1);
     explode(b.x,b.y,16,CO.dim); boom(0.14); S.shake=Math.max(S.shake,3); recalcPower();
@@ -63,7 +66,7 @@ function worldTap(px,py){
     if (!unlocked(S.sel)){ S.sel=null; return; }
     if (S.money<B[S.sel].cost){ say('BRAK ŚRODKÓW','warn'); toast('BRAK ŚRODKÓW'); return; }
     S.money-=B[S.sel].cost; mkBuilding(S.sel,c,r);
-    say('BUDOWA ZAKOŃCZONA — '+B[S.sel].name,'good'); boom(0.15); recalcPower();
+    say('ROZPOCZĘTO BUDOWĘ — '+B[S.sel].name,'good'); boom(0.15); recalcPower();
   } else {
     let kill=0; for (const [cc,rr] of cellsOf(S.sel,c,r)) if (rr>=0&&rr<ROWS&&cc>=0&&cc<COLS&&S.grid[rr][cc].seam) kill++;
     if (S.grid[r][c].ore>0 || kill) toast('KRATKA ZAJĘTA PRZEZ ŻYŁĘ');
