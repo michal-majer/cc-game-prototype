@@ -27,6 +27,29 @@ assets/scene/bastion.png    bastion wroga
   wersja wroga jest automatycznie odbijana w poziomie.
 - Brakujący plik = fallback do glifu. Możesz podmieniać po jednym.
 
+## Arkusz klatek — animowany żołnierz (sprite sheet)
+
+Zwykły żołnierz (Piechota, `inf`) jest już podpięty jako **arkusz klatek** —
+wystarczy wrzucić plik:
+
+```
+assets/units/inf.png
+```
+
+- Domyślnie oczekiwana siatka: **5 kolumn × 4 wiersze** (rozmiar pojedynczej
+  klatki liczony automatycznie: `szerokość/5 × wysokość/4`, dowolna rozdzielczość).
+- **Tło**: magenta `#ff00ff` — wycinane do przezroczystości przy wczytaniu.
+- Układ klatek (jak w typowym arkuszu żołnierza):
+  - wiersz 0 — postawa/celowanie → animacja **idle** (stoi)
+  - wiersz 1 — chód → **walk** (gdy idzie)
+  - wiersz 2 — strzał (2. klatka z błyskiem) → **shoot** (gdy strzela)
+  - wiersz 3 — kucnięcie/śmierć → **die** (rezerwa)
+- Render sam dobiera animację po stanie jednostki (strzał > chód > postój).
+- Postać zwrócona **w prawo**; wróg jest odbijany automatycznie i lekko
+  zabarwiony na czerwono, sprite gracza zachowuje własne kolory.
+
+Inną siatkę / inne zakresy klatek ustawisz w `src/assets.js` (obiekt `SHEETS`).
+
 ## Dźwięk
 
 W `src/audio.js` użyj `registerSfx(nazwa, url)` przy starcie, np.:

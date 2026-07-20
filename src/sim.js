@@ -50,7 +50,7 @@ export function spawn(type,side,x,y){
   // kart (pArm) i z Lab (poziomy). Sztab skaluje tylko obronę bazy (patrz dmgFrom
   // budynków niżej), więc jego upgrade przestał być globalnym snowballem armii.
   const hp = d.hp;
-  S.units.push({type,side,x,y,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0});
+  S.units.push({type,side,x,y,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0,fireT:0,moveT:0});
 }
 
 export function doWave(){
@@ -205,7 +205,7 @@ export function update(dt){
             S.fx.push({x:t.x,y:t.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.2,c:'#ffe680',r:2.4});
           }
         }
-        u.cd=d.rate;
+        u.cd=d.rate; u.fireT=0.22;   // sygnał dla animacji sprite'a: klip „shoot”
       }
     } else {
       let vx,vy, sMul=1;
@@ -227,7 +227,9 @@ export function update(dt){
       }
       const fwd = u.side==='p' ? 1 : -1;
       if (isHeavy(d) && vx*fwd < 0) sMul = BACK_MUL;
-      u.x += vx*d.spd*sMul*dt; u.y += vy*d.spd*sMul*dt;
+      const dxm=vx*d.spd*sMul*dt, dym=vy*d.spd*sMul*dt;
+      u.x += dxm; u.y += dym;
+      if (Math.abs(dxm)+Math.abs(dym) > 0.01) u.moveT=0.12;   // sygnał dla animacji: klip „walk”
     }
     if (u.x > BASE_R){
       const lo=LANE_Y-LANE_HALF, hi=LANE_Y+LANE_HALF;
@@ -235,6 +237,8 @@ export function update(dt){
       if (u.y>hi) u.y -= Math.min(40*dt, u.y-hi);
     }
     if (u.flash>0) u.flash-=dt*6;
+    if (u.fireT>0) u.fireT-=dt;
+    if (u.moveT>0) u.moveT-=dt;
   }
 
   const rl = radarLvl();

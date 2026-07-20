@@ -10,7 +10,7 @@ import {
   STANCES, CAP_R, TERR_MAX, ORE_SIP, BAL, HEX, clamp, ringOf, cellAt
 } from './config.js';
 import { S, SECT, lineX } from './state.js';
-import { buildTex, unitTex, tex } from './assets.js';
+import { buildTex, unitTex, unitSheet, tex } from './assets.js';
 import { radarLvl, canUp, maxLvl, fits } from './buildings.js';
 import { eTerrCtrl } from './sectors.js';
 import { bEff, eHoldX } from './enemy.js';
@@ -350,9 +350,18 @@ function ensureUnitView(u){
   if (u._view) return u._view;
   const d=U[u.type];
   const v=new PIXI.Container();
-  const t = unitTex(u.type) || glyphTex[u.type];
-  v.spr=new PIXI.Sprite(t); v.spr.anchor.set(0.5);
-  const sc=(unitTex(u.type) ? (d.sz*2.6)/Math.max(v.spr.texture.width,1) : d.sz/SREF);
+  const sh = unitSheet(u.type);                 // arkusz klatek (animacja) albo null
+  const t = (sh ? sh.clips[Object.keys(sh.clips)[0]][0] : unitTex(u.type)) || glyphTex[u.type];
+  v.spr=new PIXI.Sprite(t);
+  let sc;
+  if (sh){
+    v.sheet=sh; v.spr.anchor.set(sh.anchor[0], sh.anchor[1]);
+    v._clip=null; v._fi=0; v._ft=0; v._done=false;   // stan animacji
+    sc=(d.sz*2.9)/Math.max(sh.fw,1);              // klatka arkusza -> ~sz*2.9 px
+  } else {
+    v.spr.anchor.set(0.5);
+    sc=(unitTex(u.type) ? (d.sz*2.6)/Math.max(v.spr.texture.width,1) : d.sz/SREF);
+  }
   v._sc=sc; v.addChild(v.spr);
   v.fog=new PIXI.Graphics();
   const s=d.sz;
@@ -363,7 +372,30 @@ function ensureUnitView(u){
   v.hp=new PIXI.Graphics(); v.addChild(v.hp);
   unitLayer.addChild(v); u._view=v; return v;
 }
-function drawUnits(){
+// dobór klipu animacji po stanie jednostki: strzela > idzie > stoi
+function pickClip(sh, u){
+  const c=sh.clips;
+  if (u.fireT>0 && c.shoot) return c.shoot;
+  if (u.moveT>0 && c.walk)  return c.walk;
+  return c.idle || c.walk || c.shoot;
+}
+function animSheet(v, u, dt){
+  const clip=pickClip(v.sheet, u);
+  if (clip!==v._clip){ v._clip=clip; v._fi=0; v._ft=0; v._done=false; }
+  if (!v._done){
+    v._ft += dt;
+    const step=1/(clip.fps||8);
+    while (v._ft>=step){
+      v._ft-=step; v._fi++;
+      if (v._fi>=clip.length){
+        if (clip.once){ v._fi=clip.length-1; v._done=true; break; }
+        v._fi=0;
+      }
+    }
+  }
+  v.spr.texture = clip[v._fi];
+}
+function drawUnits(dt){
   const rl=radarLvl();
   for (const u of S.units){
     const v=ensureUnitView(u), d=U[u.type], s=d.sz, p=u.side==='p';
@@ -374,7 +406,13 @@ function drawUnits(){
     v.spr.visible=known; v.fog.visible=!known;
     if (known){
       v.spr.scale.set(v._sc * (p?1:-1), v._sc);
-      v.spr.tint = u.flash>0 ? 0xffffff : HEX(p?CO.blue:CO.red);
+      if (v.sheet){
+        animSheet(v, u, dt);
+        // sprite ma własne kolory — bez zabarwiania na stronę; wróg lekko czerwony, trafiony biały
+        v.spr.tint = u.flash>0 ? 0xffffff : (p ? 0xffffff : 0xff9a86);
+      } else {
+        v.spr.tint = u.flash>0 ? 0xffffff : HEX(p?CO.blue:CO.red);
+      }
     }
     v.hp.clear();
     if (u.hp<u.maxHp){
@@ -447,13 +485,15 @@ function drawHarvesters(){
     else if (h.state==='mining' && (now()%320<160)) g.circle(h.x+ca*6, h.y+sa*6, 1.7).fill(CO.warn);  // iskry kopania
   }
 }
+let _animLast = now();
 export function renderFrame(){
+  const t=now(), adt=Math.min(0.05,(t-_animLast)/1000); _animLast=t;  // dt do animacji sprite'ów (czas realny)
   applyCam();
   drawWorld();
   drawBuildings();
   drawHarvesters();
   drawBastion();
-  drawUnits();
+  drawUnits(adt);
   drawOver();
   drawGhost();
 }
