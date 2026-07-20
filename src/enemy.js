@@ -96,14 +96,25 @@ export function eComp(){
 export function eBuild(){
   S.eArmCd--;
   const iIdx = S.eIntel.length-1-ESCOUT;
-  const I = iIdx >= 0 ? S.eIntel[iIdx] : {tanks:0, wheels:0, arty:0};
+  const I = iIdx >= 0 ? S.eIntel[iIdx] : {tanks:0, wheels:0, arty:0, rkts:0};
   const pTanks  = I.tanks;
   const pWheels = I.wheels;
+  const pRkts   = I.rkts || 0;
   const eRkt = S.eBase.filter(t=>t==='rocket').length;
   const eBar = S.eBase.filter(t=>t==='barracks').length;
   if (pTanks >= 2 && eRkt < pTanks && S.eArmCd <= 0){
     S.eBase.push('rocket'); S.eArmCd = 2; S.eBuildN++;
     say(radarLvl()>=1 ? 'WYWIAD: ODPOWIADAJA RAKIETAMI' : 'ZA ICH LINIA — DLUGIE RURY', radarLvl()>=1?'intel':'warn');
+    return;
+  }
+  // Kontra na masówkę rakiet gracza: piechota. Rakietowiec (50 HP) obrywa ×2 od
+  // piechoty — to jego naturalny pogromca. DAWNIEJ wywiad liczył czołgi/warsztaty/
+  // artylerię, ale NIE rakiety, więc ściana wyrzutni nie prowokowała żadnej odpowiedzi
+  // i STALOWA PIĘŚĆ w kółko nadziewała czołgi na rakiety. Teraz enemy dosypuje barak
+  // na każde ~2 wyrzutnie — piechota osłania jego pancerkę i karze spam rur.
+  if (pRkts >= 2 && eBar < pRkts && S.eArmCd <= 0){
+    S.eBase.push('barracks'); S.eArmCd = 2; S.eBuildN++;
+    say(radarLvl()>=1 ? 'WYWIAD: SYPIA PIECHOTE POD RAKIETY' : 'ZA ICH LINIA — TUPOT BUTOW', radarLvl()>=1?'intel':'warn');
     return;
   }
   if (pWheels >= 3 && eBar < pWheels*2 && S.eArmCd <= 0){
