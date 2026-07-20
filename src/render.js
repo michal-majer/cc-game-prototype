@@ -20,7 +20,7 @@ export const WV = { x:24, y:150, w:1170, h:356 };     // widoczny wycinek świat
 export const cam = { zoom:1, min:0.2, max:3, panX:0, panY:0, _init:false };
 
 const SREF = 12, GB = SREF*3.6;
-const TEAM_P = 0x8fb8ff, TEAM_E = 0xff8272;   // zabarwienie sprite'ów jednostek: gracz niebieski / wróg czerwony
+const TEAM_P = 0xa3c9ff, TEAM_E = 0xff6f5c;   // zabarwienie sprite'ów jednostek: gracz niebieski / wróg czerwony
 const glyphTex = {};
 let worldRoot, gWorld, worldText, buildLayer, harvG, bastionLayer, deathLayer, unitLayer, gOver, ghostG;
 let bastionView=null;
@@ -430,18 +430,25 @@ function drawUnits(dt){
 }
 
 // błysk wystrzału: chunky żółta gwiazda z białym rdzeniem (jak w referencji) — addytywnie
+// Błysk NA WYLOCIE LUFY (a nie wiszący przed żołnierzem): zwarta iskra wydłużona
+// wzdłuż strzału + gorący rdzeń + krótka smuga do przodu. cx≈przód sylwetki.
 function drawMuzzle(g, muzT, p, s){
   const a=Math.min(1, muzT/0.1), dir=p?1:-1;
-  const cx=dir*s*2.8, cy=-s*0.12, R=s*(1.5+0.8*a);
-  const pts=[];                                   // gwiazda 8-ramienna (długie/krótkie ramiona)
-  for (let k=0;k<16;k++){
-    const ang=k*Math.PI/8, rr=(k%2===0)?R:R*0.4;
-    pts.push(cx+Math.cos(ang)*rr*(k%2?1:1.15), cy+Math.sin(ang)*rr*0.9);
-  }
-  g.poly(pts).fill({color:0xffab1e, alpha:0.85*a});          // żółto-pomarańczowy rozbłysk
-  g.moveTo(cx,cy).lineTo(cx+dir*R*2.0, cy).stroke({width:s*0.55, color:0xffd24d, alpha:0.75*a}); // promień do przodu
-  g.circle(cx,cy,s*0.95).fill({color:0xffe680, alpha:0.95*a}); // gorący rdzeń
-  g.circle(cx,cy,s*0.5).fill({color:0xffffff, alpha:a});
+  const cx=dir*s*1.35, cy=-s*0.05, R=s*(0.85+0.5*a);
+  const pts=[                                       // 4-ramienna iskra, dłuższa wzdłuż lufy
+    cx+dir*R*1.9, cy,
+    cx+dir*R*0.34, cy-R*0.34,
+    cx, cy-R*1.15,
+    cx-dir*R*0.34, cy-R*0.34,
+    cx-dir*R*0.95, cy,
+    cx-dir*R*0.34, cy+R*0.34,
+    cx, cy+R*1.15,
+    cx+dir*R*0.34, cy+R*0.34,
+  ];
+  g.poly(pts).fill({color:0xffab1e, alpha:0.9*a});           // żółto-pomarańczowy rozbłysk
+  g.moveTo(cx,cy).lineTo(cx+dir*R*2.6, cy).stroke({width:s*0.42, color:0xffe27a, alpha:0.75*a}); // smuga do przodu
+  g.circle(cx,cy,R*0.6).fill({color:0xffe680, alpha:0.95*a}); // gorący rdzeń
+  g.circle(cx,cy,R*0.32).fill({color:0xffffff, alpha:a});
 }
 
 /* ------------------------------ animacja śmierci ------------------------- */
@@ -458,6 +465,14 @@ function spawnDeath(rec){
   spr.tint = rec.p?TEAM_P:TEAM_E;
   deathLayer.addChild(spr);
   deathFx.push({spr, clip, fi:0, ft:0, t:0});
+  if (deathFx.length>60){ const old=deathFx.shift(); old.spr.destroy(); }   // limit ciał na polu
+  // obłoczek kurzu w miejscu upadku (kilka ciemnych drobin)
+  const s=U[rec.type].sz;
+  for (let k=0;k<6;k++){
+    const ang=Math.PI + (k/5-0.5)*2.2, sp=18+((k*37)%22);
+    S.fx.push({x:rec.x, y:rec.y+s*0.5, vx:Math.cos(ang)*sp, vy:-Math.abs(Math.sin(ang))*sp*0.6,
+               life:0.35, c:k%3?'#4a4038':'#6b2b26', r:1.8+((k*13)%3)});
+  }
 }
 function drawDeaths(dt){
   if (S.deaths && S.deaths.length){ for (const r of S.deaths) spawnDeath(r); S.deaths.length=0; }
@@ -468,9 +483,9 @@ function drawDeaths(dt){
       while (f.ft>=step && f.fi<clip.length-1){ f.ft-=step; f.fi++; }
       f.spr.texture=clip[f.fi];
     }
-    const hold=(clip.length-1)/fps + 0.7;               // trup leży chwilę, potem zanika
-    if (f.t>hold) f.spr.alpha=Math.max(0, 1-(f.t-hold)/0.5);
-    if (f.t>hold+0.5){ f.spr.destroy(); deathFx.splice(i,1); }
+    const hold=(clip.length-1)/fps + 1.4;              // trup LEŻY dłużej (jak na polu bitwy), potem zanika
+    if (f.t>hold) f.spr.alpha=Math.max(0, 1-(f.t-hold)/0.7);
+    if (f.t>hold+0.7){ f.spr.destroy(); deathFx.splice(i,1); }
   }
 }
 

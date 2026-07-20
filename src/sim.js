@@ -168,6 +168,7 @@ export function update(dt){
   const eHold = eHoldX();   // linia, na której wróg trzyma się w postawie 'hold' (mini-sztaby)
   for (const u of S.units){
     const d=U[u.type];
+    u._sx=u.x; u._sy=u.y;                 // pozycja przed ruchem — do oceny REALNEGO postępu (patrz niżej)
     let list;
     if (u.side==='p'){ list = eU.slice(); if (!S.bastion.dead) list.push(S.bastion); }
     else { list = pU.slice(); if (u.x < BASE_R+40) list = list.concat(S.buildings); }
@@ -227,9 +228,8 @@ export function update(dt){
       }
       const fwd = u.side==='p' ? 1 : -1;
       if (isHeavy(d) && vx*fwd < 0) sMul = BACK_MUL;
-      const dxm=vx*d.spd*sMul*dt, dym=vy*d.spd*sMul*dt;
-      u.x += dxm; u.y += dym;
-      if (Math.abs(dxm)+Math.abs(dym) > 0.01) u.moveT=0.12;   // sygnał dla animacji: klip „walk”
+      if (u.fireT>0){ vx=0; vy=0; }        // przy strzale żołnierz staje (nie strzela w marszu)
+      u.x += vx*d.spd*sMul*dt; u.y += vy*d.spd*sMul*dt;
     }
     if (u.x > BASE_R){
       const lo=LANE_Y-LANE_HALF, hi=LANE_Y+LANE_HALF;
@@ -258,6 +258,13 @@ export function update(dt){
     if (d2>min*min || d2<0.001) continue;
     const dist=Math.sqrt(d2), push=(min-dist)/2/dist;
     a.x-=dx*push; a.y-=dy*push; b.x+=dx*push; b.y+=dy*push;
+  }
+
+  // Animacja chodu wg REALNEGO przesunięcia (po kolizjach), nie zamiaru ruchu — żołnierz
+  // ściśnięty w tłumie i drepczący w miejscu pokazuje idle (stoi i strzela) zamiast „ślizgać się".
+  for (const u of S.units){
+    if (u._sx==null) continue;
+    if (Math.abs(u.x-u._sx)+Math.abs(u.y-u._sy) > U[u.type].spd*dt*0.45) u.moveT=0.12;
   }
 
   for (let i=S.units.length-1;i>=0;i--){
