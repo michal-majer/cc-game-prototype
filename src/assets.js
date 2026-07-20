@@ -55,20 +55,21 @@ export const MANIFEST = {
 //                  (shoot > walk > idle); brakujący klip = spada do walk/idle.
 //   anchor       — punkt zaczepienia sprite'a [x,y] w ułamku klatki (0.5,0.5 = środek).
 //
-// Domyślny układ dla inf zakłada arkusz 5×4:
-//   wiersz 0: 4 klatki postawy/celowania  -> idle
-//   wiersz 1: 5 klatek chodu              -> walk
+// Układ dla inf — siatka 7×4 (zmierzona z pliku 1024×559; klatka ≈146×140 px,
+// sprite'y siedzą w lewych kolumnach, prawe są puste):
+//   wiersz 0: 4 klatki postawy/celowania      -> idle
+//   wiersz 1: 5 klatek chodu                   -> walk
 //   wiersz 2: 2 klatki strzału (2. z błyskiem) -> shoot
-//   wiersz 3: 4 klatki (kucnięcie/śmierć) -> die (rezerwa, patrz render)
-// Jeśli Twój plik ma inną siatkę — popraw cols/rows i listy frames tutaj.
+//   wiersz 3: postawa/kucnięcie/leży/trup      -> die (rezerwa, patrz render)
+// Jeśli podmienisz arkusz na inny — popraw cols/rows i listy frames tutaj.
 export const SHEETS = {
   inf: {
-    cols: 5, rows: 4, chroma: 0xff00ff, anchor: [0.5, 0.55],
+    cols: 7, rows: 4, chroma: 0xff00ff, anchor: [0.5, 0.5],
     clips: {
       idle:  { row: 0, frames: [0, 1, 2, 3],    fps: 6  },
       walk:  { row: 1, frames: [0, 1, 2, 3, 4], fps: 10 },
       shoot: { row: 2, frames: [0, 1],          fps: 12 },
-      die:   { row: 3, frames: [0, 1, 2, 3],    fps: 8, once: true },
+      die:   { row: 3, frames: [0, 1],          fps: 8, once: true },
     },
   },
 };
@@ -93,13 +94,30 @@ async function loadSheet(name, url, sh){
   const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
   const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0);
 
-  // chroma-key: piksele bliskie tłu -> alpha 0
+  // chroma-key: wytnij tło (magenta) RAZEM z antyaliasowaną obwódką.
+  // Zamiast liczyć odległość do dokładnego koloru (co zostawia różową poświatę na
+  // krawędziach), sprawdzamy DOMINACJĘ kanałów tła: dla magenty kanały R,B są
+  // „wysokie", a G „niski" — piksel jest tłem, gdy min(wysokich) wyraźnie > max(niskich).
+  // Łapie to i czystą magentę, i półprzezroczyste piksele krawędzi. Uogólnia się na
+  // inne czyste chroma (zielony/niebieski ekran); dla nietypowych spada do odległości.
   const key = sh.chroma == null ? 0xff00ff : sh.chroma;
-  const kr = (key >> 16) & 255, kg = (key >> 8) & 255, kb = key & 255, TOL = 72;
+  const kc = [(key >> 16) & 255, (key >> 8) & 255, key & 255];
+  const hi = [], lo = [];
+  kc.forEach((v, ch) => (v >= 128 ? hi : lo).push(ch));
+  const MARG = 40;
   const id = ctx.getImageData(0, 0, cw, ch), px = id.data;
+  const useDom = hi.length && lo.length;
   for (let i = 0; i < px.length; i += 4){
-    if (Math.abs(px[i] - kr) <= TOL && Math.abs(px[i+1] - kg) <= TOL && Math.abs(px[i+2] - kb) <= TOL)
-      px[i+3] = 0;
+    let bg;
+    if (useDom){
+      let loMax = -1, hiMin = 256;
+      for (const ch of lo) if (px[i+ch] > loMax) loMax = px[i+ch];
+      for (const ch of hi) if (px[i+ch] < hiMin) hiMin = px[i+ch];
+      bg = (hiMin - loMax) >= MARG;
+    } else {
+      bg = Math.abs(px[i]-kc[0]) <= 72 && Math.abs(px[i+1]-kc[1]) <= 72 && Math.abs(px[i+2]-kc[2]) <= 72;
+    }
+    if (bg) px[i+3] = 0;
   }
   ctx.putImageData(id, 0, 0);
 
