@@ -10,7 +10,7 @@ import { S, say } from './state.js';
 import { boom, siren } from './audio.js';
 import { explode } from './effects.js';
 import { mkBuilding, recalcPower, fits } from './buildings.js';
-import { oreAround } from './economy.js';
+import { oreAround, seedSeam } from './economy.js';
 import { renderCards, syncOverlays } from './hud.js';
 
 export const DECK = [
@@ -36,6 +36,8 @@ export const DECK = [
              const g=S.grid[r][c]; if(g.seam) g.ore=Math.min(BAL.ORE_MAX,g.ore+180); } }},
   {n:'SPYCHACZE',      k:'RUDA',   d:'zaoranie żyły daje 70% zamiast 40%',
    f:()=>{ BAL.CLEAR_SALV=0.7; }},
+  {n:'NOWE ZŁOŻE',     k:'RUDA',   d:'świeża bogata żyła (~5 kratek) w wolnym miejscu',
+   f:()=>{ seedSeam(); }},
   {n:'KOMPRESJA',      k:'RUDA',   d:'elektrownia +3 mocy (6 → 9)',
    f:()=>{ B.power.sup=9; }},
   {n:'MOBILIZACJA',    k:'KRATKI', d:'barak i wyrzutnia: 2 jednostki zamiast 1, na każdym poziomie',
@@ -45,7 +47,7 @@ export const DECK = [
   {n:'SABOTAŻ',        k:'WRÓG',   d:'bastion −250 HP natychmiast',
    f:()=>{ S.bastion.maxHp-=250; S.bastion.hp=Math.max(1,S.bastion.hp-250);
            explode(S.bastion.x,S.bastion.y,30,CO.warn); boom(0.9); S.shake=Math.max(S.shake,20); }},
-  {n:'BLOKADA',        k:'WRÓG',   d:'ich rozbudowa: co 1,15 fali → co 2,2',
+  {n:'BLOKADA',        k:'WRÓG',   d:'ich rozbudowa: co 0,7 fali → co 2,2',
    f:()=>{ BAL.EBUILD_EVERY=2.2; }},
 ];
 
