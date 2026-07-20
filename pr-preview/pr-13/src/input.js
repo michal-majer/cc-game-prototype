@@ -45,7 +45,8 @@ function worldTap(px,py){
     const b=g.b; if (!b) return;
     if (b.type==='hq'){ say('SZTABU NIE SPRZEDASZ','warn'); toast('SZTABU NIE SPRZEDASZ'); return; }
     let put=B[b.type].cost; for (let l=1;l<b.lvl;l++) put+=B[b.type].cost*l;
-    const back=Math.floor(put*SELL_BACK); S.money+=back;
+    const frac=clamp(b.hp/b.maxHp,0,1);          // uszkodzony budynek wart mniej przy rozbiórce: 50% z WARTOŚCI, nie z pełnego kosztu
+    const back=Math.floor(put*SELL_BACK*frac); S.money+=back;
     const underC=(b.build||0)>0;
     say((underC?'ANULOWANO BUDOWĘ — ':'ROZEBRANO — ')+B[b.type].name+' · +'+back+' kr.','good');
     if (b._view){ b._view.destroy({children:true}); b._view=null; }

@@ -81,7 +81,8 @@ export const SELL_BACK = 0.5;
 // Czas budowy budynku = koszt / BUILD_DIV, ograniczony do [BUILD_MIN, BUILD_MAX] s.
 // Budynek w budowie jest MARTWY (bez mocy, dochodu, produkcji, ognia) — gotówka nie
 // zamienia się w działającą bazę na pstryknięcie. Niżej BUILD_DIV = wolniej.
-export const BUILD_DIV = 50, BUILD_MIN = 2, BUILD_MAX = 12;
+// 35 (było 50): elektrownia 3 s → rafineria 7 s → fabryka 11 s → ciężka fabr. 16 s.
+export const BUILD_DIV = 35, BUILD_MIN = 2, BUILD_MAX = 16;
 export const MAXLVL    = 3;
 export const RAID_PAY  = 0.4;
 export const HQ_COST   = 350;
