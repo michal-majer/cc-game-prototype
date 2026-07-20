@@ -20,11 +20,18 @@ export const maxLvl   = () => hasTech('lab') ? MAXLVL+1 : MAXLVL;
 export const bSup   = b => B[b.type].sup ? B[b.type].sup + (b.lvl-1)*4 : 0;
 export const bDrn   = b => B[b.type].drn ? B[b.type].drn + (b.lvl-1)   : 0;
 export const bCount = b => (B[b.type].count||0) + (b.lvl-1);
-export const bRate  = b => ORE_RATE + (b.lvl-1)*3;
+export const bRate  = () => ORE_RATE;                         // stawka na JEDEN harvester (żyłę) — poziom dokłada harvesterów, nie stawki
+export const bHarv  = b => b.lvl + (S.harvBonus||0);          // liczba harvesterów rafinerii (poziom + darmowe z kart)
 export const bDmg   = b => B[b.type].atk ? Math.round(B[b.type].atk.dmg*(1+(b.lvl-1)*0.5)) : 0;
 export const bReady = b => (b.build||0) <= 0;                 // budowa ukończona?
 export const buildSec = t => clamp(Math.round(B[t].cost/BUILD_DIV), BUILD_MIN, BUILD_MAX);
-export const canUp  = b => b && bReady(b) && !NOUP.includes(b.type) && (b.type==='hq' || b.lvl < maxLvl());
+// Rafinerię można ulepszać do maxLvl — przydział (harvestPlan) sam rozkłada
+// harvestery po żyłach, a gdy żył brak, stackuje 2-3 na jednej.
+export function canUp(b){
+  if (!b || !bReady(b) || NOUP.includes(b.type)) return false;
+  if (b.type==='hq') return true;
+  return b.lvl < maxLvl();
+}
 export const upCost = b => b.type==='hq' ? HQ_COST*b.lvl : B[b.type].cost*b.lvl;
 export const pBuff  = () => S.hq ? 1 + (S.hq.lvl-1)*BAL.HQ_STEP : 1;
 export function upText(b){
@@ -32,7 +39,7 @@ export function upText(b){
   if (b.type==='hq') return 'obrażenia i HP +'+Math.round(b.lvl*BAL.HQ_STEP*100)+'%';
   if (d.unit) return (bCount(b)+1)+'× '+U[d.unit].name;
   if (d.sup)  return '+'+(bSup(b)+4)+' mocy';
-  if (b.type==='refinery') return '+'+(bRate(b)+3)+' kr./s za rudę';
+  if (b.type==='refinery') return '+1 harvester (razem '+(bHarv(b)+1)+')';
   if (d.atk)  return 'obrażenia '+Math.round(d.atk.dmg*(1+b.lvl*0.5));
   return '';
 }
