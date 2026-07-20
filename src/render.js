@@ -434,12 +434,11 @@ function drawUnits(dt){
 // rdzeniem, jak w referencji. Ramię poziome dłuższe (wzdłuż strzału). cx≈przód sylwetki.
 function drawMuzzle(g, muzT, p, s){
   const a=Math.min(1, muzT/0.16), dir=p?1:-1;
-  const cx=dir*s*1.5, cy=-s*0.05, R=s*(1.5+0.7*a);
-  g.circle(cx,cy,R*1.15).fill({color:0xffa81e, alpha:0.30*a});                       // miękka poświata
-  g.poly([cx-dir*R*1.5,cy, cx,cy-R*0.30, cx+dir*R*2.0,cy, cx,cy+R*0.30]).fill({color:0xffcb3a, alpha:0.95*a}); // ramię poziome (do przodu)
-  g.poly([cx,cy-R*1.25, cx+R*0.28,cy, cx,cy+R*1.25, cx-R*0.28,cy]).fill({color:0xffcb3a, alpha:0.95*a});       // ramię pionowe
-  g.circle(cx,cy,R*0.52).fill({color:0xffe680, alpha:0.98*a});                       // gorący rdzeń
-  g.circle(cx,cy,R*0.28).fill({color:0xffffff, alpha:a});                            // biały środek
+  const cx=dir*s*1.25, cy=-s*0.05, R=s*(0.55+0.28*a);      // drobny, zwarty błysk
+  g.poly([cx-dir*R*1.0,cy, cx,cy-R*0.26, cx+dir*R*1.5,cy, cx,cy+R*0.26]).fill({color:0xffcb3a, alpha:0.95*a}); // ramię poziome (do przodu)
+  g.poly([cx,cy-R*0.85, cx+R*0.24,cy, cx,cy+R*0.85, cx-R*0.24,cy]).fill({color:0xffcb3a, alpha:0.9*a});        // ramię pionowe
+  g.circle(cx,cy,R*0.5).fill({color:0xffe680, alpha:0.98*a});                        // gorący rdzeń
+  g.circle(cx,cy,R*0.26).fill({color:0xffffff, alpha:a});                            // biały środek
 }
 
 /* ------------------------------ animacja śmierci ------------------------- */
