@@ -172,20 +172,30 @@ export function update(dt){
     if (u.side==='p'){ list = eU.slice(); if (!S.bastion.dead) list.push(S.bastion); }
     else { list = pU.slice(); if (u.x < BASE_R+40) list = list.concat(S.buildings); }
     let t=null, bd=340;
+    // najbliższy DOWOLNY wróg w polu widzenia — cel bazowy i „kto mnie okłada"
+    let near=null, nb=340;
+    for (const o of list){
+      if (o.hp<=0) continue;
+      const dist=Math.hypot(o.x-u.x,o.y-u.y);
+      if (dist<nb){ nb=dist; near=o; }
+    }
     if (d.hunt){
-      let hb=1e9;
+      // Łowca (łazik→arty) tropi swoją zwierzynę na CAŁYM polu, ale NIE daje się
+      // bezkarnie okładać: cokolwiek jest już w zasięgu ataku, bije priorytet nad
+      // daleką arty. Wcześniej łazik z hunt'em ignorował piechotę, która go tłukła,
+      // i maszerował przez blob pod ostrzałem, nie oddając ani jednego strzału —
+      // „dostawał w dupę od zwykłych żołnierzy", choć ma na nich kontrę ×2. Teraz
+      // najpierw tępi to, co go okłada, a zwierzynę dobija, gdy droga jest wolna.
+      let hb=1e9, prey=null;
       for (const o of list){
         if (o.hp<=0 || o.type!==d.hunt) continue;
         const dist=Math.hypot(o.x-u.x,o.y-u.y);
-        if (dist<hb){ hb=dist; t=o; }
+        if (dist<hb){ hb=dist; prey=o; }
       }
-      if (t) bd=hb;
-    }
-    if (!t) for (const o of list){
-      if (o.hp<=0) continue;
-      const dist=Math.hypot(o.x-u.x,o.y-u.y);
-      if (dist<bd){ bd=dist; t=o; }
-    }
+      if (near && nb<=d.range){ t=near; bd=nb; }      // ktoś w zwarciu → strzelaj
+      else if (prey){ t=prey; bd=hb; }                // droga wolna → trop arty
+      else { t=near; bd=nb; }
+    } else { t=near; bd=nb; }
     if (t && bd<=d.range && bd>=(d.minR||0)){
       u.cd -= dt;
       if (u.cd<=0){
