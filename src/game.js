@@ -30,7 +30,7 @@ export function newRun(){
   S.oreStart=oreTotal();
   S.buildings=[]; S.units=[]; S.fx=[]; S.corpses=[]; S.tracers=[]; S.projs=[];
   clearViews();
-  S.hq = mkBuilding('hq', 0, 2);
+  S.hq = mkBuilding('hq', 0, 2, true);
   S.bastion = {x:BAS_X, y:LANE_Y, hp:BAS_HP, maxHp:BAS_HP, side:'e', cd:0, flash:0, dead:false};
   S.doc = DOCTRINES[(Math.random()*DOCTRINES.length)|0];
   S.eBase = [...S.doc.start];

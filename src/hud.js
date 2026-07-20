@@ -31,7 +31,7 @@ export function buildBar(){
   }
   const sell=document.createElement('div'); sell.className='tile sell'; sell.dataset.type='SELL';
   sell.innerHTML=`<span class="ico">✂</span><span class="nm">ROZBIÓRKA</span>`+
-                 `<span class="cost warn">zwrot 50%</span><span class="desc">obiekty 50% · żyły 40%</span>`;
+                 `<span class="cost warn">zwrot ≤50%</span><span class="desc">obiekty 50% wartości (wg HP) · żyły 40%</span>`;
   sell.addEventListener('click', ()=>{ S.sel = S.sel==='SELL'?null:'SELL'; S.upSel=null; });
   bar.appendChild(sell);
 }

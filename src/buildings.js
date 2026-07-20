@@ -4,7 +4,7 @@
 
 import {
   B, U, CO, BASE_X, BASE_Y, CELL, COLS, ROWS, MAXLVL, NOUP, HQ_COST, ORE_RATE,
-  BAL, cellsOf, ringOf, fpOf, plObj
+  BUILD_DIV, BUILD_MIN, BUILD_MAX, BAL, clamp, cellsOf, ringOf, fpOf, plObj
 } from './config.js';
 import { S, say } from './state.js';
 import { boom } from './audio.js';
@@ -22,7 +22,9 @@ export const bDrn   = b => B[b.type].drn ? B[b.type].drn + (b.lvl-1)   : 0;
 export const bCount = b => (B[b.type].count||0) + (b.lvl-1);
 export const bRate  = b => ORE_RATE + (b.lvl-1)*3;
 export const bDmg   = b => B[b.type].atk ? Math.round(B[b.type].atk.dmg*(1+(b.lvl-1)*0.5)) : 0;
-export const canUp  = b => b && !NOUP.includes(b.type) && (b.type==='hq' || b.lvl < maxLvl());
+export const bReady = b => (b.build||0) <= 0;                 // budowa ukończona?
+export const buildSec = t => clamp(Math.round(B[t].cost/BUILD_DIV), BUILD_MIN, BUILD_MAX);
+export const canUp  = b => b && bReady(b) && !NOUP.includes(b.type) && (b.type==='hq' || b.lvl < maxLvl());
 export const upCost = b => b.type==='hq' ? HQ_COST*b.lvl : B[b.type].cost*b.lvl;
 export const pBuff  = () => S.hq ? 1 + (S.hq.lvl-1)*BAL.HQ_STEP : 1;
 export function upText(b){
@@ -51,10 +53,12 @@ export function roomFor(t){
 }
 
 // --- stawianie / usuwanie ---
-export function mkBuilding(type,c,r){
+export function mkBuilding(type,c,r,instant=false){
   const d=B[type], [w,h]=d.fp;
+  const bt = instant ? 0 : buildSec(type);   // sztab i darowizny z kart stają natychmiast
   const b={type,c,r,lvl:1, x:BASE_X+(c+w/2)*CELL, y:BASE_Y+(r+h/2)*CELL,
-           hp:d.hp,maxHp:d.hp, brown:false, powered:false, cd:0, side:'p', flash:0};
+           hp:d.hp,maxHp:d.hp, brown:false, powered:false, cd:0, side:'p', flash:0,
+           build:bt, buildMax:bt};
   for (const [cc,rr] of cellsOf(type,c,r)){ S.grid[rr][cc].b=b; S.grid[rr][cc].seam=false; }
   S.buildings.push(b); return b;
 }
@@ -81,9 +85,10 @@ export function killBuilding(b){
 
 // Moc = czysty budżet. Brak → gasną obiekty najdalsze od sztabu.
 export function recalcPower(){
+  // budynki w budowie są poza siecią: nie dają mocy, nie ciągną, nie zapalają się
   S.supply=0;
-  for (const b of S.buildings) S.supply += bSup(b);
-  const cand = S.buildings.filter(b=>bDrn(b)>0);
+  for (const b of S.buildings) if (bReady(b)) S.supply += bSup(b);
+  const cand = S.buildings.filter(b=>bReady(b) && bDrn(b)>0);
   const dHQ = b => Math.abs(b.c-S.hq.c)+Math.abs(b.r-S.hq.r);
   cand.sort((a,b)=> dHQ(b)-dHQ(a));
   for (const b of S.buildings) b.brown=false;
@@ -92,7 +97,7 @@ export function recalcPower(){
   while (over>0 && i<cand.length){
     cand[i].brown=true; over-=bDrn(cand[i]); S.drain-=bDrn(cand[i]); i++; nBrown++;
   }
-  for (const b of S.buildings) b.powered = !b.brown;
+  for (const b of S.buildings) b.powered = bReady(b) && !b.brown;
   if (nBrown>S.offBrown) say('PRZECIĄŻENIE — '+nBrown+' '+plObj(nBrown)+' WYŁĄCZONE','bad');
   S.offBrown=nBrown;
   const r=radarLvl();

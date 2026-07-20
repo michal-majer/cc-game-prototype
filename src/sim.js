@@ -16,7 +16,7 @@ import { explode } from './effects.js';
 import { regrow, extract, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { updSect, terrIncome, eTerrCtrl } from './sectors.js';
 import { eDecide, eBuild, eComp } from './enemy.js';
-import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor } from './buildings.js';
+import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor, recalcPower } from './buildings.js';
 import { openDraft } from './cards.js';
 
 // Odstęp do następnej fali. Wolniejszy początek: pierwsze fale rzadziej, żeby
@@ -70,9 +70,10 @@ export function doWave(){
     wheels: S.buildings.filter(b=>b.type==='workshop' && b.powered).length,
     arty:   S.buildings.filter(b=>b.type==='arty' && b.powered).length,
   });
-  // wolny początek: wróg rozbudowuje się powoli przez pierwsze ~5 fal, potem pełne
-  // tempo (EBUILD_EVERY). Trzyma napór z dala od startu, nie ruszając późnej gry.
-  const earlyRamp = Math.min(1, S.wave/5);   // fala1: 0.2 → fala5+: 1.0
+  // Leciutki oddech na 1. fali, potem PEŁNE tempo już od 2. Poprzednie S.wave/5
+  // zamrażało wroga do ~fali 5 (3 budynki na fali 4 = 2 piechoty + czołg, żenada).
+  // Teraz wróg realnie rośnie od startu, a i tak walczy garść, nim ruszy masa.
+  const earlyRamp = Math.min(1, 0.6 + S.wave*0.2);   // fala1: 0.8 → fala2+: 1.0
   S.eBuildDebt += earlyRamp/BAL.EBUILD_EVERY;
   while (S.eBuildDebt >= 1){ S.eBuildDebt -= 1; eBuild(); }
 }
@@ -82,6 +83,15 @@ export function update(dt){
   if (!S.ready) return;
   regrow(dt);
   updSect(dt);
+  // budowa: budynki dochodzą do gotowości; ukończony włącza się do sieci (moc/ogień/produkcja)
+  let built=false;
+  for (const b of S.buildings){
+    if (b.build>0){
+      b.build=Math.max(0, b.build-dt);
+      if (b.build<=0){ built=true; b.flash=1; say('BUDOWA UKOŃCZONA — '+B[b.type].name,'good'); boom(0.15); }
+    }
+  }
+  if (built) recalcPower();
   S.money += extract(dt) + terrIncome()*dt;
   S.timer -= dt;
   if (Number.isNaN(S.timer)) S.timer=waveInterval();
