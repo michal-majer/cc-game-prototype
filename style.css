@@ -99,6 +99,8 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
   -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .tile.sell{ background:#181011; border-color:#3a2426; }
 .tile.sell.on{ border-color:var(--bad); }
+.tile.repair{ background:#0f1612; border-color:#24382c; }
+.tile.repair.on{ border-color:var(--ok); }
 
 /* ---------- GOTÓW ---------- */
 #ready{ left:50%; transform:translateX(-50%); bottom:calc(150px + var(--safe-b));

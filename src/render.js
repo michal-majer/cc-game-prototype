@@ -418,6 +418,10 @@ function drawGhost(){
     if (g0.b){ const R={x:BASE_X+g0.b.c*CELL,y:BASE_Y+g0.b.r*CELL,w:B[g0.b.type].fp[0]*CELL,h:B[g0.b.type].fp[1]*CELL};
       g.rect(R.x+2.5,R.y+2.5,R.w-5,R.h-5).stroke({width:2,color:g0.b.type==='hq'?CO.dim:CO.red}); }
     else if (g0.seam){ g.rect(BASE_X+cell.c*CELL+3,BASE_Y+cell.r*CELL+3,CELL-7,CELL-7).stroke({width:2,color:CO.warn}); }
+  } else if (S.sel==='REPAIR' && cell){
+    const bb=S.grid[cell.r][cell.c].b;
+    if (bb){ const R={x:BASE_X+bb.c*CELL,y:BASE_Y+bb.r*CELL,w:B[bb.type].fp[0]*CELL,h:B[bb.type].fp[1]*CELL};
+      g.rect(R.x+2.5,R.y+2.5,R.w-5,R.h-5).stroke({width:2,color: bb.hp<bb.maxHp?CO.ok:CO.dim}); }
   }
 }
 

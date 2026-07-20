@@ -33,9 +33,9 @@ export function genOre(){
       if (cells.some(x=>x.c===nc&&x.r===nr)) continue;
       cells.push({c:nc,r:nr});
     }
-    // MŁODA ruda — pola startują umiarkowanie chude (ORE_YOUNG..+0.20 ≈ 11–31% z 450
-    // = ~50–140/kratkę), żeby zaoranie na starcie nie było fortuną, ale głębiej niż
-    // wcześniej: silnik trwa dłużej. Odrost spoczynkowy (5/s) i tak dopełnia pole.
+    // MŁODA ruda — pola startują głębsze (ORE_YOUNG..+0.20 ≈ 16–36% z 450
+    // = ~72–162/kratkę): faza bogata trwa dłużej, a przy netto −1 pole schodzi
+    // wolno. Zaoranie i tak ograniczone przez SALV_CAP; odrost spoczynkowy dopełnia.
     const mat = ORE_YOUNG + Math.random()*0.20;
     for (const x of cells){ S.grid[x.r][x.c].ore=Math.round(BAL.ORE_MAX*mat); S.grid[x.r][x.c].seam=true; }
   }

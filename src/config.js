@@ -59,15 +59,15 @@ export const BASE_INCOME = 2;
 export const ORE_RATE  = 3;
 // Odrost rudy — ROZPRZĘGNIĘTY na dwie prędkości (regrow wybiera po fladze pull):
 //  · ORE_REGEN — żyła SPOCZYNKOWA (nietknięta): szybkie odbicie, pusta 0→450 ~90 s.
-//  · ORE_SIP   — żyła CZYNNA (pod rafinerią): odrost CELOWO < drenaż (ORE_RATE),
-//                więc bogate pole SIĘ WYCZERPUJE (netto −2/kratkę), a po wypaleniu
-//                sączy tylko ORE_SIP × kratki bez końca. 1 (było 2 = netto 0,
-//                pole samo się utrzymywało = pasywny firehose). Teraz ruda to
-//                silnik NA PRZÓD: bogaty na starcie, chudy sączek później —
-//                chcesz więcej, przenieś rafinerię na odrośniętą żyłę.
+//  · ORE_SIP   — żyła CZYNNA (pod rafinerią): odrost przy drenażu. 2 (było 1):
+//                netto −1/kratkę, więc bogate pole schodzi WOLNO (nie w minutę),
+//                a po wypaleniu wciąż sączy ORE_SIP × kratki = solidny KRĘGOSŁUP
+//                (nie chudy trickle). Ruda ma nieść ekonomię, nie mini-sztaby.
+//                Chcesz świeży zryw — przenieś rafinerię na odrośniętą żyłę.
+//                (SALV_CAP pilnuje, by głębsze pola nie dały fortuny z zaorania.)
 export const ORE_REGEN = 5;
-export const ORE_SIP   = 1;
-export const ORE_YOUNG = 0.11;   // startowe wypełnienie żyły (0.08→0.11: pola głębsze = silnik trwa dłużej; wciąż za chude na fortunę z zaorania — patrz genOre)
+export const ORE_SIP   = 2;
+export const ORE_YOUNG = 0.16;   // głębszy start (0.11→0.16 ≈ 72–162/kratkę): dłuższa faza bogata; zaoranie i tak ograniczone przez SALV_CAP
 export const BAS_HP    = 2200;   // twardszy: nie da się wygrać szybką dekapitacją, front trwa dłużej
 export const BAS_DMG   = 34;
 export const BAS_RANGE = 150;
@@ -78,6 +78,13 @@ export const WAVE_TIME = 30;     // rzadsze fale → mniej jednostek naraz, każ
 export const TERR_MAX  = 15;     // 5/sektor (było 8): teren to DODATEK do rudy, nie główny przychód — mini-sztaby przestały nieść całą ekonomię
 export const ETERR_SEC = 65;
 export const SELL_BACK = 0.5;
+// Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
+// Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
+// późną grą to STAŁY sink: utrzymanie ostrzeliwanego frontu kosztuje kredyty.
+export const REPAIR_FRAC = 0.5;
+// Zaoranie żyły płaci najwyżej z SALV_CAP rudy/kratkę — koniec z „odczekaj aż
+// odrośnie do 450 i zaorz na fortunę". Młode pole (≤~140/kratkę) i tak jest niżej.
+export const SALV_CAP = 140;
 // Czas budowy budynku = koszt / BUILD_DIV, ograniczony do [BUILD_MIN, BUILD_MAX] s.
 // Budynek w budowie jest MARTWY (bez mocy, dochodu, produkcji, ognia) — gotówka nie
 // zamienia się w działającą bazę na pstryknięcie. Niżej BUILD_DIV = wolniej.

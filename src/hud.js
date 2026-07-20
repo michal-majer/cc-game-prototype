@@ -34,12 +34,18 @@ export function buildBar(){
                  `<span class="cost warn">zwrot ≤50%</span><span class="desc">obiekty 50% wartości (wg HP) · żyły 40%</span>`;
   sell.addEventListener('click', ()=>{ S.sel = S.sel==='SELL'?null:'SELL'; S.upSel=null; });
   bar.appendChild(sell);
+  const rep=document.createElement('div'); rep.className='tile repair'; rep.dataset.type='REPAIR';
+  rep.innerHTML=`<span class="ico">✚</span><span class="nm">NAPRAWA</span>`+
+                `<span class="cost warn">wg braków HP</span><span class="desc">przywraca pełne HP · drożej im większe uszkodzenie</span>`;
+  rep.addEventListener('click', ()=>{ S.sel = S.sel==='REPAIR'?null:'REPAIR'; S.upSel=null; });
+  bar.appendChild(rep);
 }
 function updateBar(){
   const bar=qs('buildbar');
   for (const el of bar.children){
     const t=el.dataset.type;
     if (t==='SELL'){ el.classList.toggle('on', S.sel==='SELL'); continue; }
+    if (t==='REPAIR'){ el.classList.toggle('on', S.sel==='REPAIR'); continue; }
     const d=B[t], lock=!unlocked(t), afford=S.money>=d.cost;
     el.classList.toggle('lock', lock);
     el.classList.toggle('poor', !lock && !afford);
