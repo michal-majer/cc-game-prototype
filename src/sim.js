@@ -7,7 +7,7 @@
 import {
   U, B, CO, BASE_R, LANE_Y, LANE_HALF, BAS_X, FRONT_MIN, FRONT_MAX,
   BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC,
-  COUNTER, HUNT_LEASH, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
+  COUNTER, HUNT_LEASH, ENGAGE_BAND, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
   isHeavy, isSoldier, isArmored, BAL
 } from './config.js';
 import { S, say, lineX } from './state.js';
@@ -173,20 +173,30 @@ export function update(dt){
     if (u.side==='p'){ list = eU.slice(); if (!S.bastion.dead) list.push(S.bastion); }
     else { list = pU.slice(); if (u.x < BASE_R+40) list = list.concat(S.buildings); }
     let t=null, bd=340;
+    // najbliższy DOWOLNY wróg w polu widzenia — cel bazowy i „kto mnie okłada"
+    let near=null, nb=340;
+    for (const o of list){
+      if (o.hp<=0) continue;
+      const dist=Math.hypot(o.x-u.x,o.y-u.y);
+      if (dist<nb){ nb=dist; near=o; }
+    }
     if (d.hunt){
-      let hb=1e9;
+      // Łowca (łazik→arty) tropi swoją zwierzynę na CAŁYM polu, ale NIE daje się
+      // bezkarnie okładać: cokolwiek jest już w zasięgu ataku, bije priorytet nad
+      // daleką arty. Wcześniej łazik z hunt'em ignorował piechotę, która go tłukła,
+      // i maszerował przez blob pod ostrzałem, nie oddając ani jednego strzału —
+      // „dostawał w dupę od zwykłych żołnierzy", choć ma na nich kontrę ×2. Teraz
+      // najpierw tępi to, co go okłada, a zwierzynę dobija, gdy droga jest wolna.
+      let hb=1e9, prey=null;
       for (const o of list){
         if (o.hp<=0 || o.type!==d.hunt) continue;
         const dist=Math.hypot(o.x-u.x,o.y-u.y);
-        if (dist<hb){ hb=dist; t=o; }
+        if (dist<hb){ hb=dist; prey=o; }
       }
-      if (t) bd=hb;
-    }
-    if (!t) for (const o of list){
-      if (o.hp<=0) continue;
-      const dist=Math.hypot(o.x-u.x,o.y-u.y);
-      if (dist<bd){ bd=dist; t=o; }
-    }
+      if (near && nb<=d.range){ t=near; bd=nb; }      // ktoś w zwarciu → strzelaj
+      else if (prey){ t=prey; bd=hb; }                // droga wolna → trop arty
+      else { t=near; bd=nb; }
+    } else { t=near; bd=nb; }
     if (t && bd<=d.range && bd>=(d.minR||0)){
       u.cd -= dt;
       if (u.cd<=0){
@@ -217,7 +227,15 @@ export function update(dt){
       }
       else { vx = u.side==='p'?1:-1; vy=0; }
       const hunting = d.hunt && t && t.type===d.hunt && t.x <= lineX()+HUNT_LEASH;
-      const LIM = lineX() + (hunting ? HUNT_LEASH : 0);
+      const LIM0 = lineX() + (hunting ? HUNT_LEASH : 0);
+      // Nie stój jak słup pod ostrzałem wroga o dłuższym zasięgu: jeśli cel jest
+      // tuż za linią (w ENGAGE_BAND), podejdź na własną odległość strzału i oddaj
+      // ogień. Poza pasmem trzymaj linię (bez pościgu za kiterem). Wcześniej clamp
+      // zamrażał jednostkę DOKŁADNIE na linii — czołg parkował krok dalej niż jej
+      // zasięg i farmił ją bezkarnie („piechota stoi, a czołg w nią strzela").
+      let LIM = LIM0;
+      if (u.side==='p' && t && t.x > u.x && t.x <= LIM0 + ENGAGE_BAND)
+        LIM = Math.max(LIM0, t.x - d.range);
       if (u.side==='p'){
         if (u.x > LIM){ vx = -1; vy = 0; }
         else if (vx>0 && u.x + vx*d.spd*sMul*dt > LIM) vx = 0;
