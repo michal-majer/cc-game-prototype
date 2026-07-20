@@ -152,11 +152,16 @@ export const U = {
   //   uniwersalna odpowiedź na wszystko.
   rkt:  {name:'Rakietowiec', hp:50,  dmg:12, range:66,  spd:22, rate:1.2,  sz:4,  strong:['tank','kolos','lazik'], ap:true, proj:200},
   tank: {name:'Czołg',       hp:190, dmg:19, range:36,  spd:34, rate:0.95, sz:8,  strong:['inf'], arm:5},
-  // hp 90→110: łazik MA tępić piechotę (strong+COUNTER ×2), ale przy 90 HP ginął w
-  // zwarciu z gromadą, zanim ją przetrzebił — 1v1 miażdżył żołnierza, w tłumie padał.
-  // +20 HP daje mu przetrwać dojście i wyjść z blobu na wierzchu. Ofensywa bez zmian
-  // (i tak jednostrzałowo dominuje piechotę); to czysto przeżywalność w jego roli.
-  lazik:{name:'Łazik',       hp:110, dmg:11, range:30,  spd:55, rate:0.5,  sz:6,  strong:['arty','inf'], hunt:'arty'},
+  // hp 90→110→125, +arm 3: łazik MA tępić piechotę (strong+COUNTER ×2), ale ginął
+  // w zwarciu z gromadą, zanim ją przetrzebił. 1v1/2v1/3v1 miażdżył — problemem był
+  // OSTRY KLIF: 3 żołnierzy sprzątał, przy 4 padał bez szans (pomiar: 100% → 0%).
+  // Pancerz 3 to właściwa dźwignia: PŁASKA redukcja tnie głównie wiele słabych trafień
+  // (piechota 9→6, −33%), a ciężkie ledwie drapie (czołg 19→16, −16%) — mocny na blob,
+  // słaby na pancerne, zgodnie z rolą. Kontra rakietowca NIETKNIĘTA: rkt ma ap, który
+  // ignoruje pancerz. +15 HP odbudowuje margines, by „4" było pewne, a „5" wciąż ponad
+  // siły (pomiar po zmianie: 3/4 = 100%, 5 = 0%). `light`: mimo pancerza łazik NIE jest
+  // „ciężki" — zachowuje pełną prędkość odwrotu (kit łowcy), patrz isHeavy.
+  lazik:{name:'Łazik',       hp:125, dmg:11, range:30,  spd:55, rate:0.5,  sz:6,  strong:['arty','inf'], hunt:'arty', arm:3, light:true},
   arty: {name:'Artyleria',   hp:70,  dmg:24, range:175, spd:15, rate:3.0,  sz:7,  strong:[], spl:3, splR:34, minR:60, proj:150},
   kolos:{name:'Kolos',       hp:430, dmg:32, range:44,  spd:21, rate:1.1,  sz:11, strong:['inf'], arm:6},
 };
@@ -228,7 +233,10 @@ export function ringOf(t,c,r){
   }
   return out;
 }
-export const isHeavy = d => !!(d.arm || d.minR);
+// „ciężki" = kara do prędkości odwrotu (BACK_MUL): czołg/kolos/arty nie kitują.
+// `light` wyłącza tę karę mimo pancerza — łazik jest opancerzony, ale wciąż to
+// szybki wóz rozpoznawczy, który MA móc odskoczyć (kit łowcy artylerii).
+export const isHeavy = d => !d.light && !!(d.arm || d.minR);
 export function plObj(n){
   if (n===1) return 'OBIEKT';
   const d=n%10, s=n%100;
