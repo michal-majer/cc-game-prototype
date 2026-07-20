@@ -50,7 +50,8 @@ export function newRun(){
   say('TRZY MINI-SZTABY. Niczyje. Wejdz i odstoj — zostana Twoje.','good');
   say('Teren daje Ci kredyty. Im — budynki.','good');
   say('Oddany grunt płaci im, nie Tobie.','warn');
-  say('Laboratorium: +1 poziom wszystkim. Sztab: bez limitu.','good');
+  say('Laboratorium: +1 poziom wszystkim. Sztab: działa bazy, bez limitu.','good');
+  say('Armię ulepszasz kartami (dmg/pancerz) — rozkaz co 3 fale.','good');
   say('Bez radaru widzisz ich dopiero w zwarciu.','warn');
   say('Bastion JEST ich bazą — bij go, a ich fale maleją.','good');
   say('Żyła 450. Kredyty kapią — każdy budynek to decyzja.');

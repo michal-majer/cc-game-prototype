@@ -91,10 +91,11 @@ export const CAP_RATE  = 6;   // wolniejsze przejmowanie (~17 s) → sektor to t
 
 // --- BALANS RUCHOMY (karty + resetTables) ---
 // EBUILD_EVERY: co ile fal wróg dokłada budynek. Niżej = szybsza eskalacja.
-// 0.7 (~1,43 budynku/falę, było 0.85) — przeciwnik był zbyt słaby: gracz z buffem
-// sztabu i kartami wygrywa każde starcie i śnieżkuje. Szybsza rozbudowa OOB = fale
-// rosną ~40% szybciej, dłużej groźne w mid/late.
-export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:0.7 };
+// 0.85 (~1,18 budynku/falę): 0.7 zaostrzono pod snowball sztabu (gracz mnożył CAŁĄ
+// armię i wygrywał każde starcie). Odkąd sztab nie mnoży już armii — a jej skalowanie
+// idzie z rzadszych, płaskich kart — ta eskalacja robiła się zbyt duszna. Powrót do
+// 0.85 domyka pętlę: wróg wciąż rośnie od startu, ale gracz nadąża torem kart.
+export const BAL = { ORE_MAX:450, CLEAR_SALV:0.4, HQ_STEP:0.07, EBUILD_EVERY:0.85 };
 
 // --- budynki ---
 export const B = {
@@ -189,7 +190,7 @@ const B0 = JSON.parse(JSON.stringify(B));
 export function resetTables(){
   for (const k in U0){ for (const f in U[k]) delete U[k][f]; Object.assign(U[k], U0[k]); }
   for (const k in B0){ for (const f in B[k]) delete B[k][f]; Object.assign(B[k], B0[k]); }
-  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=0.7;
+  BAL.ORE_MAX=450; BAL.CLEAR_SALV=0.4; BAL.HQ_STEP=0.07; BAL.EBUILD_EVERY=0.85;
 }
 
 // --- czyste helpery siatki (bez stanu) ---
