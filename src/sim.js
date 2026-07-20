@@ -305,8 +305,14 @@ function updProj(dt){
 function impact(p){
   const d=U[p.src];
   if (d.spl){
-    const foes = S.units
-      .filter(o=>o.side!==p.side && o.hp>0 && Math.hypot(o.x-p.x,o.y-p.y)<=d.splR)
+    // pula rażenia: jednostki wroga + STRUKTURY. Odłamki muszą kruszyć budynki
+    // i BASTION, nie tylko żołnierzy — inaczej artyleria „strzela w sztab, ale
+    // nie zadaje obrażeń" (pocisk trafiał w cel, lecz splash szukał tylko S.units).
+    let pool = S.units.filter(o=>o.side!==p.side);
+    if (p.side==='p'){ if (!S.bastion.dead) pool.push(S.bastion); }
+    else pool = pool.concat(S.buildings);
+    const foes = pool
+      .filter(o=>o.hp>0 && Math.hypot(o.x-p.x,o.y-p.y)<=d.splR)
       .sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))
       .slice(0,d.spl);
     for (const o of foes) dmgTo(o,p.dmg,p.src);
