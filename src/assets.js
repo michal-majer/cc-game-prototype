@@ -66,10 +66,12 @@ export const SHEETS = {
   inf: {
     cols: 7, rows: 4, chroma: 0xff00ff, anchor: [0.5, 0.5],
     clips: {
-      idle:  { row: 0, frames: [0, 1, 2, 3],    fps: 6  },
-      walk:  { row: 1, frames: [0, 1, 2, 3, 4], fps: 10 },
-      shoot: { row: 2, frames: [0, 1],          fps: 12 },
-      die:   { row: 3, frames: [0, 1],          fps: 8, once: true },
+      idle:  { row: 0, frames: [0, 1, 2, 3],    fps: 5 },
+      walk:  { row: 1, frames: [0, 1, 2, 3, 4], fps: 9 },
+      shoot: { row: 2, frames: [0, 1],          fps: 10 },
+      // śmierć: klatki wiersza 3 są nierówne (leżący/trup szersze niż komórka),
+      // więc podane jawnymi prostokątami [x,y,w,h] zmierzonymi z pliku: klęka → pada → trup.
+      die:   { once: true, fps: 7, rects: [ [174,420,122,136], [326,420,217,136], [561,420,161,136] ] },
     },
   },
 };
@@ -108,16 +110,18 @@ async function loadSheet(name, url, sh){
   const id = ctx.getImageData(0, 0, cw, ch), px = id.data;
   const useDom = hi.length && lo.length;
   for (let i = 0; i < px.length; i += 4){
-    let bg;
     if (useDom){
       let loMax = -1, hiMin = 256;
       for (const ch of lo) if (px[i+ch] > loMax) loMax = px[i+ch];
       for (const ch of hi) if (px[i+ch] < hiMin) hiMin = px[i+ch];
-      bg = (hiMin - loMax) >= MARG;
-    } else {
-      bg = Math.abs(px[i]-kc[0]) <= 72 && Math.abs(px[i+1]-kc[1]) <= 72 && Math.abs(px[i+2]-kc[2]) <= 72;
+      const margin = hiMin - loMax;
+      if (margin >= MARG){ px[i+3] = 0; continue; }     // tło + mocna obwódka -> przezroczyste
+      // DESPILL: resztkowy nalot magenty na krawędzi (kanały tła > „niski") — ściągnij je
+      // do poziomu „niskiego", żeby zabić fioletową poświatę bez zjadania sylwetki.
+      if (margin > 0) for (const ch of hi) if (px[i+ch] > loMax) px[i+ch] = loMax;
+    } else if (Math.abs(px[i]-kc[0]) <= 72 && Math.abs(px[i+1]-kc[1]) <= 72 && Math.abs(px[i+2]-kc[2]) <= 72){
+      px[i+3] = 0;
     }
-    if (bg) px[i+3] = 0;
   }
   ctx.putImageData(id, 0, 0);
 
@@ -126,8 +130,10 @@ async function loadSheet(name, url, sh){
   const fw = Math.floor(cw / sh.cols), fh = Math.floor(ch / sh.rows);
   const clips = {};
   for (const [clipName, c] of Object.entries(sh.clips)){
-    const frames = c.frames.map(col =>
-      new PIXI.Texture({ source, frame: new PIXI.Rectangle(col * fw, c.row * fh, fw, fh) }));
+    // klatki z jawnych prostokątów (rects: [[x,y,w,h],...]) albo z siatki (row + frames)
+    const rects = c.rects || c.frames.map(col => [col*fw, c.row*fh, fw, fh]);
+    const frames = rects.map(([x,y,w,h]) =>
+      new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, w, h) }));
     frames.fps  = c.fps || 8;
     frames.once = !!c.once;
     clips[clipName] = frames;

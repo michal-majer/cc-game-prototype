@@ -20,8 +20,9 @@ export const WV = { x:24, y:150, w:1170, h:356 };     // widoczny wycinek świat
 export const cam = { zoom:1, min:0.2, max:3, panX:0, panY:0, _init:false };
 
 const SREF = 12, GB = SREF*3.6;
+const TEAM_P = 0x8fb8ff, TEAM_E = 0xff8272;   // zabarwienie sprite'ów jednostek: gracz niebieski / wróg czerwony
 const glyphTex = {};
-let worldRoot, gWorld, worldText, buildLayer, harvG, bastionLayer, unitLayer, gOver, ghostG;
+let worldRoot, gWorld, worldText, buildLayer, harvG, bastionLayer, deathLayer, unitLayer, gOver, ghostG;
 let bastionView=null;
 const now = () => performance.now();
 
@@ -36,6 +37,7 @@ export async function initPixi(){
   buildLayer= new PIXI.Container();  worldRoot.addChild(buildLayer);
   harvG     = new PIXI.Graphics();   worldRoot.addChild(harvG);   // harvestery nad budynkami
   bastionLayer=new PIXI.Container(); worldRoot.addChild(bastionLayer);
+  deathLayer= new PIXI.Container();  worldRoot.addChild(deathLayer);   // ginące ciała pod żywymi
   unitLayer = new PIXI.Container();  worldRoot.addChild(unitLayer);
   gOver     = new PIXI.Graphics();   worldRoot.addChild(gOver);
   ghostG    = new PIXI.Graphics();   worldRoot.addChild(ghostG);
@@ -363,6 +365,7 @@ function ensureUnitView(u){
     sc=(unitTex(u.type) ? (d.sz*2.6)/Math.max(v.spr.texture.width,1) : d.sz/SREF);
   }
   v._sc=sc; v.addChild(v.spr);
+  if (sh){ v.muz=new PIXI.Graphics(); v.muz.blendMode='add'; v.addChild(v.muz); }  // błysk wystrzału (glow)
   v.fog=new PIXI.Graphics();
   const s=d.sz;
   v.fog.rect(-s*0.85,-s*0.85,s*1.7,s*1.7).fill('#8a4040');
@@ -404,22 +407,70 @@ function drawUnits(dt){
     v.visible=vis; if (!vis) continue;
     v.x=u.x; v.y=u.y;
     v.spr.visible=known; v.fog.visible=!known;
+    if (v.muz) v.muz.clear();
     if (known){
       v.spr.scale.set(v._sc * (p?1:-1), v._sc);
       if (v.sheet){
         animSheet(v, u, dt);
-        // sprite ma własne kolory — bez zabarwiania na stronę; wróg lekko czerwony, trafiony biały
-        v.spr.tint = u.flash>0 ? 0xffffff : (p ? 0xffffff : 0xff9a86);
+        // zabarwienie na stronę: gracz niebieski / wróg czerwony (trafiony = biały błysk)
+        v.spr.tint = u.flash>0 ? 0xffffff : (p ? TEAM_P : TEAM_E);
+        if (u.muzT>0) drawMuzzle(v.muz, u.muzT, p, s);   // błysk z lufy tuż po strzale
       } else {
         v.spr.tint = u.flash>0 ? 0xffffff : HEX(p?CO.blue:CO.red);
       }
     }
     v.hp.clear();
-    if (u.hp<u.maxHp){
-      v.hp.rect(-s,-s-7,s*2,2).fill('#000000');
-      v.hp.rect(-s,-s-7,s*2*Math.max(0,u.hp/u.maxHp),2).fill(CO.ok);
+    if (known){                                   // pasek zdrowia nad głową — zawsze widoczny (jak w referencji)
+      const f=Math.max(0, u.hp/u.maxHp), bw=Math.max(s*2.4, 9), bx=-bw/2, by=-s-8;
+      v.hp.rect(bx-0.6,by-0.6,bw+1.2,3.2).fill({color:'#0b0f10', alpha:0.85});
+      v.hp.rect(bx,by,bw*f,2).fill(f>0.5?CO.ok : f>0.25?CO.warn : CO.red);
     }
     if (u.flash>0) u.flash-=0.06;
+  }
+}
+
+// błysk wystrzału: chunky żółta gwiazda z białym rdzeniem (jak w referencji) — addytywnie
+function drawMuzzle(g, muzT, p, s){
+  const a=Math.min(1, muzT/0.1), dir=p?1:-1;
+  const cx=dir*s*2.8, cy=-s*0.12, R=s*(1.5+0.8*a);
+  const pts=[];                                   // gwiazda 8-ramienna (długie/krótkie ramiona)
+  for (let k=0;k<16;k++){
+    const ang=k*Math.PI/8, rr=(k%2===0)?R:R*0.4;
+    pts.push(cx+Math.cos(ang)*rr*(k%2?1:1.15), cy+Math.sin(ang)*rr*0.9);
+  }
+  g.poly(pts).fill({color:0xffab1e, alpha:0.85*a});          // żółto-pomarańczowy rozbłysk
+  g.moveTo(cx,cy).lineTo(cx+dir*R*2.0, cy).stroke({width:s*0.55, color:0xffd24d, alpha:0.75*a}); // promień do przodu
+  g.circle(cx,cy,s*0.95).fill({color:0xffe680, alpha:0.95*a}); // gorący rdzeń
+  g.circle(cx,cy,s*0.5).fill({color:0xffffff, alpha:a});
+}
+
+/* ------------------------------ animacja śmierci ------------------------- */
+// Jednorazowe ciało odgrywające klip „die" w miejscu zgonu, potem zanika.
+// Zasilane z S.deaths (sim tylko zgłasza zgon — bez zmian w kolizjach/celowaniu).
+const deathFx=[];
+function spawnDeath(rec){
+  const sh=unitSheet(rec.type), clip=sh && sh.clips.die;
+  if (!clip) return;
+  const spr=new PIXI.Sprite(clip[0]); spr.anchor.set(0.5, 1);          // dół-środek: ciało na ziemi
+  const sc=(U[rec.type].sz*3.0)/Math.max(clip[0].height,1);
+  spr.scale.set(sc*(rec.p?1:-1), sc);
+  spr.x=rec.x; spr.y=rec.y + U[rec.type].sz;
+  spr.tint = rec.p?TEAM_P:TEAM_E;
+  deathLayer.addChild(spr);
+  deathFx.push({spr, clip, fi:0, ft:0, t:0});
+}
+function drawDeaths(dt){
+  if (S.deaths && S.deaths.length){ for (const r of S.deaths) spawnDeath(r); S.deaths.length=0; }
+  for (let i=deathFx.length-1;i>=0;i--){
+    const f=deathFx[i], clip=f.clip, fps=clip.fps||8; f.t+=dt;
+    if (f.fi<clip.length-1){                            // przewiń klatki raz i zatrzymaj na trupie
+      f.ft+=dt; const step=1/fps;
+      while (f.ft>=step && f.fi<clip.length-1){ f.ft-=step; f.fi++; }
+      f.spr.texture=clip[f.fi];
+    }
+    const hold=(clip.length-1)/fps + 0.7;               // trup leży chwilę, potem zanika
+    if (f.t>hold) f.spr.alpha=Math.max(0, 1-(f.t-hold)/0.5);
+    if (f.t>hold+0.5){ f.spr.destroy(); deathFx.splice(i,1); }
   }
 }
 
@@ -469,6 +520,8 @@ function drawGhost(){
 export function clearViews(){
   if (unitLayer) unitLayer.removeChildren().forEach(c=>c.destroy({children:true}));
   if (buildLayer) buildLayer.removeChildren().forEach(c=>c.destroy({children:true}));
+  if (deathLayer) deathLayer.removeChildren().forEach(c=>c.destroy({children:true}));
+  deathFx.length=0;
 }
 
 // jedna klatka renderu świata
@@ -493,6 +546,7 @@ export function renderFrame(){
   drawBuildings();
   drawHarvesters();
   drawBastion();
+  drawDeaths(adt);
   drawUnits(adt);
   drawOver();
   drawGhost();
