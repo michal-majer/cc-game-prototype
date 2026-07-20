@@ -21,7 +21,7 @@ export const S = {
   // dziennik / doktryna
   log:[], logDirty:true, hadRadar:0, doc:null,
   // moc / ekonomia pochodna
-  supply:0, drain:0, offBrown:0, oreStart:1, alertCd:0, ecoCd:0, fullCd:0,
+  supply:0, drain:0, offBrown:0, oreStart:1, alertCd:0, ecoCd:0, fullCd:0, harvBonus:0,
   // wróg
   eBase:[], eIntel:[], eStance:'hold', ePush:0, eHoldT:0, eDmgWave:0, eThink:0,
   eTerrBank:0, eCounterCd:0, eArmCd:0, eBuildN:0, eBuildDebt:0,

@@ -4,7 +4,39 @@
 
 import { COLS, ROWS, BASE_INCOME, ORE_REGEN, ORE_SIP, ORE_YOUNG, BAL, ringOf } from './config.js';
 import { S, say } from './state.js';
-import { bRate } from './buildings.js';
+import { bRate, bHarv } from './buildings.js';
+
+// Globalny przydział harvesterów do żył (Map: rafineria → lista żył, jedna pozycja
+// na harvester). Najpierw ROZKŁADAMY po różnych żyłach — dwie rafinerie przy tym
+// samym złożu dzielą je między siebie — a gdy żył mniej niż harvesterów, 2-3
+// harvestery wchodzą na jedną żyłę (podwójny/potrójny drenaż). Round-robin po
+// rafineriach = równy podział; w rafinerii wybór żyły o najmniejszym obciążeniu,
+// remis → najbogatsza. Żyła z 2 harvesterami trafia do listy 2× → drenaż 2×.
+export function harvestPlan(){
+  const key=(cc,rr)=>rr*100+cc, load=new Map(), refs=[];
+  for (const b of S.buildings){
+    if (b.type!=='refinery' || !b.powered) continue;
+    const veins=[];
+    for (const [cc,rr] of ringOf(b.type,b.c,b.r)){ const g=S.grid[rr][cc]; if (g.seam) veins.push({cc,rr,g}); }
+    if (veins.length) refs.push({b, veins, slots:bHarv(b), out:[]});
+  }
+  let progress=true;
+  while (progress){
+    progress=false;
+    for (const rf of refs){
+      if (rf.out.length>=rf.slots) continue;
+      let best=null, bestLoad=Infinity, bestOre=-1;
+      for (const v of rf.veins){
+        const l=load.get(key(v.cc,v.rr))||0;
+        if (l<bestLoad || (l===bestLoad && v.g.ore>bestOre)){ best=v; bestLoad=l; bestOre=v.g.ore; }
+      }
+      rf.out.push(best); load.set(key(best.cc,best.rr), bestLoad+1); progress=true;
+    }
+  }
+  const plan=new Map();
+  for (const rf of refs) plan.set(rf.b, rf.out);
+  return plan;
+}
 
 export function genOre(){
   // Dwa osobne pola rudy — strefa górna i dolna — żeby DWIE rafinerie miały
@@ -33,9 +65,9 @@ export function genOre(){
       if (cells.some(x=>x.c===nc&&x.r===nr)) continue;
       cells.push({c:nc,r:nr});
     }
-    // MŁODA ruda — pola startują umiarkowanie chude (ORE_YOUNG..+0.20 ≈ 11–31% z 450
-    // = ~50–140/kratkę), żeby zaoranie na starcie nie było fortuną, ale głębiej niż
-    // wcześniej: silnik trwa dłużej. Odrost spoczynkowy (5/s) i tak dopełnia pole.
+    // MŁODA ruda — pola startują głębsze (ORE_YOUNG..+0.20 ≈ 16–36% z 450
+    // = ~72–162/kratkę): faza bogata trwa dłużej, a przy netto −1 pole schodzi
+    // wolno. Zaoranie i tak ograniczone przez SALV_CAP; odrost spoczynkowy dopełnia.
     const mat = ORE_YOUNG + Math.random()*0.20;
     for (const x of cells){ S.grid[x.r][x.c].ore=Math.round(BAL.ORE_MAX*mat); S.grid[x.r][x.c].seam=true; }
   }
@@ -77,25 +109,15 @@ export function oreTotal(){
 }
 export function incomeRate(){
   let inc=BASE_INCOME;
-  for (const b of S.buildings){
-    if (b.type!=='refinery' || !b.powered) continue;
-    for (const [cc,rr] of ringOf(b.type,b.c,b.r)){
-      const g=S.grid[rr][cc];
-      if (!g.seam) continue;
-      inc += g.ore > 5 ? bRate(b) : ORE_SIP;
-    }
+  for (const [b, veins] of harvestPlan()){
+    for (const {g} of veins) inc += g.ore > 5 ? bRate(b) : ORE_SIP;
   }
   return inc;
 }
 export function oreBreak(){
   let rich=0, richRate=0, sip=0;
-  for (const b of S.buildings){
-    if (b.type!=='refinery' || !b.powered) continue;
-    for (const [cc,rr] of ringOf(b.type,b.c,b.r)){
-      const g=S.grid[rr][cc];
-      if (!g.seam) continue;
-      if (g.ore>5){ rich++; richRate+=bRate(b); } else sip++;
-    }
+  for (const [b, veins] of harvestPlan()){
+    for (const {g} of veins){ if (g.ore>5){ rich++; richRate+=bRate(b); } else sip++; }
   }
   return {rich, richRate, sip, sipRate:sip*ORE_SIP};
 }
@@ -127,11 +149,9 @@ export function regrow(dt){
 }
 export function extract(dt){
   let got=BASE_INCOME*dt;
-  for (const b of S.buildings){
-    if (b.type!=='refinery' || !b.powered) continue;
-    for (const [cc,rr] of ringOf(b.type,b.c,b.r)){
-      const g=S.grid[rr][cc];
-      if (g.seam) g.pull=true;
+  for (const [b, veins] of harvestPlan()){   // tylko żyły pod harvesterami; reszta odłogiem (patrz regrow)
+    for (const {g} of veins){
+      g.pull=true;
       if (g.ore<=0) continue;
       const take=Math.min(g.ore, bRate(b)*dt);
       g.ore-=take; got+=take;

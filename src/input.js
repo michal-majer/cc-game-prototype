@@ -3,7 +3,7 @@
    klawiatura. Tap na kratkę = buduj / ulepsz / rozbierz (zależnie od trybu).
    ========================================================================= */
 
-import { B, CELL, BASE_X, BASE_Y, ROWS, COLS, CO, SELL_BACK, BAL, cellAt, cellsOf, clamp } from './config.js';
+import { B, CELL, BASE_X, BASE_Y, ROWS, COLS, CO, SELL_BACK, REPAIR_FRAC, SALV_CAP, HQ_COST, BAL, cellAt, cellsOf, clamp } from './config.js';
 import { S, say } from './state.js';
 import { boom, resumeAudio, setMuted, isMuted } from './audio.js';
 import { explode } from './effects.js';
@@ -15,6 +15,14 @@ import { toast, syncOverlays } from './hud.js';
 import { newRun } from './game.js';
 
 const qs = id => document.getElementById(id);
+
+// wartość włożona w budynek (koszt + ulepszenia) — baza dla złomu i naprawy.
+// Sztab ma koszt 0, więc liczymy go po HQ_COST (jak jego ulepszenia).
+function investedOf(b){
+  const unit = b.type==='hq' ? HQ_COST : B[b.type].cost;
+  let put=unit; for (let l=1;l<b.lvl;l++) put+=unit*l;
+  return put;
+}
 
 // ulepszenie budynku — wołane z drugiego tapnięcia i z przycisku ULEPSZ w panelu
 function doUpgrade(b){
@@ -36,7 +44,7 @@ function worldTap(px,py){
 
   if (S.sel==='SELL'){
     if (!g.b && g.seam){
-      const salv=Math.floor(g.ore*BAL.CLEAR_SALV);
+      const salv=Math.floor(Math.min(g.ore, SALV_CAP)*BAL.CLEAR_SALV);   // zaoranie płaci max z SALV_CAP — bez farmy z odrośniętych żył
       S.money+=salv; g.ore=0; g.seam=false;
       say(salv>0?'ŻYŁA ZAORANA — ODZYSK '+salv+' kr.':'ŻYŁA ZAORANA — NIE ODROŚNIE','warn');
       explode(BASE_X+(c+0.5)*CELL, BASE_Y+(r+0.5)*CELL, 18, CO.ore); boom(0.2); S.shake=Math.max(S.shake,4);
@@ -44,14 +52,25 @@ function worldTap(px,py){
     }
     const b=g.b; if (!b) return;
     if (b.type==='hq'){ say('SZTABU NIE SPRZEDASZ','warn'); toast('SZTABU NIE SPRZEDASZ'); return; }
-    let put=B[b.type].cost; for (let l=1;l<b.lvl;l++) put+=B[b.type].cost*l;
     const frac=clamp(b.hp/b.maxHp,0,1);          // uszkodzony budynek wart mniej przy rozbiórce: 50% z WARTOŚCI, nie z pełnego kosztu
-    const back=Math.floor(put*SELL_BACK*frac); S.money+=back;
+    const back=Math.floor(investedOf(b)*SELL_BACK*frac); S.money+=back;
     const underC=(b.build||0)>0;
     say((underC?'ANULOWANO BUDOWĘ — ':'ROZEBRANO — ')+B[b.type].name+' · +'+back+' kr.','good');
     if (b._view){ b._view.destroy({children:true}); b._view=null; }
     clearCells(b); S.buildings.splice(S.buildings.indexOf(b),1);
     explode(b.x,b.y,16,CO.dim); boom(0.14); S.shake=Math.max(S.shake,3); recalcPower();
+    return;
+  }
+  if (S.sel==='REPAIR'){
+    const b=g.b; if (!b) return;
+    if ((b.build||0)>0){ toast('W BUDOWIE'); return; }
+    if (b.hp>=b.maxHp){ toast('PEŁNE HP'); return; }
+    const miss=1-clamp(b.hp/b.maxHp,0,1);
+    const cost=Math.ceil(investedOf(b)*miss*REPAIR_FRAC);   // im bardziej uszkodzony, tym drożej
+    if (S.money<cost){ say('BRAK ŚRODKÓW — '+cost+' kr.','warn'); toast('BRAK ŚRODKÓW — '+cost+' kr.'); return; }
+    S.money-=cost; b.hp=b.maxHp; b.flash=1;
+    say('NAPRAWIONO — '+B[b.type].name+' · −'+cost+' kr.','good');
+    explode(b.x,b.y,12,CO.ok); boom(0.12);
     return;
   }
   if (!S.sel){

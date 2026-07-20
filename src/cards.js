@@ -1,5 +1,5 @@
 /* =========================================================================
-   FRONT — talia (ROZKAZ ZE SZTABU co 5 fal) + otwarcia (fala 0).
+   FRONT — talia (ROZKAZ ZE SZTABU co 3 fale) + otwarcia (fala 0).
    Twarda zasada: żadna karta nie rusza `fp` (obrysu) — zmiana w locie
    zostawiłaby zablokowaną dziurę. resetTables() (config) czyści mutacje U/B
    między runami.
@@ -38,6 +38,8 @@ export const DECK = [
    f:()=>{ BAL.CLEAR_SALV=0.7; }},
   {n:'NOWE ZŁOŻE',     k:'RUDA',   d:'świeża bogata żyła (~5 kratek) w wolnym miejscu',
    f:()=>{ seedSeam(); }},
+  {n:'BRYGADY GÓRNICZE',k:'RUDA',  d:'każda rafineria +1 harvester za darmo (o ile ma wolną żyłę)',
+   f:()=>{ S.harvBonus=(S.harvBonus||0)+1; }},
   {n:'KOMPRESJA',      k:'RUDA',   d:'elektrownia +3 mocy (6 → 9)',
    f:()=>{ B.power.sup=9; }},
   {n:'MOBILIZACJA',    k:'KRATKI', d:'barak i wyrzutnia: 2 jednostki zamiast 1, na każdym poziomie',
@@ -78,6 +80,14 @@ export function openDraft(src, tytul, pod){
   const pool=[...(src||S.deck)], pick=[];
   if (!pool.length) return;
   while (pick.length<3 && pool.length) pick.push(pool.splice((Math.random()*pool.length)|0,1)[0]);
+  // Gwarancja toru armii: karty powtarzalne (dmg/pancerz) to jedyny tor skalowania
+  // jednostek, odkąd sztab ich nie mnoży. Jeśli losowy draft ich nie trafił, a talia
+  // wciąż je ma — wstaw jedną, by ścieżka ulepszeń armii ZAWSZE była na stole.
+  // Otwarcia (OPEN) nie mają kart repeat → to no-op.
+  if (!pick.some(c=>c.repeat)){
+    const rep=pool.filter(c=>c.repeat);
+    if (rep.length) pick[pick.length-1]=rep[(Math.random()*rep.length)|0];
+  }
   S.draft=pick; S.draftT=tytul||'ROZKAZ ZE SZTABU';
   S.draftS=pod||('fala '+S.wave+' · wybierz jedno · [1] [2] [3]');
   S.state='draft'; siren(); S.shake=Math.max(S.shake,8);
