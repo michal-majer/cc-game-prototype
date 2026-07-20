@@ -139,7 +139,12 @@ export const BAR = ['power','refinery','barracks','rocket','bunker','workshop','
 
 // --- jednostki ---
 export const U = {
-  inf:  {name:'Piechota',    hp:60,  dmg:9,  range:26,  spd:26, rate:0.75, sz:4,  strong:['rkt']},
+  // ZASIĘGI BEZPOŚREDNIEGO OGNIA ×1.5 (inf/łazik/czołg/kolos/rkt): dawne 26–66 px
+  // dawały „tulaninę" — jednostki biły się w kilkunastu pikselach, a wróg spoza
+  // zasięgu farmił stojących. Skala ×1.5 zachowuje WSZYSTKIE luki (a więc kontry),
+  // a walka czyta się jak strzelanina. Artyleria (175) BEZ zmian — osobna liga,
+  // zależą od niej stanice (NACISK: „arty dosięga bastionu”).
+  inf:  {name:'Piechota',    hp:60,  dmg:9,  range:39,  spd:26, rate:0.75, sz:4,  strong:['rkt']},
   // dmg 15→12: DPS był za wysoki. Rakietowiec i tak przebija pancerz (ap) oraz
   // dostaje ×2 do pancernych (strong+COUNTER), więc bazowe 15 czyniło go zbyt
   // uniwersalnym młotem. 12 = ~10 DPS bazowo, ~21 vs pancerni — dalej specjalista.
@@ -150,8 +155,8 @@ export const U = {
   //   enemy dosypuje teraz piechotę na masówkę rakiet (patrz eBuild) — a piechota
   //   przebija ×2 przez 50 HP rakietowca. Rakieta = specjalista od pancerza, nie
   //   uniwersalna odpowiedź na wszystko.
-  rkt:  {name:'Rakietowiec', hp:50,  dmg:12, range:66,  spd:22, rate:1.2,  sz:4,  strong:['tank','kolos','lazik'], ap:true, proj:200},
-  tank: {name:'Czołg',       hp:190, dmg:19, range:36,  spd:34, rate:0.95, sz:8,  strong:['inf'], arm:5},
+  rkt:  {name:'Rakietowiec', hp:50,  dmg:12, range:99,  spd:22, rate:1.2,  sz:4,  strong:['tank','kolos','lazik'], ap:true, proj:200},
+  tank: {name:'Czołg',       hp:190, dmg:19, range:54,  spd:34, rate:0.95, sz:8,  strong:['inf'], arm:5},
   // hp 90→110→125, +arm 3: łazik MA tępić piechotę (strong+COUNTER ×2), ale ginął
   // w zwarciu z gromadą, zanim ją przetrzebił. 1v1/2v1/3v1 miażdżył — problemem był
   // OSTRY KLIF: 3 żołnierzy sprzątał, przy 4 padał bez szans (pomiar: 100% → 0%).
@@ -161,12 +166,17 @@ export const U = {
   // ignoruje pancerz. +15 HP odbudowuje margines, by „4" było pewne, a „5" wciąż ponad
   // siły (pomiar po zmianie: 3/4 = 100%, 5 = 0%). `light`: mimo pancerza łazik NIE jest
   // „ciężki" — zachowuje pełną prędkość odwrotu (kit łowcy), patrz isHeavy.
-  lazik:{name:'Łazik',       hp:125, dmg:11, range:30,  spd:55, rate:0.5,  sz:6,  strong:['arty','inf'], hunt:'arty', arm:3, light:true},
+  lazik:{name:'Łazik',       hp:125, dmg:11, range:45,  spd:55, rate:0.5,  sz:6,  strong:['arty','inf'], hunt:'arty', arm:3, light:true},
   arty: {name:'Artyleria',   hp:70,  dmg:24, range:175, spd:15, rate:3.0,  sz:7,  strong:[], spl:3, splR:34, minR:60, proj:150},
-  kolos:{name:'Kolos',       hp:430, dmg:32, range:44,  spd:21, rate:1.1,  sz:11, strong:['inf'], arm:6},
+  kolos:{name:'Kolos',       hp:430, dmg:32, range:66,  spd:21, rate:1.1,  sz:11, strong:['inf'], arm:6},
 };
 export const COUNTER   = 2.0;
 export const HUNT_LEASH = 150;
+// Pasmo walki: jak daleko ZA LINIĄ trzymana jednostka podejdzie, by dosięgnąć
+// wroga strzałem, zamiast stać jak słup pod ostrzałem dłuższego zasięgu. Kryje
+// zwarcie z pancernymi (czołg 54, kolos 66 px), ale NIE pozwala gonić kitera
+// (rkt 99, arty 175) przez całe pole — poza pasmem jednostka trzyma linię.
+export const ENGAGE_BAND = 90;
 export const BACK_MUL  = 0.4;
 export const CONTACT = 90;
 export const SEEN_HOLD = 2;

@@ -7,7 +7,7 @@
 import {
   U, B, CO, BASE_R, LANE_Y, LANE_HALF, BAS_X, FRONT_MIN, FRONT_MAX,
   BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC,
-  COUNTER, HUNT_LEASH, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
+  COUNTER, HUNT_LEASH, ENGAGE_BAND, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
   isHeavy, isSoldier, isArmored, BAL
 } from './config.js';
 import { S, say, lineX } from './state.js';
@@ -226,7 +226,15 @@ export function update(dt){
       }
       else { vx = u.side==='p'?1:-1; vy=0; }
       const hunting = d.hunt && t && t.type===d.hunt && t.x <= lineX()+HUNT_LEASH;
-      const LIM = lineX() + (hunting ? HUNT_LEASH : 0);
+      const LIM0 = lineX() + (hunting ? HUNT_LEASH : 0);
+      // Nie stój jak słup pod ostrzałem wroga o dłuższym zasięgu: jeśli cel jest
+      // tuż za linią (w ENGAGE_BAND), podejdź na własną odległość strzału i oddaj
+      // ogień. Poza pasmem trzymaj linię (bez pościgu za kiterem). Wcześniej clamp
+      // zamrażał jednostkę DOKŁADNIE na linii — czołg parkował krok dalej niż jej
+      // zasięg i farmił ją bezkarnie („piechota stoi, a czołg w nią strzela").
+      let LIM = LIM0;
+      if (u.side==='p' && t && t.x > u.x && t.x <= LIM0 + ENGAGE_BAND)
+        LIM = Math.max(LIM0, t.x - d.range);
       if (u.side==='p'){
         if (u.x > LIM){ vx = -1; vy = 0; }
         else if (vx>0 && u.x + vx*d.spd*sMul*dt > LIM) vx = 0;
