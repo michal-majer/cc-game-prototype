@@ -252,12 +252,15 @@ function drawBuildings(){
     const v=ensureBuildingView(b), d=B[b.type];
     const [w,h]=d.fp, R={x:BASE_X+b.c*CELL, y:BASE_Y+b.r*CELL, w:w*CELL, h:h*CELL};
     const pulse = b.brown && (now()%600<300);
-    const body = b.flash>0 ? '#ffffff' : (b.powered ? d.col : (pulse?'#5c2a2a':'#3d2222'));
+    const building = (b.build||0)>0;
+    const body = b.flash>0 ? '#ffffff' : building ? '#28323a' : (b.powered ? d.col : (pulse?'#5c2a2a':'#3d2222'));
     v.g.clear();
     if (v.spr){
       v.spr.x=R.x+R.w/2; v.spr.y=R.y+R.h/2;
       const sc=Math.min((R.w-6)/v.spr.texture.width,(R.h-6)/v.spr.texture.height);
-      v.spr.scale.set(sc); v.spr.tint = b.flash>0?0xffffff:(b.powered?0xffffff:0x884444);
+      v.spr.scale.set(sc);
+      v.spr.tint = b.flash>0?0xffffff:(building?0x4a5a66:(b.powered?0xffffff:0x884444));
+      v.spr.alpha = building?0.45:1;
     } else {
       v.g.rect(R.x+3,R.y+3,R.w-6,R.h-6).fill(body);
     }
@@ -265,7 +268,8 @@ function drawBuildings(){
     v.ico.visible=!v.spr; v.ico.x=R.x+R.w/2; v.ico.y=R.y+R.h/2-6;
     v.ico.style.fill = b.powered?'rgba(0,0,0,.6)':'rgba(255,255,255,.25)';
     let label=d.short, lcol=b.brown?CO.red:'rgba(0,0,0,.6)';
-    if (b.brown) label='PRZECIĄŻENIE';
+    if (building){ label='W BUDOWIE '+Math.ceil(b.build)+'s'; lcol=CO.warn; }
+    else if (b.brown) label='PRZECIĄŻENIE';
     else if (b.type==='hq' && b.lvl>1){ label='SZTAB +'+Math.round((b.lvl-1)*BAL.HQ_STEP*100)+'%'; }
     else if (b.type==='refinery'){
       let seams=0; for (const [cc,rr] of ringOf(b.type,b.c,b.r)) if (S.grid[rr][cc].seam) seams++;
@@ -279,6 +283,11 @@ function drawBuildings(){
     if (b.hp<b.maxHp){
       v.g.rect(R.x+5,R.y+2,R.w-10,3).fill('#000000');
       v.g.rect(R.x+5,R.y+2,(R.w-10)*Math.max(0,b.hp/b.maxHp),3).fill(CO.ok);
+    }
+    if (building){                                   // pasek postępu budowy (środek kafla)
+      const p = b.buildMax>0 ? 1-b.build/b.buildMax : 1;
+      v.g.rect(R.x+5, R.y+R.h/2-3, R.w-10, 5).fill('#000000');
+      v.g.rect(R.x+5, R.y+R.h/2-3, (R.w-10)*p, 5).fill(CO.warn);
     }
     if (b.flash>0) b.flash-=0.06;
   }

@@ -78,6 +78,10 @@ export const WAVE_TIME = 30;     // rzadsze fale → mniej jednostek naraz, każ
 export const TERR_MAX  = 15;     // 5/sektor (było 8): teren to DODATEK do rudy, nie główny przychód — mini-sztaby przestały nieść całą ekonomię
 export const ETERR_SEC = 65;
 export const SELL_BACK = 0.5;
+// Czas budowy budynku = koszt / BUILD_DIV, ograniczony do [BUILD_MIN, BUILD_MAX] s.
+// Budynek w budowie jest MARTWY (bez mocy, dochodu, produkcji, ognia) — gotówka nie
+// zamienia się w działającą bazę na pstryknięcie. Niżej BUILD_DIV = wolniej.
+export const BUILD_DIV = 50, BUILD_MIN = 2, BUILD_MAX = 12;
 export const MAXLVL    = 3;
 export const RAID_PAY  = 0.4;
 export const HQ_COST   = 350;

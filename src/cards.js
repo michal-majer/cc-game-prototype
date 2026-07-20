@@ -59,7 +59,7 @@ export function gift(t){
     const v = (t==='refinery' ? oreAround(t,c,r).n*100 : 0) - (Math.abs(c-S.hq.c)+Math.abs(r-S.hq.r));
     if (v>bv){ bv=v; best=[c,r]; }
   }
-  if (best) mkBuilding(t, best[0], best[1]);
+  if (best) mkBuilding(t, best[0], best[1], true);   // darowizny z kart stają natychmiast
 }
 export const OPEN = [
   {n:'PANCERNI',      k:'WOJSKO', d:'fabryka bez radaru: czolg od fali 1. Okno do fali 4 — potem rakiety.',

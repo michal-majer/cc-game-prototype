@@ -16,7 +16,7 @@ import { explode } from './effects.js';
 import { regrow, extract, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { updSect, terrIncome, eTerrCtrl } from './sectors.js';
 import { eDecide, eBuild, eComp } from './enemy.js';
-import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor } from './buildings.js';
+import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor, recalcPower } from './buildings.js';
 import { openDraft } from './cards.js';
 
 // Odstęp do następnej fali. Wolniejszy początek: pierwsze fale rzadziej, żeby
@@ -83,6 +83,15 @@ export function update(dt){
   if (!S.ready) return;
   regrow(dt);
   updSect(dt);
+  // budowa: budynki dochodzą do gotowości; ukończony włącza się do sieci (moc/ogień/produkcja)
+  let built=false;
+  for (const b of S.buildings){
+    if (b.build>0){
+      b.build=Math.max(0, b.build-dt);
+      if (b.build<=0){ built=true; b.flash=1; say('BUDOWA UKOŃCZONA — '+B[b.type].name,'good'); boom(0.15); }
+    }
+  }
+  if (built) recalcPower();
   S.money += extract(dt) + terrIncome()*dt;
   S.timer -= dt;
   if (Number.isNaN(S.timer)) S.timer=waveInterval();
