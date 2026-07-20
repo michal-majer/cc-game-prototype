@@ -206,7 +206,7 @@ export function update(dt){
             S.fx.push({x:t.x,y:t.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.2,c:'#ffe680',r:2.4});
           }
         }
-        u.cd=d.rate; u.fireT=0.38; u.muzT=0.1;   // fireT: klip „shoot” (dłużej); muzT: krótki błysk z lufy
+        u.cd=d.rate; u.fireT=0.5; u.muzT=0.16;   // fireT: poza „shoot” trzyma dłużej; muzT: błysk z lufy (widoczniejszy)
       }
     } else {
       let vx,vy, sMul=1;

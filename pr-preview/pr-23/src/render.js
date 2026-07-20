@@ -433,7 +433,7 @@ function drawUnits(dt){
 // Błysk NA WYLOCIE LUFY (a nie wiszący przed żołnierzem): zwarta iskra wydłużona
 // wzdłuż strzału + gorący rdzeń + krótka smuga do przodu. cx≈przód sylwetki.
 function drawMuzzle(g, muzT, p, s){
-  const a=Math.min(1, muzT/0.1), dir=p?1:-1;
+  const a=Math.min(1, muzT/0.16), dir=p?1:-1;
   const cx=dir*s*1.35, cy=-s*0.05, R=s*(0.85+0.5*a);
   const pts=[                                       // 4-ramienna iskra, dłuższa wzdłuż lufy
     cx+dir*R*1.9, cy,
