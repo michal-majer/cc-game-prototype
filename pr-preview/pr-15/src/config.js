@@ -54,9 +54,10 @@ export const CO = {
 // spłukany"), przez co ekonomia sama się niosła. 2 = ledwie oddech; żeby rosnąć
 // MUSISZ sięgnąć po rudę albo teren.
 export const BASE_INCOME = 2;
-// ORE_RATE — ile rafineria I poz. ciągnie z BOGATEJ kratki (>5 rudy). 3 (było 2),
-// żeby świeże pole realnie się opłacało od startu: ~4 kratki × 3 = ~12/s za 250 kr.
-export const ORE_RATE  = 3;
+// ORE_RATE — ile ciągnie JEDEN harvester z bogatej żyły (>5 rudy). Rafineria I poz.
+// = 1 harvester (1 żyła). Ulepszenie = kolejny harvester (kolejna żyła), aż do
+// liczby przyległych żył. 6/harvester: I poz. 6/s → II 12/s → III 18/s za rudę.
+export const ORE_RATE  = 6;
 // Odrost rudy — ROZPRZĘGNIĘTY na dwie prędkości (regrow wybiera po fladze pull):
 //  · ORE_REGEN — żyła SPOCZYNKOWA (nietknięta): szybkie odbicie, pusta 0→450 ~90 s.
 //  · ORE_SIP   — żyła CZYNNA (pod rafinerią): odrost przy drenażu. 2 (było 1):
@@ -110,7 +111,7 @@ export const B = {
   power:   {name:'ELEKTROWNIA',  short:'PRĄD',  fp:[1,1], cost:100, hp:200,  col:'#e8b23a', ico:'⚡', sup:6, req:[],
             desc:'+6 mocy · 1×1'},
   refinery:{name:'RAFINERIA',    short:'RAF.',  fp:[2,2], cost:250, hp:250,  col:'#5fd18a', ico:'$', drn:2, req:[],
-            desc:'+9 kr./s za przyległą rudę'},
+            desc:'harvester: +6 kr./s za żyłę · ulepsz = kolejny'},
   barracks:{name:'BARAK',        short:'BARAK', fp:[1,1], cost:150, hp:200,  col:'#6fa8dc', ico:'i', drn:2, req:[],
             unit:'inf', count:1, desc:'co falę: 1× Piechota · 1×1'},
   rocket:  {name:'WYRZUTNIA',    short:'WYRZ.', fp:[1,2], cost:250, hp:180,  col:'#9b7fd4', ico:'r', drn:2, req:[],

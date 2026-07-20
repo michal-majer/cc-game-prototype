@@ -5,9 +5,9 @@
 
 import {
   U, B, EB, EARTY_CAP, EPUSH_R, EHOLD_R, EPATIENCE, EPAT_MASS, ESCOUT,
-  ETHINK, ECOMMIT, ESHELLED, BAS_HP
+  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X
 } from './config.js';
-import { S, say, lineX } from './state.js';
+import { S, SECT, say, lineX } from './state.js';
 import { boom, siren } from './audio.js';
 import { bDmg, radarLvl } from './buildings.js';
 import { terrCtrl } from './sectors.js';
@@ -37,6 +37,22 @@ export function pDefense(){
 export function eRatio(){
   const p = force('p') + pDefense();
   return p<1 ? 99 : force('e')/p;
+}
+// Gdzie wróg trzyma linię w postawie 'hold'. DAWNIEJ: sztywne EHOLD_X pod
+// bastionem (1040) — za wszystkimi mini-sztabami, więc wróg nigdy się o nie
+// nie bił, tylko czekał albo szarżował na bazę i ginął. TERAZ: wychodzi na
+// najbardziej wysunięty sektor, którego jeszcze NIE trzyma, i tam się okopuje —
+// realnie kontestuje teren na neutralnym gruncie zamiast dawać się wystrzelać
+// pod sztabem gracza.
+//   · podłoga = linia gracza (bez szturmu nie wejdzie za jego front),
+//   · sufit   = EHOLD_X (nigdy nie zostawia bastionu bez osłony).
+export function eHoldX(){
+  let x = null;
+  for (const q of SECT){                  // SECT: od frontu (lewa) do bazy (prawa)
+    if (q.own !== -1){ x = q.x; break; }   // pierwszy sektor jeszcze NIE ich = cel
+  }
+  if (x === null) x = SECT[0].x;           // trzymają wszystkie → broń najdalszego
+  return Math.min(EHOLD_X, Math.max(x, lineX()));
 }
 export function eDecide(){
   const r = eRatio(), n = S.units.filter(u=>u.side==='e').length;

@@ -4,7 +4,16 @@
 
 import { COLS, ROWS, BASE_INCOME, ORE_REGEN, ORE_SIP, ORE_YOUNG, BAL, ringOf } from './config.js';
 import { S, say } from './state.js';
-import { bRate } from './buildings.js';
+import { bRate, bHarv } from './buildings.js';
+
+// N najbogatszych przyległych żył pod harvestery rafinerii (N = liczba harvesterów).
+// Reszta żył leży odłogiem (spoczynkowa) — odrasta szybko, aż harvester tam trafi.
+function harvestOf(b){
+  const out=[];
+  for (const [cc,rr] of ringOf(b.type,b.c,b.r)){ const g=S.grid[rr][cc]; if (g.seam) out.push({cc,rr,g}); }
+  out.sort((a,b)=>b.g.ore-a.g.ore);
+  return out.slice(0, bHarv(b));
+}
 
 export function genOre(){
   // Dwa osobne pola rudy — strefa górna i dolna — żeby DWIE rafinerie miały
@@ -79,11 +88,7 @@ export function incomeRate(){
   let inc=BASE_INCOME;
   for (const b of S.buildings){
     if (b.type!=='refinery' || !b.powered) continue;
-    for (const [cc,rr] of ringOf(b.type,b.c,b.r)){
-      const g=S.grid[rr][cc];
-      if (!g.seam) continue;
-      inc += g.ore > 5 ? bRate(b) : ORE_SIP;
-    }
+    for (const {g} of harvestOf(b)) inc += g.ore > 5 ? bRate(b) : ORE_SIP;
   }
   return inc;
 }
@@ -91,9 +96,7 @@ export function oreBreak(){
   let rich=0, richRate=0, sip=0;
   for (const b of S.buildings){
     if (b.type!=='refinery' || !b.powered) continue;
-    for (const [cc,rr] of ringOf(b.type,b.c,b.r)){
-      const g=S.grid[rr][cc];
-      if (!g.seam) continue;
+    for (const {g} of harvestOf(b)){
       if (g.ore>5){ rich++; richRate+=bRate(b); } else sip++;
     }
   }
@@ -129,9 +132,8 @@ export function extract(dt){
   let got=BASE_INCOME*dt;
   for (const b of S.buildings){
     if (b.type!=='refinery' || !b.powered) continue;
-    for (const [cc,rr] of ringOf(b.type,b.c,b.r)){
-      const g=S.grid[rr][cc];
-      if (g.seam) g.pull=true;
+    for (const {g} of harvestOf(b)){       // tylko żyły pod harvesterami; reszta odłogiem (patrz regrow)
+      g.pull=true;
       if (g.ore<=0) continue;
       const take=Math.min(g.ore, bRate(b)*dt);
       g.ore-=take; got+=take;
