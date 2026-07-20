@@ -29,8 +29,8 @@ export const DECK = [
    f:()=>{ U.arty.spl=4; }},
   {n:'BENZYNA 100',    k:'WOJSKO', d:'łazik: prędkość 55 → 72',
    f:()=>{ U.lazik.spd=72; }},
-  {n:'CELOWNIKI',      k:'WOJSKO', d:'rakietowiec: zasięg 74 → 96',
-   f:()=>{ U.rkt.range=96; }},
+  {n:'CELOWNIKI',      k:'WOJSKO', d:'rakietowiec: zasięg 66 → 88',
+   f:()=>{ U.rkt.range=88; }},
   {n:'GŁĘBOKI ODWIERT',k:'RUDA',   d:'każda żyła +180 rudy, teraz',
    f:()=>{ BAL.ORE_MAX=630; for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
              const g=S.grid[r][c]; if(g.seam) g.ore=Math.min(BAL.ORE_MAX,g.ore+180); } }},

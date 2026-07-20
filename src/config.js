@@ -115,8 +115,8 @@ export const B = {
             desc:'harvester: +6 kr./s za żyłę · ulepsz = kolejny'},
   barracks:{name:'BARAK',        short:'BARAK', fp:[1,1], cost:150, hp:200,  col:'#6fa8dc', ico:'i', drn:2, req:[],
             unit:'inf', count:1, desc:'co falę: 1× Piechota · 1×1'},
-  rocket:  {name:'WYRZUTNIA',    short:'WYRZ.', fp:[1,2], cost:250, hp:180,  col:'#9b7fd4', ico:'r', drn:2, req:[],
-            unit:'rkt', count:1},
+  rocket:  {name:'WYRZUTNIA',    short:'WYRZ.', fp:[1,2], cost:300, hp:180,  col:'#9b7fd4', ico:'r', drn:2, req:[],
+            unit:'rkt', count:1, desc:'rakiety przebijają pancerz · ×2 do czołgów'},
   bunker:  {name:'GNIAZDO RAK.',  short:'GNIAZ.',fp:[1,1], cost:180, hp:350,  col:'#8fa3a8', ico:'▲', drn:1, req:['rocket'],
             desc:'rakiety 230 px · przebija pancerz', atk:{dmg:15, range:230, rate:1.0, ap:true}},
   workshop:{name:'WARSZTAT',     short:'WARSZ.',fp:[2,1], cost:200, hp:220,  col:'#d9a04d', ico:'w', drn:2, req:[],
@@ -143,9 +143,20 @@ export const U = {
   // dmg 15→12: DPS był za wysoki. Rakietowiec i tak przebija pancerz (ap) oraz
   // dostaje ×2 do pancernych (strong+COUNTER), więc bazowe 15 czyniło go zbyt
   // uniwersalnym młotem. 12 = ~10 DPS bazowo, ~21 vs pancerni — dalej specjalista.
-  rkt:  {name:'Rakietowiec', hp:50,  dmg:12, range:74,  spd:22, rate:1.15, sz:4,  strong:['tank','kolos','lazik'], ap:true, proj:200},
+  //   range 74→66, rate 1.15→1.2: rakieta była TANIM młotem na wszystko pancerne —
+  //   masówka rakiet za nic kitowała czołgi (zasięg 74 vs 36) i STALOWA PIĘŚĆ sama
+  //   się na nią nadziewała. Krótsze okno kitu + niższy DPS + droższa WYRZUTNIA
+  //   (250→300) każą inwestować, zamiast zalewać rurami. Właściwa kara idzie z AI:
+  //   enemy dosypuje teraz piechotę na masówkę rakiet (patrz eBuild) — a piechota
+  //   przebija ×2 przez 50 HP rakietowca. Rakieta = specjalista od pancerza, nie
+  //   uniwersalna odpowiedź na wszystko.
+  rkt:  {name:'Rakietowiec', hp:50,  dmg:12, range:66,  spd:22, rate:1.2,  sz:4,  strong:['tank','kolos','lazik'], ap:true, proj:200},
   tank: {name:'Czołg',       hp:190, dmg:19, range:36,  spd:34, rate:0.95, sz:8,  strong:['inf'], arm:5},
-  lazik:{name:'Łazik',       hp:90,  dmg:11, range:30,  spd:55, rate:0.5,  sz:6,  strong:['arty','inf'], hunt:'arty'},
+  // hp 90→110: łazik MA tępić piechotę (strong+COUNTER ×2), ale przy 90 HP ginął w
+  // zwarciu z gromadą, zanim ją przetrzebił — 1v1 miażdżył żołnierza, w tłumie padał.
+  // +20 HP daje mu przetrwać dojście i wyjść z blobu na wierzchu. Ofensywa bez zmian
+  // (i tak jednostrzałowo dominuje piechotę); to czysto przeżywalność w jego roli.
+  lazik:{name:'Łazik',       hp:110, dmg:11, range:30,  spd:55, rate:0.5,  sz:6,  strong:['arty','inf'], hunt:'arty'},
   arty: {name:'Artyleria',   hp:70,  dmg:24, range:175, spd:15, rate:3.0,  sz:7,  strong:[], spl:3, splR:34, minR:60, proj:150},
   kolos:{name:'Kolos',       hp:430, dmg:32, range:44,  spd:21, rate:1.1,  sz:11, strong:['inf'], arm:6},
 };
