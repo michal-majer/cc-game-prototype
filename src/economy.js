@@ -6,13 +6,36 @@ import { COLS, ROWS, BASE_INCOME, ORE_REGEN, ORE_SIP, ORE_YOUNG, BAL, ringOf } f
 import { S, say } from './state.js';
 import { bRate, bHarv } from './buildings.js';
 
-// N najbogatszych przyległych żył pod harvestery rafinerii (N = liczba harvesterów).
-// Reszta żył leży odłogiem (spoczynkowa) — odrasta szybko, aż harvester tam trafi.
-function harvestOf(b){
-  const out=[];
-  for (const [cc,rr] of ringOf(b.type,b.c,b.r)){ const g=S.grid[rr][cc]; if (g.seam) out.push({cc,rr,g}); }
-  out.sort((a,b)=>b.g.ore-a.g.ore);
-  return out.slice(0, bHarv(b));
+// Globalny przydział harvesterów do żył (Map: rafineria → lista żył, jedna pozycja
+// na harvester). Najpierw ROZKŁADAMY po różnych żyłach — dwie rafinerie przy tym
+// samym złożu dzielą je między siebie — a gdy żył mniej niż harvesterów, 2-3
+// harvestery wchodzą na jedną żyłę (podwójny/potrójny drenaż). Round-robin po
+// rafineriach = równy podział; w rafinerii wybór żyły o najmniejszym obciążeniu,
+// remis → najbogatsza. Żyła z 2 harvesterami trafia do listy 2× → drenaż 2×.
+export function harvestPlan(){
+  const key=(cc,rr)=>rr*100+cc, load=new Map(), refs=[];
+  for (const b of S.buildings){
+    if (b.type!=='refinery' || !b.powered) continue;
+    const veins=[];
+    for (const [cc,rr] of ringOf(b.type,b.c,b.r)){ const g=S.grid[rr][cc]; if (g.seam) veins.push({cc,rr,g}); }
+    if (veins.length) refs.push({b, veins, slots:bHarv(b), out:[]});
+  }
+  let progress=true;
+  while (progress){
+    progress=false;
+    for (const rf of refs){
+      if (rf.out.length>=rf.slots) continue;
+      let best=null, bestLoad=Infinity, bestOre=-1;
+      for (const v of rf.veins){
+        const l=load.get(key(v.cc,v.rr))||0;
+        if (l<bestLoad || (l===bestLoad && v.g.ore>bestOre)){ best=v; bestLoad=l; bestOre=v.g.ore; }
+      }
+      rf.out.push(best); load.set(key(best.cc,best.rr), bestLoad+1); progress=true;
+    }
+  }
+  const plan=new Map();
+  for (const rf of refs) plan.set(rf.b, rf.out);
+  return plan;
 }
 
 export function genOre(){
@@ -86,19 +109,15 @@ export function oreTotal(){
 }
 export function incomeRate(){
   let inc=BASE_INCOME;
-  for (const b of S.buildings){
-    if (b.type!=='refinery' || !b.powered) continue;
-    for (const {g} of harvestOf(b)) inc += g.ore > 5 ? bRate(b) : ORE_SIP;
+  for (const [b, veins] of harvestPlan()){
+    for (const {g} of veins) inc += g.ore > 5 ? bRate(b) : ORE_SIP;
   }
   return inc;
 }
 export function oreBreak(){
   let rich=0, richRate=0, sip=0;
-  for (const b of S.buildings){
-    if (b.type!=='refinery' || !b.powered) continue;
-    for (const {g} of harvestOf(b)){
-      if (g.ore>5){ rich++; richRate+=bRate(b); } else sip++;
-    }
+  for (const [b, veins] of harvestPlan()){
+    for (const {g} of veins){ if (g.ore>5){ rich++; richRate+=bRate(b); } else sip++; }
   }
   return {rich, richRate, sip, sipRate:sip*ORE_SIP};
 }
@@ -130,9 +149,8 @@ export function regrow(dt){
 }
 export function extract(dt){
   let got=BASE_INCOME*dt;
-  for (const b of S.buildings){
-    if (b.type!=='refinery' || !b.powered) continue;
-    for (const {g} of harvestOf(b)){       // tylko żyły pod harvesterami; reszta odłogiem (patrz regrow)
+  for (const [b, veins] of harvestPlan()){   // tylko żyły pod harvesterami; reszta odłogiem (patrz regrow)
+    for (const {g} of veins){
       g.pull=true;
       if (g.ore<=0) continue;
       const take=Math.min(g.ore, bRate(b)*dt);
