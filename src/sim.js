@@ -50,7 +50,7 @@ export function spawn(type,side,x,y){
   // kart (pArm) i z Lab (poziomy). Sztab skaluje tylko obronę bazy (patrz dmgFrom
   // budynków niżej), więc jego upgrade przestał być globalnym snowballem armii.
   const hp = d.hp;
-  S.units.push({type,side,x,y,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0,fireT:0,moveT:0});
+  S.units.push({type,side,x,y,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0,fireT:0,moveT:0,muzT:0});
 }
 
 export function doWave(){
@@ -205,7 +205,7 @@ export function update(dt){
             S.fx.push({x:t.x,y:t.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.2,c:'#ffe680',r:2.4});
           }
         }
-        u.cd=d.rate; u.fireT=0.22;   // sygnał dla animacji sprite'a: klip „shoot”
+        u.cd=d.rate; u.fireT=0.38; u.muzT=0.1;   // fireT: klip „shoot” (dłużej); muzT: krótki błysk z lufy
       }
     } else {
       let vx,vy, sMul=1;
@@ -239,6 +239,7 @@ export function update(dt){
     if (u.flash>0) u.flash-=dt*6;
     if (u.fireT>0) u.fireT-=dt;
     if (u.moveT>0) u.moveT-=dt;
+    if (u.muzT>0)  u.muzT-=dt;
   }
 
   const rl = radarLvl();
@@ -265,6 +266,9 @@ export function update(dt){
     if (u.hp>0) continue;
     S.corpses.push({x:u.x,y:u.y,s:U[u.type].sz,c:u.side==='p'?CO.blueD:CO.redD});
     if (S.corpses.length>500) S.corpses.shift();
+    // zgłoś zgon do animacji śmierci (render odegra klip „die" tam, gdzie istnieje)
+    S.deaths.push({type:u.type, x:u.x, y:u.y, p:u.side==='p'});
+    if (S.deaths.length>200) S.deaths.shift();
     explode(u.x,u.y,U[u.type].sz*1.6,u.side==='p'?CO.blue:CO.red);
     if (U[u.type].sz>=8){ boom(0.18); S.shake=Math.max(S.shake,3); }
     if (u._view){ u._view.destroy({children:true}); u._view=null; }

@@ -28,7 +28,7 @@ export function newRun(){
   for (let r=0;r<ROWS;r++){ S.grid[r]=[]; for(let c=0;c<COLS;c++) S.grid[r][c]={ore:0,seam:false,pull:false,b:null,prevOre:0}; }
   genOre();
   S.oreStart=oreTotal();
-  S.buildings=[]; S.units=[]; S.fx=[]; S.corpses=[]; S.tracers=[]; S.projs=[]; S.harv=[];
+  S.buildings=[]; S.units=[]; S.fx=[]; S.corpses=[]; S.deaths=[]; S.tracers=[]; S.projs=[]; S.harv=[];
   clearViews();
   S.hq = mkBuilding('hq', 0, 2, true);
   S.bastion = {x:BAS_X, y:LANE_Y, hp:BAS_HP, maxHp:BAS_HP, side:'e', cd:0, flash:0, dead:false};
