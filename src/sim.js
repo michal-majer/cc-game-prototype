@@ -5,7 +5,7 @@
    ========================================================================= */
 
 import {
-  U, B, CO, BASE_R, LANE_Y, LANE_HALF, BAS_X, FRONT_MIN, FRONT_MAX, EHOLD_X,
+  U, B, CO, BASE_R, LANE_Y, LANE_HALF, BAS_X, FRONT_MIN, FRONT_MAX,
   BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC,
   COUNTER, HUNT_LEASH, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
   isHeavy, isSoldier, isArmored, BAL
@@ -15,7 +15,7 @@ import { boom, siren } from './audio.js';
 import { explode } from './effects.js';
 import { regrow, extract, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { updSect, terrIncome, eTerrCtrl } from './sectors.js';
-import { eDecide, eBuild, eComp } from './enemy.js';
+import { eDecide, eBuild, eComp, eHoldX } from './enemy.js';
 import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor, recalcPower } from './buildings.js';
 import { openDraft } from './cards.js';
 
@@ -154,6 +154,7 @@ export function update(dt){
     if (S.bastion.flash>0) S.bastion.flash-=dt*6;
   }
 
+  const eHold = eHoldX();   // linia, na której wróg trzyma się w postawie 'hold' (mini-sztaby)
   for (const u of S.units){
     const d=U[u.type];
     let list;
@@ -208,8 +209,8 @@ export function update(dt){
         else if (vx>0 && u.x + vx*d.spd*sMul*dt > LIM) vx = 0;
       }
       if (u.side==='e' && S.eStance==='hold'){
-        if (u.x < EHOLD_X){ vx = 1; vy = 0; }
-        else if (vx<0 && u.x + vx*d.spd*sMul*dt < EHOLD_X) vx = 0;
+        if (u.x < eHold){ vx = 1; vy = 0; }
+        else if (vx<0 && u.x + vx*d.spd*sMul*dt < eHold) vx = 0;
       }
       const fwd = u.side==='p' ? 1 : -1;
       if (isHeavy(d) && vx*fwd < 0) sMul = BACK_MUL;

@@ -7,13 +7,13 @@
 import * as PIXI from '../vendor/pixi.min.mjs';
 import {
   CO, U, B, BASE_X, BASE_Y, CELL, COLS, ROWS, BASE_R, LANE_Y, LANE_HALF, BAS_X,
-  STANCES, CAP_R, TERR_MAX, ORE_SIP, EHOLD_X, BAL, HEX, clamp, ringOf, cellAt
+  STANCES, CAP_R, TERR_MAX, ORE_SIP, BAL, HEX, clamp, ringOf, cellAt
 } from './config.js';
 import { S, SECT, lineX } from './state.js';
 import { buildTex, unitTex, tex } from './assets.js';
 import { radarLvl, canUp, maxLvl, fits } from './buildings.js';
 import { eTerrCtrl } from './sectors.js';
-import { bEff } from './enemy.js';
+import { bEff, eHoldX } from './enemy.js';
 
 export const app = new PIXI.Application();
 export const WV = { x:24, y:150, w:1170, h:356 };     // widoczny wycinek świata
@@ -192,8 +192,9 @@ function drawWorld(){
 
   const massed = S.eStance==='hold' ? S.units.filter(u=>u.side==='e').length : 0;
   if (massed>0){
-    dashV(g, EHOLD_X, ly, ly+lh, CO.red, 0.4);
-    wt('MASUJĄ SIĘ — '+massed, EHOLD_X, ly-4, 8, CO.red);
+    const hx = eHoldX();
+    dashV(g, hx, ly, ly+lh, CO.red, 0.4);
+    wt('TRZYMAJĄ TEREN — '+massed, hx, ly-4, 8, CO.red);
   }
   if (S.si < STANCES.length-1){
     const LX=lineX();
