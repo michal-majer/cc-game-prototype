@@ -248,9 +248,8 @@ export function update(dt){
     let near = u.x < BASE_R+60;
     if (!near) for (const o of pU){ if (Math.hypot(o.x-u.x,o.y-u.y)<CONTACT){ near=true; break; } }
     u.nearT = near ? SEEN_HOLD : Math.max(0,(u.nearT||0)-dt);
-    if (rl>=2)      u.seenT = SEEN_HOLD;
-    else if (rl===1) u.seenT = u.nearT;
-    else             u.seenT = 0;
+    if (rl>=2) u.seenT = SEEN_HOLD;
+    else       u.seenT = u.nearT;   // w zwarciu widać typ nawet bez radaru — jednostki widzą się nawzajem
   }
 
   for (let i=0;i<S.units.length;i++) for (let j=i+1;j<S.units.length;j++){
