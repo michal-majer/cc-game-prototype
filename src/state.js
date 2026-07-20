@@ -9,7 +9,7 @@ import { STANCES, FRONT_MIN } from './config.js';
 export const S = {
   // pole / obiekty
   grid:null, buildings:[], hq:null, bastion:null,
-  units:[], fx:[], corpses:[], tracers:[], projs:[],
+  units:[], fx:[], corpses:[], tracers:[], projs:[], harv:[],
   // ekonomia / czas
   money:0, wave:0, timer:0, frontX:0,
   // prezentacja / faza

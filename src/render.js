@@ -21,7 +21,7 @@ export const cam = { zoom:1, min:0.2, max:3, panX:0, panY:0, _init:false };
 
 const SREF = 12, GB = SREF*3.6;
 const glyphTex = {};
-let worldRoot, gWorld, worldText, buildLayer, bastionLayer, unitLayer, gOver, ghostG;
+let worldRoot, gWorld, worldText, buildLayer, harvG, bastionLayer, unitLayer, gOver, ghostG;
 let bastionView=null;
 const now = () => performance.now();
 
@@ -34,6 +34,7 @@ export async function initPixi(){
   gWorld    = new PIXI.Graphics();   worldRoot.addChild(gWorld);
   worldText = new PIXI.Container();  worldRoot.addChild(worldText);
   buildLayer= new PIXI.Container();  worldRoot.addChild(buildLayer);
+  harvG     = new PIXI.Graphics();   worldRoot.addChild(harvG);   // harvestery nad budynkami
   bastionLayer=new PIXI.Container(); worldRoot.addChild(bastionLayer);
   unitLayer = new PIXI.Container();  worldRoot.addChild(unitLayer);
   gOver     = new PIXI.Graphics();   worldRoot.addChild(gOver);
@@ -433,10 +434,24 @@ export function clearViews(){
 }
 
 // jedna klatka renderu świata
+// harvestery: mały pojazd-strzałka; bursztynowy = objuczony rudą, stalowy = pusty
+function drawHarvesters(){
+  const g=harvG; g.clear();
+  for (const h of S.harv){
+    const loaded = h.state==='toBase' || h.state==='dumping';
+    const a=h.ang||0, ca=Math.cos(a), sa=Math.sin(a);
+    const P=[[6,0],[-5,-4],[-2,0],[-5,4]].map(([px,py])=>[h.x+px*ca-py*sa, h.y+px*sa+py*ca]);
+    g.poly(P.flat()).fill(loaded ? CO.ore : '#8fb7cf');
+    g.poly(P.flat()).stroke({width:1, color:'#0b0f11', alpha:0.7});
+    if (loaded) g.circle(h.x-ca*2, h.y-sa*2, 2).fill('#ffe4a0');           // ładunek
+    else if (h.state==='mining' && (now()%320<160)) g.circle(h.x+ca*6, h.y+sa*6, 1.7).fill(CO.warn);  // iskry kopania
+  }
+}
 export function renderFrame(){
   applyCam();
   drawWorld();
   drawBuildings();
+  drawHarvesters();
   drawBastion();
   drawUnits();
   drawOver();

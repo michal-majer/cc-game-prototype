@@ -14,6 +14,7 @@ import { S, say, lineX } from './state.js';
 import { boom, siren } from './audio.js';
 import { explode } from './effects.js';
 import { regrow, extract, oreTotal, seamsAlive, seamsTapped } from './economy.js';
+import { updHarvesters } from './harvesters.js';
 import { updSect, terrIncome, eTerrCtrl } from './sectors.js';
 import { eDecide, eBuild, eComp, eHoldX } from './enemy.js';
 import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor, recalcPower } from './buildings.js';
@@ -99,6 +100,7 @@ export function update(dt){
   }
   if (built) recalcPower();
   S.money += extract(dt) + terrIncome()*dt;
+  updHarvesters(dt);   // wizualne pojazdy jeżdżące do żył (kosmetyka nad harvestPlan)
   S.timer -= dt;
   if (Number.isNaN(S.timer)) S.timer=waveInterval();
   if (S.timer<=0){ doWave(); S.timer=waveInterval(); }
