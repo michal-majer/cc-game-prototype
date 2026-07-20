@@ -77,5 +77,7 @@ Bastion po prawej **jest bazą wroga** — im bardziej go rozbijesz, tym słabsz
 fale. Żyły rudy odrastają, ale kratka pod budynkiem to martwa kratka. Zajęty teren
 (sektory) płaci Ci kredyty — a oddany płaci wrogowi. Bez radaru wroga widzisz
 dopiero w zwarciu; radar I pokazuje jego kształty na całym polu (typ rozpoznasz
-w zwarciu), radar II daje pełną widoczność. Co 5 fal dostajesz rozkaz ze sztabu —
-jedną z trzech kart.
+w zwarciu), radar II daje pełną widoczność. Co 3 fale dostajesz rozkaz ze sztabu —
+jedną z trzech kart (zawsze co najmniej jedna ulepsza armię: dmg/pancerz). Sam sztab
+ulepszasz bez limitu, ale jego bonus podbija **działa bazy**, nie polową armię —
+skalowanie jednostek idzie właśnie kartami.

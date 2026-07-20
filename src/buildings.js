@@ -36,7 +36,7 @@ export const upCost = b => b.type==='hq' ? HQ_COST*b.lvl : B[b.type].cost*b.lvl;
 export const pBuff  = () => S.hq ? 1 + (S.hq.lvl-1)*BAL.HQ_STEP : 1;
 export function upText(b){
   const d=B[b.type];
-  if (b.type==='hq') return 'obrażenia i HP +'+Math.round(b.lvl*BAL.HQ_STEP*100)+'%';
+  if (b.type==='hq') return 'działa bazy +'+Math.round(b.lvl*BAL.HQ_STEP*100)+'%';
   if (d.unit) return (bCount(b)+1)+'× '+U[d.unit].name;
   if (d.sup)  return '+'+(bSup(b)+4)+' mocy';
   if (b.type==='refinery') return '+1 harvester (razem '+(bHarv(b)+1)+')';

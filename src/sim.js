@@ -45,7 +45,10 @@ export function dmgTo(t, amount, srcType, ap){
 
 export function spawn(type,side,x,y){
   const d=U[type];
-  const hp = side==='p' ? Math.round(d.hp*pBuff()) : d.hp;
+  // Sztab NIE mnoży już HP polowej armii — przetrwałość Twoich jednostek idzie z
+  // kart (pArm) i z Lab (poziomy). Sztab skaluje tylko obronę bazy (patrz dmgFrom
+  // budynków niżej), więc jego upgrade przestał być globalnym snowballem armii.
+  const hp = d.hp;
   S.units.push({type,side,x,y,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0});
 }
 
@@ -64,7 +67,10 @@ export function doWave(){
   }
   siren(); S.shake=Math.max(S.shake,4);
   say('FALA '+S.wave, 'warn');
-  if (S.wave%5===0) openDraft(S.deck, 'ROZKAZ ZE SZTABU');
+  // Rozkaz co 3 fale (było 5): przy krótkiej grze karty — jedyny tor skalowania
+  // armii — musiały pojawiać się częściej, inaczej run kończył się, nim tor dmg/pancerz
+  // realnie urósł. openDraft dodatkowo GWARANTUJE kartę armii w każdym drafcie.
+  if (S.wave%3===0) openDraft(S.deck, 'ROZKAZ ZE SZTABU');
   S.eIntel.push({
     tanks:  S.buildings.filter(b=>(b.type==='factory'||b.type==='heavy') && b.powered).length,
     wheels: S.buildings.filter(b=>b.type==='workshop' && b.powered).length,
@@ -134,6 +140,8 @@ export function update(dt){
     if (b.cd>0) continue;
     let tgt=null, bd=d.atk.range;
     for (const u of eU){ const dist=Math.hypot(u.x-b.x,u.y-b.y); if (dist<bd){ bd=dist; tgt=u; } }
+    // Działa bazy (sztab, bunkry) — JEDYNE miejsce, gdzie pBuff() jeszcze działa:
+    // upgrade sztabu podbija ogień obrony bazy, nie polowej armii.
     if (tgt){ dmgTo(tgt,bDmg(b)*pBuff(),null,d.atk.ap); S.tracers.push({x1:b.x,y1:b.y,x2:tgt.x,y2:tgt.y,t:0.09,c:d.atk.ap?CO.warn:CO.blue}); b.cd=d.atk.rate; }
   }
   if (!S.bastion.dead){
@@ -178,7 +186,9 @@ export function update(dt){
     if (t && bd<=d.range && bd>=(d.minR||0)){
       u.cd -= dt;
       if (u.cd<=0){
-        const out = d.dmg * (u.side==='p'?pBuff():1) + (u.side==='p'?pAtk(u.type):0);
+        // Atak polowej armii = baza + karty (pAtk). Sztab mnoży TYLKO działa bazy
+        // (budynki niżej), nie ruszając jednostek w polu — koniec globalnego buffa.
+        const out = d.dmg + (u.side==='p'?pAtk(u.type):0);
         if (d.proj){
           // pocisk leci — obrażenia dopiero na trafieniu (patrz updProj)
           S.projs.push({ x:u.x, y:u.y, tx:t.x, ty:t.y, tgt:t,
