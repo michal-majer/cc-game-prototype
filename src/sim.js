@@ -6,7 +6,7 @@
 
 import {
   U, B, CO, BASE_R, LANE_Y, LANE_HALF, BAS_X, FRONT_MIN, FRONT_MAX,
-  BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC,
+  BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC, ETERR_ATK,
   COUNTER, HUNT_LEASH, ENGAGE_BAND, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
   isHeavy, isSoldier, isArmored, BAL
 } from './config.js';
@@ -15,7 +15,7 @@ import { boom, siren } from './audio.js';
 import { explode } from './effects.js';
 import { regrow, extract, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { updHarvesters } from './harvesters.js';
-import { updSect, terrIncome, eTerrCtrl } from './sectors.js';
+import { updSect, terrIncome, eTerrCtrl, secE } from './sectors.js';
 import { eDecide, eBuild, eComp, eHoldX } from './enemy.js';
 import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor, recalcPower } from './buildings.js';
 import { openDraft } from './cards.js';
@@ -31,6 +31,9 @@ export function waveInterval(){
 // bonusy TYLKO gracza (karty) — atak/pancerz osobno dla klas
 export const pAtk = t => isArmored(t)?S.pBonus.atkA : isSoldier(t)?S.pBonus.atkS : 0;
 export const pArm = t => isArmored(t)?S.pBonus.armA : isSoldier(t)?S.pBonus.armS : 0;
+// bonus WROGA za trzymane mini-sztaby: +ETERR_ATK dmg za każdy zajęty sektor, na CAŁĄ
+// jego armię (odpowiednik kart gracza, tyle że napędzany terenem — patrz ETERR_ATK).
+export const eAtk = () => secE()*ETERR_ATK;
 
 export function dmgTo(t, amount, srcType, ap){
   const src = srcType ? U[srcType] : null;
@@ -170,6 +173,7 @@ export function update(dt){
   }
 
   const eHold = eHoldX();   // linia, na której wróg trzyma się w postawie 'hold' (mini-sztaby)
+  const eTerrAtk = eAtk();  // bonus dmg wroga za trzymane sektory (liczony raz na krok)
   for (const u of S.units){
     const d=U[u.type];
     u._sx=u.x; u._sy=u.y;                 // pozycja przed ruchem — do oceny REALNEGO postępu (patrz niżej)
@@ -206,7 +210,7 @@ export function update(dt){
       if (u.cd<=0){
         // Atak polowej armii = baza + karty (pAtk). Sztab mnoży TYLKO działa bazy
         // (budynki niżej), nie ruszając jednostek w polu — koniec globalnego buffa.
-        const out = d.dmg + (u.side==='p'?pAtk(u.type):0);
+        const out = d.dmg + (u.side==='p'?pAtk(u.type):eTerrAtk);
         if (d.proj){
           // pocisk leci — obrażenia dopiero na trafieniu (patrz updProj)
           S.projs.push({ x:u.x, y:u.y, tx:t.x, ty:t.y, tgt:t,

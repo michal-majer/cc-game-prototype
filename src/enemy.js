@@ -22,14 +22,21 @@ export function force(side){
   }
   return s;
 }
-// bunkry/sztab liczą się tylko jeśli realnie dosięgają Twojej linii
+// Ile realnie waży obrona bazy w ocenie sił wroga.
+// SZTAB broni CAŁEJ bazy (range 330) — KAŻDY szturm na budynki gracza wchodzi w jego
+// ogień, więc liczy się ZAWSZE, niezależnie od bieżącej linii. DAWNIEJ warunek zasięgu
+// wycinał go, gdy gracz stał wysuniętą stanicą (SZTAB nie dosięgał dalekiej linii) —
+// wróg widział „słabą linię", szarżował na bazę i ginął pod działami SZTABU, których
+// nie policzył („na pałę ciśnie i ginie"). Bunkry/gniazda są PUNKTOWE (krótki zasięg):
+// liczą się tylko, gdy realnie kryją front. Dzięki temu wróg poprawnie wycenia dive na
+// bazę i zamiast samobójczej szarży TRZYMA linię — kontestuje mini-sztaby.
 export function pDefense(){
   const LX=lineX();
   let s=0;
   for (const b of S.buildings){
     const d=B[b.type];
     if (!d.atk || !b.powered) continue;
-    if (b.x + d.atk.range < LX - 30) continue;
+    if (b.type!=='hq' && b.x + d.atk.range < LX - 30) continue;
     s += (bDmg(b)/d.atk.rate)*10 + b.hp*0.3;
   }
   return s;
@@ -64,7 +71,12 @@ export function eDecide(){
   const shelled = S.eDmgWave > ESHELLED;
   S.eDmgWave = 0;
   if (!n){ S.eStance='hold'; S.eHoldT=0; return; }
-  if (shelled){
+  // Ostrzał wyzwala szarżę „nie damy się ostrzeliwać" — ale TYLKO gdy wróg nie jest
+  // wyraźnie słabszy (r >= EHOLD_R). Bezwarunkowo (jak dawniej) wystarczyło łupnąć
+  // artylerią w garstkę, by rzuciła się na bazę i zginęła bez sensu — najkrótsza droga
+  // do „na pałę ciśnie i ginie". Gdy jest słabszy, ostrzał go NIE wypycha: trzyma linię,
+  // kontestuje mini-sztaby i stackuje, aż uzbiera siłę na realne przebicie.
+  if (shelled && r >= EHOLD_R){
     if (S.eStance!=='push'){
       S.eStance='push';
       say('NIE DAJĄ SIĘ OSTRZELIWAĆ — SZARŻUJĄ','bad');

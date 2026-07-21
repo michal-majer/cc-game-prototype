@@ -3,7 +3,7 @@
    oddane napędzają rozbudowę wroga.
    ========================================================================= */
 
-import { CAP_R, CAP_RATE, TERR_MAX } from './config.js';
+import { CAP_R, CAP_RATE, TERR_MAX, ETERR_ATK } from './config.js';
 import { S, SECT, say } from './state.js';
 import { boom, siren } from './audio.js';
 
@@ -21,8 +21,13 @@ export function updSect(dt){
     else if (e && !p) q.cap = Math.max(-100, q.cap - CAP_RATE*dt);
     const o = q.cap>=100 ? 1 : q.cap<=-100 ? -1 : 0;
     if (o!==q.own){
-      if (o===1)  { say('▶ SEKTOR '+q.n+' PRZEJETY','good'); boom(0.35); }
-      if (o===-1) { say('◄ STRACILISCIE '+q.n,'bad'); siren(); S.shake=Math.max(S.shake,8); }
+      // Bonus wroga za sektory (ETERR_ATK/szt.) liczy się z secE() PO tej zmianie —
+      // say() leci przed q.own=o, więc wynikową liczbę ich sztabów składam ręcznie:
+      // aktualne minus stary wkład tego pola plus nowy. (Neutralne→gracz NIE osłabia
+      // wroga — wtedy oba wkłady = 0 i bonus zostaje bez zmian.)
+      const eBuff = (secE() - (q.own===-1?1:0) + (o===-1?1:0)) * ETERR_ATK;
+      if (o===1)  { say('▶ SEKTOR '+q.n+' PRZEJETY · ICH ARMIA ⚔+'+eBuff,'good'); boom(0.35); }
+      if (o===-1) { say('◄ STRACILISCIE '+q.n+' · ICH ARMIA ⚔+'+eBuff,'bad'); siren(); S.shake=Math.max(S.shake,8); }
       q.own=o;
     }
   }
