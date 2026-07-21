@@ -90,6 +90,7 @@ export function openDraft(src, tytul, pod){
   renderCards();
 }
 export function takeCard(c){
+  if (S.stat) S.stat.cards.push(c.n);   // metryka runu (raport końcowy)
   c.f();
   recalcPower();               // karty stawiają budynki i ruszają moc
   if (!c.repeat) S.deck=S.deck.filter(x=>x!==c);   // powtarzalne tory zostają w talii

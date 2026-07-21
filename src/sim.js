@@ -24,7 +24,8 @@ import { openDraft } from './cards.js';
 // garść jednostek realnie biła się o mini-sztaby, zanim ruszy masa. Rozpędza
 // się do WAVE_TIME (fala 0: +20 s → fala 5+: 0). Trzymaj < 60 s (format HUD 0:SS).
 export function waveInterval(){
-  return WAVE_TIME + Math.max(0, 5 - S.wave) * 4;
+  // S.run.waveMul < 1 = szybsze fale (wariant BŁYSKAWICZNY FRONT / eskalacja)
+  return (WAVE_TIME + Math.max(0, 5 - S.wave) * 4) * (S.run ? S.run.waveMul : 1);
 }
 
 // bonusy TYLKO gracza (karty) — atak/pancerz osobno dla klas
@@ -40,7 +41,8 @@ export function dmgTo(t, amount, srcType, ap){
   if (arm && !ap && !(src && src.ap)) d = Math.max(1, d-arm);
   t.hp -= d; t.flash=1;
   if (t.side==='e' && U[t.type]) S.eDmgWave += d;
-  if (t===S.bastion && !t.dead){ const pay=Math.max(0, Math.min(d, t.hp+d))*RAID_PAY; S.money+=pay; S.raidPay+=pay; }
+  if (t===S.bastion && !t.dead){ const pay=Math.max(0, Math.min(d, t.hp+d))*RAID_PAY; S.money+=pay; S.raidPay+=pay;
+    if (S.stat) S.stat.basDmg += Math.max(0, Math.min(d, t.hp+d)); }
   return m;
 }
 
@@ -136,6 +138,7 @@ export function update(dt){
   for (const l of S.log) l.t += dt;
 
   const pU=S.units.filter(u=>u.side==='p'), eU=S.units.filter(u=>u.side==='e');
+  if (S.stat && eU.length>S.stat.peakE) S.stat.peakE=eU.length;   // szczyt sił wroga na polu (raport)
 
   for (const b of S.buildings){
     const d=B[b.type];
@@ -289,6 +292,7 @@ export function update(dt){
   for (let i=S.units.length-1;i>=0;i--){
     const u=S.units[i];
     if (u.hp>0) continue;
+    if (S.stat){ if (u.side==='e') S.stat.eKill++; else S.stat.pKill++; }
     S.corpses.push({x:u.x,y:u.y,s:U[u.type].sz,c:u.side==='p'?CO.blueD:CO.redD});
     if (S.corpses.length>500) S.corpses.shift();
     // zgłoś zgon do animacji śmierci (render odegra klip „die" tam, gdzie istnieje)
