@@ -77,6 +77,7 @@ export function doWave(){
     wheels: S.buildings.filter(b=>b.type==='workshop' && b.powered).length,
     arty:   S.buildings.filter(b=>b.type==='arty' && b.powered).length,
     rkts:   S.buildings.filter(b=>b.type==='rocket' && b.powered).length,
+    inf:    S.buildings.filter(b=>b.type==='barracks' && b.powered).length,
   });
   // Leciutki oddech na 1. fali, potem PEŁNE tempo już od 2. Poprzednie S.wave/5
   // zamrażało wroga do ~fali 5 (3 budynki na fali 4 = 2 piechoty + czołg, żenada).
