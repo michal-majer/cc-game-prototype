@@ -51,6 +51,8 @@ src/
   render.js       render świata na Pixi + kamera (pan/pinch)
   hud.js          HUD w DOM (paski, pasek budowy, suwak, karty, log)
   input.js        dotyk/mysz (pan/tap) + przyciski + klawiatura
+  meta.js         warianty pola (modyfikatory) + eskalacja między runami
+                  (localStorage) + metryki i RAPORT KOŃCOWY do analizy
   game.js         punkt wejścia: newRun + pętla; index.html ładuje ten plik
   audio.js        proceduralne boom/siren + rejestr własnych próbek
   assets.js       manifest tekstur (opt-in) + loader
@@ -58,8 +60,22 @@ assets/           tu wrzucasz PNG/dźwięki (patrz assets/README.md)
 ```
 
 Zależności idą w jedną stronę:
-`config → state → (economy · sectors · buildings · enemy · cards · sim) → render · hud · input → game`.
+`config → state → (economy · sectors · buildings · enemy · cards · sim · meta) → render · hud · input → game`.
 Cały balans jest w `src/config.js` — te same stałe co w oryginale.
+
+## Warianty runu, eskalacja i raport (meta.js)
+
+Każdy run to nie tylko losowa doktryna wroga — na starcie losują się **warianty
+pola** (modyfikatory: twardszy bastion, szybsze fale, mgła wojny, cięższe
+pancerze, żyzne złoża…), więc dwa runy tej samej doktryny grają inaczej.
+**Eskalacja** rośnie z każdym ukończonym podejściem (trzymana w `localStorage`
+pod `front.meta`): front stopniowo się zaostrza, a wariantów losuje się więcej
+naraz (1 → 2 → 3). Dorzuć nowe warianty do tablicy `MODIFIERS` w `src/meta.js`.
+
+Na **koniec runu** powstaje raport: skrót na ekranie końca (**⧉ KOPIUJ RAPORT**
+kopiuje pełny JSON), pełny obiekt w konsoli (F12) i historia ostatnich 30 runów
+w `localStorage`. Z konsoli: `__front.meta()` (podgląd), `__front.resetMeta()`
+(zerowanie eskalacji) — dostępne pod `?debug` w URL.
 
 ## Dodawanie grafiki i dźwięku
 

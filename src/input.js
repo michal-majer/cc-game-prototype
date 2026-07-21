@@ -151,6 +151,12 @@ function initButtons(){
   qs('new-btn').addEventListener('click', ()=>{ if (S.state!=='play'||S.newArm>0) newRun(); else S.newArm=3; });
   qs('ready').addEventListener('click', ()=>{ resumeAudio(); S.ready=true; syncOverlays(); });
   qs('end-btn').addEventListener('click', ()=>newRun());
+  qs('end-copy').addEventListener('click', ()=>{
+    const t=S.reportJSON||''; if (!t){ toast('BRAK RAPORTU'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      navigator.clipboard.writeText(t).then(()=>toast('RAPORT SKOPIOWANY'), ()=>toast('NIE SKOPIOWANO'));
+    else toast('BRAK SCHOWKA — RAPORT W KONSOLI');
+  });
   qs('log-toggle').addEventListener('click', ()=>qs('log').classList.toggle('show'));
   qs('up-btn').addEventListener('click', ()=>{ resumeAudio(); doUpgrade(S.upSel); });
   qs('up-close').addEventListener('click', ()=>{ S.upSel=null; });
