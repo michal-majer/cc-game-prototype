@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0e0f">
+<title>FRONT — Pixi</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <!-- Pixi montuje tu <canvas> -->
+  <div id="stage"></div>
+
+  <!-- ================= HUD (DOM overlay) ================= -->
+  <!-- Górny pasek: zasoby + kontrolki -->
+  <div id="topbar" class="hud">
+    <div class="stat">
+      <span class="lbl">KREDYTY</span>
+      <b id="cr" class="big warn">0</b>
+      <span id="cr-rate" class="ok">+0/s</span>
+      <span id="cr-break" class="sub"></span>
+    </div>
+    <div class="stat">
+      <span class="lbl" id="pw-lbl">MOC</span>
+      <b id="pw" class="big power">0 / 0</b>
+      <div class="bar"><i id="pw-bar" class="power"></i></div>
+      <span id="pw-note" class="sub bad"></span>
+    </div>
+    <div class="stat">
+      <span class="lbl" id="ore-lbl">RUDA W ZIEMI</span>
+      <b id="ore" class="big ore">0</b>
+      <div class="bar"><i id="ore-bar" class="ore"></i></div>
+      <span id="ore-note" class="sub"></span>
+    </div>
+    <div class="stat">
+      <span class="lbl">FALA</span>
+      <b id="wave" class="big">0</b>
+      <span id="timer" class="sub">kontakt 0:20</span>
+      <span id="ebase" class="sub dim"></span>
+    </div>
+    <div class="spacer"></div>
+    <div class="ctrls">
+      <button id="stance-btn" class="btn stance">▮▮ OBRONA</button>
+      <button id="speed-btn" class="btn">» 1×</button>
+      <button id="new-btn" class="btn">⟲ NOWA</button>
+      <button id="mute-btn" class="btn">♪ WŁ.</button>
+    </div>
+  </div>
+
+  <!-- Wywiad -->
+  <div id="intel" class="hud">
+    <div id="intel-title" class="intel-title">▌ WYWIAD</div>
+    <div id="intel-comp" class="intel-comp"></div>
+    <div id="intel-hint" class="intel-hint"></div>
+    <div id="intel-intent" class="intel-intent"></div>
+    <div id="intel-army" class="intel-army"></div>
+  </div>
+
+  <!-- Łączność / log -->
+  <div id="log" class="hud"></div>
+  <button id="log-toggle" class="hud">▌ LOG</button>
+
+  <!-- Suwak linii -->
+  <div id="stance-slider" class="hud"></div>
+
+  <!-- Pasek budowy -->
+  <div id="buildbar" class="hud"></div>
+
+  <!-- Przycisk GOTÓW (fala 0) -->
+  <button id="ready" class="hud">GOTÓW ▶</button>
+
+  <!-- Podpowiedź / status pod kursorem (desktop) i przy budowie -->
+  <div id="tip" class="hud hidden"></div>
+
+  <!-- Panel ulepszenia (po tapnięciu w budynek: co da kolejny poziom + koszt) -->
+  <div id="upgrade" class="hud hidden">
+    <div class="up-info">
+      <div id="up-name" class="up-name"></div>
+      <div id="up-eff" class="up-eff"></div>
+    </div>
+    <button id="up-btn" class="up-btn"></button>
+    <button id="up-close" class="up-close" aria-label="zamknij">✕</button>
+  </div>
+
+  <!-- Karty (draft) -->
+  <div id="cards" class="overlay hidden">
+    <div class="overlay-inner">
+      <h2 id="cards-title">ROZKAZ ZE SZTABU</h2>
+      <p id="cards-sub"></p>
+      <div id="cards-row"></div>
+    </div>
+  </div>
+
+  <!-- Koniec gry -->
+  <div id="end" class="overlay hidden">
+    <div class="overlay-inner">
+      <h1 id="end-title">ZWYCIĘSTWO</h1>
+      <p id="end-reason"></p>
+      <p id="end-stats" class="dim"></p>
+      <div id="end-report" class="report"></div>
+      <div class="end-actions">
+        <button id="end-btn" class="bigbtn">NOWE PODEJŚCIE — [SPACJA]</button>
+        <button id="end-copy" class="minibtn">⧉ KOPIUJ RAPORT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasty -->
+  <div id="toasts"></div>
+</div>
+
+<script type="module" src="src/game.js"></script>
+</body>
+</html>
