@@ -126,11 +126,14 @@ export function eBuild(){
     return;
   }
   // Kontra na masówkę rakiet gracza: piechota. Rakietowiec (50 HP) obrywa ×2 od
-  // piechoty — to jego naturalny pogromca. DAWNIEJ wywiad liczył czołgi/warsztaty/
-  // artylerię, ale NIE rakiety, więc ściana wyrzutni nie prowokowała żadnej odpowiedzi
-  // i STALOWA PIĘŚĆ w kółko nadziewała czołgi na rakiety. Teraz enemy dosypuje barak
-  // na każde ~2 wyrzutnie — piechota osłania jego pancerkę i karze spam rur.
-  if (pRkts >= 2 && eBar < pRkts && S.eArmCd <= 0){
+  // piechoty — to jego naturalny pogromca (TTK 2,1 s vs 6,0 s w drugą stronę).
+  // DAWNIEJ wywiad liczył czołgi/warsztaty/artylerię, ale NIE rakiety, więc ściana
+  // wyrzutni nie prowokowała odpowiedzi i STALOWA PIĘŚĆ w kółko nadziewała czołgi na
+  // rakiety. Pierwsza łata dała barak 1:1 do wyrzutni — ale to WCIĄŻ za mało: piechota
+  // to krucha masówka, a rakieta elitą; równa liczba ginie na ekranie pancerki, nim
+  // dosięgnie rur. Teraz enemy celuje w ~1,5 baraka na wyrzutnię (pRkts + połowa) —
+  // piechota realnie PRZELICZA rakiety i karze ich spam, gdy pancerka związuje front.
+  if (pRkts >= 2 && eBar < pRkts + Math.ceil(pRkts/2) && S.eArmCd <= 0){
     S.eBase.push('barracks'); S.eArmCd = 2; S.eBuildN++;
     say(radarLvl()>=1 ? 'WYWIAD: SYPIA PIECHOTE POD RAKIETY' : 'ZA ICH LINIA — TUPOT BUTOW', radarLvl()>=1?'intel':'warn');
     return;
