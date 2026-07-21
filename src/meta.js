@@ -29,6 +29,16 @@ function loadMeta(){
 }
 function saveMeta(m){ try { localStorage.setItem(LS_KEY, JSON.stringify(m)); } catch(e){} }
 
+// Dobór budynku do STARTOWEJ bazy wroga (modyfikatory przyczółka/żył): z puli
+// `late` doktryny, ale BEZ ciężkiej fabryki. Kolos (430 HP) w 1. fali to nie
+// „trudniej" — to ściana nie do przebicia, nim gracz w ogóle ma czym. Heavy
+// należy do późnej gry (order dokłada go dopiero ~15. buildem); reszta puli
+// (fabryki, warsztaty, baraki, arty) i tak dokłada nacisku na starcie.
+function eStartPick(){
+  const pool = S.doc.late.filter(t => t !== 'heavy');
+  return pool[(Math.random()*pool.length)|0];
+}
+
 /* --------------------------- WARIANTY POLA -------------------------------
    apply() odpala się w newRun PO resetTables i PO resecie S.* — mutuje tabele
    (U/B/BAL: czyszczone co run), S.eBase, S.pBonus/S.harvBonus oraz skalary
@@ -47,7 +57,7 @@ export const MODIFIERS = [
     apply:()=>{ BAL.EBUILD_EVERY *= 0.7; } },
   { id:'przyczolek', name:'PRZYCZÓŁEK WROGA', tag:'hard', w:2,
     desc:'Wróg zaczyna z dwoma budynkami więcej.',
-    apply:()=>{ for (let i=0;i<2;i++) S.eBase.push(S.doc.late[(Math.random()*S.doc.late.length)|0]); } },
+    apply:()=>{ for (let i=0;i<2;i++) S.eBase.push(eStartPick()); } },
 
   // — twisty (zmieniają charakter walki, zwykle też trudniej) —
   { id:'pancerze', name:'CIĘŻKIE PANCERZE', tag:'twist', w:2,
@@ -69,7 +79,7 @@ export const MODIFIERS = [
       for (let r=0;r<S.grid.length;r++) for (let c=0;c<S.grid[r].length;c++){
         const g=S.grid[r][c]; if (g.seam) g.ore = Math.min(BAL.ORE_MAX, Math.round(g.ore*1.4));
       }
-      S.eBase.push(S.doc.late[(Math.random()*S.doc.late.length)|0]);
+      S.eBase.push(eStartPick());
     } },
 
   // — sprzyjające (rzadsze; ich waga maleje z eskalacją) —
