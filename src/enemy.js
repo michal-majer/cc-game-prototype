@@ -5,7 +5,7 @@
 
 import {
   U, B, EB, EARTY_CAP, EPUSH_R, EHOLD_R, EPATIENCE, EPAT_MASS, ESCOUT,
-  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X
+  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X, EPUSH_MIN
 } from './config.js';
 import { S, SECT, say, lineX } from './state.js';
 import { boom, siren } from './audio.js';
@@ -40,18 +40,23 @@ export function eRatio(){
 }
 // Gdzie wróg trzyma linię w postawie 'hold'. DAWNIEJ: sztywne EHOLD_X pod
 // bastionem (1040) — za wszystkimi mini-sztabami, więc wróg nigdy się o nie
-// nie bił, tylko czekał albo szarżował na bazę i ginął. TERAZ: wychodzi na
-// najbardziej wysunięty sektor, którego jeszcze NIE trzyma, i tam się okopuje —
-// realnie kontestuje teren na neutralnym gruncie zamiast dawać się wystrzelać
-// pod sztabem gracza.
+// nie bił. Potem: wychodził na najbardziej wysunięty (ku GRACZOWI) sektor,
+// którego jeszcze nie trzyma — ale to znaczyło lunięcie od razu na PRZEDPOLE
+// tuż pod sztab gracza, w jego artylerię: dostawał ostrzał i szarżował na bazę,
+// „za dużo pushując". TERAZ konsoliduje teren OD SWOJEJ strony na zewnątrz:
+// bierze najpierw sektor przy własnej bazie (NACISK), potem ŚRODEK, na końcu
+// PRZEDPOLE. Trzyma się na froncie SWOJEGO kontrolowanego bloku — jeden sektor
+// dalej, nie na drugim końcu pola. Realnie zdobywa mini-sztaby zamiast
+// nadziewać się na obronę gracza.
 //   · podłoga = linia gracza (bez szturmu nie wejdzie za jego front),
 //   · sufit   = EHOLD_X (nigdy nie zostawia bastionu bez osłony).
 export function eHoldX(){
   let x = null;
-  for (const q of SECT){                  // SECT: od frontu (lewa) do bazy (prawa)
-    if (q.own !== -1){ x = q.x; break; }   // pierwszy sektor jeszcze NIE ich = cel
+  for (let i = SECT.length-1; i >= 0; i--){  // od bazy wroga (prawa) ku frontowi (lewa)
+    const q = SECT[i];
+    if (q.own !== -1){ x = q.x; break; }      // pierwszy sektor od TYŁU jeszcze nie ich = cel
   }
-  if (x === null) x = SECT[0].x;           // trzymają wszystkie → broń najdalszego
+  if (x === null) x = SECT[0].x;              // trzymają wszystkie → broń najdalej wysuniętego
   return Math.min(EHOLD_X, Math.max(x, lineX()));
 }
 export function eDecide(){
@@ -72,7 +77,14 @@ export function eDecide(){
     S.eHoldT += ETHINK;
     const terrPress = Math.max(0.35, 1 - terrCtrl()*0.8);
     const pat = EPATIENCE * Math.max(0.25, 1 - n/EPAT_MASS) * terrPress;
-    if (r > EPUSH_R || S.eHoldT >= pat){
+    // Dwie osobne przesłanki do szturmu na bazę:
+    //   · r > EPUSH_R    — realna PRZEWAGA SIŁ: przebije obronę, dosięgnie budynku.
+    //   · cierpliwość    — ale TYLKO gdy uzbierał MASĘ (n >= EPUSH_MIN). Wcześniej
+    //     garstka jednostek po prostu nadziewała się na bazę „z nudów", choć nie
+    //     miała szans nic zniszczyć. Bez masy wróg NIE naciera — dalej trzyma i
+    //     kontestuje mini-sztaby, rosnąc z terenu, aż zbierze siłę na przebicie.
+    const massPush = S.eHoldT >= pat && n >= EPUSH_MIN;
+    if (r > EPUSH_R || massPush){
       S.eStance='push'; S.eHoldT=0; S.ePush=ECOMMIT;
       say('▲ SZTURM — RUSZA '+n+' JEDNOSTEK','bad');
       siren(); boom(0.6); S.shake=Math.max(S.shake,14);

@@ -25,6 +25,10 @@ export const EHOLD_X = BAS_X - 110;
 export const EARTY_CAP = 3;
 export const EPUSH_R  = 1.35;
 export const EHOLD_R  = 0.85;
+// Minimalna MASA jednostek, przy której wróg w ogóle rozważa szturm „z cierpliwości"
+// (bez przewagi sił). Poniżej — trzyma linię i kontestuje mini-sztaby zamiast
+// nadziewać garstkę na bazę. Szturm z PRZEWAGI (r > EPUSH_R) działa niezależnie.
+export const EPUSH_MIN = 8;
 export const EPATIENCE = 110;
 export const EPAT_MASS = 70;
 export const ESCOUT    = 3;
