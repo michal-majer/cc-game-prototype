@@ -12,7 +12,9 @@ import { explode } from './effects.js';
 
 // --- technologia / poziomy (czyste helpery na S.buildings) ---
 export const hasTech  = t => S.buildings.some(b=>b.type===t && b.powered);
-export const radarLvl = () => { let m=0; for (const b of S.buildings) if (b.type==='radar' && b.powered) m=Math.max(m,b.lvl); return Math.min(2,m); };
+// MGŁA WOJNY (wariant): S.run.fogged tnie radar do poziomu I — pełnej widoczności
+// (radar II) nie da się osiągnąć, skład fali poznasz dopiero w zwarciu.
+export const radarLvl = () => { let m=0; for (const b of S.buildings) if (b.type==='radar' && b.powered) m=Math.max(m,b.lvl); return Math.min(S.run&&S.run.fogged?1:2,m); };
 export const unlocked = t => (B[t].req||[]).every(hasTech);
 export const reqText  = t => (B[t].req||[]).map(x=>B[x].name).join(' + ');
 export const maxLvl   = () => hasTech('lab') ? MAXLVL+1 : MAXLVL;
@@ -67,12 +69,13 @@ export function mkBuilding(type,c,r,instant=false){
            hp:d.hp,maxHp:d.hp, brown:false, powered:false, cd:0, side:'p', flash:0,
            build:bt, buildMax:bt};
   for (const [cc,rr] of cellsOf(type,c,r)){ S.grid[rr][cc].b=b; S.grid[rr][cc].seam=false; }
+  if (S.stat && type!=='hq'){ S.stat.built[type]=(S.stat.built[type]||0)+1; S.stat.builtTotal++; }   // metryka runu
   S.buildings.push(b); return b;
 }
 export function clearCells(b){ for (const [cc,rr] of cellsOf(b.type,b.c,b.r)) S.grid[rr][cc].b=null; }
 
 export function killBuilding(b){
-  if (b.type!=='hq') say('OBIEKT UTRACONY — '+B[b.type].name,'bad');
+  if (b.type!=='hq'){ say('OBIEKT UTRACONY — '+B[b.type].name,'bad'); if (S.stat) S.stat.lost++; }
   clearCells(b);
   S.buildings.splice(S.buildings.indexOf(b),1);
   if (b._view){ b._view.destroy({children:true}); b._view=null; }

@@ -4,7 +4,7 @@
    ========================================================================= */
 
 import {
-  CO, B, U, BAR, STANCES, TERR_MAX, WAVE_TIME, ORE_SIP, BAS_HP, EPATIENCE, EPAT_MASS
+  CO, B, U, BAR, STANCES, TERR_MAX, WAVE_TIME, ORE_SIP, EPATIENCE, EPAT_MASS
 } from './config.js';
 import { S, say } from './state.js';
 import { isMuted } from './audio.js';
@@ -117,7 +117,10 @@ export function syncOverlays(){
     const win=S.state==='win';
     const t=qs('end-title'); t.textContent=win?'ZWYCIĘSTWO':'PRZEGRANA'; t.className=win?'win':'lose';
     qs('end-reason').textContent=S.endReason;
-    qs('end-stats').textContent=S.doc.name+' · fala '+S.wave+' · bastion '+Math.max(0,Math.round(S.bastion.hp))+'/'+BAS_HP+' · rekord: fala '+S.best;
+    const mods = (S.run && S.run.mods.length) ? ' · '+S.run.mods.map(m=>m.name).join(' + ') : '';
+    qs('end-stats').textContent=S.doc.name+mods;
+    const rep=qs('end-report');
+    if (rep) rep.innerHTML = (S.report||[]).map(l=>`<div class="rl">${l}</div>`).join('');
   }
   qs('ready').classList.toggle('hidden', !(S.state==='play' && !S.ready));
 }

@@ -20,6 +20,9 @@ export const S = {
   pBonus:{ atkS:0, armS:0, atkA:0, armA:0 },   // S=żołnierze (inf,rkt) · A=opancerzeni (tank,kolos)
   // dziennik / doktryna
   log:[], logDirty:true, hadRadar:0, doc:null,
+  // meta: warianty pola + eskalacja + metryki/raport runu (patrz meta.js)
+  run:{ esc:0, mods:[], basHpMul:1, waveMul:1, moneyBonus:0, fogged:false },
+  stat:null, report:null, reportJSON:'',
   // moc / ekonomia pochodna
   supply:0, drain:0, offBrown:0, oreStart:1, alertCd:0, ecoCd:0, fullCd:0, harvBonus:0,
   // wróg
