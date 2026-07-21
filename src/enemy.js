@@ -100,8 +100,10 @@ export function eBuild(){
   const pTanks  = I.tanks;
   const pWheels = I.wheels;
   const pRkts   = I.rkts || 0;
+  const pInf    = I.inf || 0;
   const eRkt = S.eBase.filter(t=>t==='rocket').length;
   const eBar = S.eBase.filter(t=>t==='barracks').length;
+  const eWork = S.eBase.filter(t=>t==='workshop').length;
   if (pTanks >= 2 && eRkt < pTanks && S.eArmCd <= 0){
     S.eBase.push('rocket'); S.eArmCd = 2; S.eBuildN++;
     say(radarLvl()>=1 ? 'WYWIAD: ODPOWIADAJA RAKIETAMI' : 'ZA ICH LINIA — DLUGIE RURY', radarLvl()>=1?'intel':'warn');
@@ -115,6 +117,17 @@ export function eBuild(){
   if (pRkts >= 2 && eBar < pRkts && S.eArmCd <= 0){
     S.eBase.push('barracks'); S.eArmCd = 2; S.eBuildN++;
     say(radarLvl()>=1 ? 'WYWIAD: SYPIA PIECHOTE POD RAKIETY' : 'ZA ICH LINIA — TUPOT BUTOW', radarLvl()>=1?'intel':'warn');
+    return;
+  }
+  // Kontra na masówkę PIECHOTY gracza: łaziki. Łazik ma strong:['inf'] (×2 przez
+  // COUNTER) + pancerz, który ścina drobne trafienia żołnierzy — to naturalny
+  // pogromca blobu piechoty (jeden łazik czyści ~3–4 żołnierzy). DAWNIEJ wywiad
+  // liczył czołgi/warsztaty/artylerię/rakiety, ale NIE piechotę, więc ściana baraków
+  // nie prowokowała żadnej odpowiedzi i spam piechoty przechodził bezkarnie. Teraz
+  // enemy dosypuje warsztat na każde ~2 baraki — łaziki kontrują tupot butów.
+  if (pInf >= 3 && eWork < Math.ceil(pInf/2) && S.eArmCd <= 0){
+    S.eBase.push('workshop'); S.eArmCd = 2; S.eBuildN++;
+    say(radarLvl()>=1 ? 'WYWIAD: WYSYLAJA LAZIKI POD PIECHOTE' : 'ZA ICH LINIA — WARKOT SILNIKOW', radarLvl()>=1?'intel':'warn');
     return;
   }
   if (pWheels >= 3 && eBar < pWheels*2 && S.eArmCd <= 0){
