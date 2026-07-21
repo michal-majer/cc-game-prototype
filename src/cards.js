@@ -68,12 +68,8 @@ export const OPEN = [
    f:()=>{ gift('factory'); S.money = 0; say('PANCERNI: masz 4 fale przewagi. Potem zobacza fabryke.','warn'); }},
   {n:'GARNIZON',     k:'WOJSKO', d:'elektrownia i dwa baraki. Zero rudy, zero kasy — bierz sektory.',
    f:()=>{ gift('power'); gift('barracks'); gift('barracks'); S.money = 0; }},
-  {n:'ZWIAD',        k:'WROG',   d:'radar od fali 1: widzisz kazda ich fale. Zero rudy, zero kasy.',
-   f:()=>{ gift('power'); gift('radar'); S.money = 0; }},
   {n:'KWATERMISTRZ', k:'KRATKI', d:'450 kredytow i pusta siatka. Wolna reka, zero tempa.',
    f:()=>{ S.money = 450; }},
-  {n:'SAPERZY',      k:'RUDA',   d:'spychacz placi 70%: zyly to gotowka. 350 kr. na start.',
-   f:()=>{ BAL.CLEAR_SALV=0.7; S.money = 350; }},
 ];
 
 export function openDraft(src, tytul, pod){
