@@ -79,11 +79,15 @@ export function eDecide(){
     const pat = EPATIENCE * Math.max(0.25, 1 - n/EPAT_MASS) * terrPress;
     // Dwie osobne przesłanki do szturmu na bazę:
     //   · r > EPUSH_R    — realna PRZEWAGA SIŁ: przebije obronę, dosięgnie budynku.
-    //   · cierpliwość    — ale TYLKO gdy uzbierał MASĘ (n >= EPUSH_MIN). Wcześniej
-    //     garstka jednostek po prostu nadziewała się na bazę „z nudów", choć nie
-    //     miała szans nic zniszczyć. Bez masy wróg NIE naciera — dalej trzyma i
-    //     kontestuje mini-sztaby, rosnąc z terenu, aż zbierze siłę na przebicie.
-    const massPush = S.eHoldT >= pat && n >= EPUSH_MIN;
+    //   · cierpliwość    — ale TYLKO gdy uzbierał MASĘ (n >= EPUSH_MIN) I NIE JEST
+    //     SŁABSZY (r >= EHOLD_R). Wcześniej garstka nadziewała się na bazę „z nudów",
+    //     a nawet po dodaniu progu masy wróg wciąż ruszał z cierpliwości, gdy GRACZ
+    //     miał wyraźną przewagę (r niskie) — szarżował na silniejszą obronę i ginął
+    //     bez sensu. Było to też niespójne z odwrotem (EHOLD_R): zaczynał push, który
+    //     natychmiast chciał przerwać. Teraz gdy jesteś silniejszy (r < EHOLD_R) wróg
+    //     NIE naciera z cierpliwości — trzyma linię, kontestuje mini-sztaby i STACKUJE,
+    //     aż uzbiera siłę na realne przebicie (r urośnie) albo urośnie z terenu.
+    const massPush = S.eHoldT >= pat && n >= EPUSH_MIN && r >= EHOLD_R;
     if (r > EPUSH_R || massPush){
       S.eStance='push'; S.eHoldT=0; S.ePush=ECOMMIT;
       say('▲ SZTURM — RUSZA '+n+' JEDNOSTEK','bad');
