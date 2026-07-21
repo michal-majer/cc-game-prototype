@@ -82,6 +82,14 @@ export const BAS_SPL_N = 3;
 export const WAVE_TIME = 30;     // rzadsze fale → mniej jednostek naraz, każda znaczy więcej (patrz waveInterval)
 export const TERR_MAX  = 15;     // 5/sektor (było 8): teren to DODATEK do rudy, nie główny przychód — mini-sztaby przestały nieść całą ekonomię
 export const ETERR_SEC = 65;
+// Bonus wroga za trzymane mini-sztaby. Gracz z sektorów bierze KREDYTY (TERR_MAX),
+// wróg nie używa kasy — jego nagrodą jest SIŁA: każdy zajęty sztab podbija obrażenia
+// CAŁEJ jego polowej armii o ETERR_ATK (druga noga obok przyspieszonej rozbudowy z
+// eTerrBank). Wróg bierze sztaby POJEDYŃCZO i z każdego rośnie w siłę — snowball, który
+// KARZE oddanie terenu i nagradza kontestowanie: 3 sektory = +6 dmg każdej jednostce.
+// Płasko (jak karty gracza), więc masówka piechoty (CZERWONA FALA, 9→15 dmg) robi się
+// naprawdę groźna, gdy trzyma front. Chcesz zdusić bonus — odbij sztab.
+export const ETERR_ATK = 2;
 export const SELL_BACK = 0.5;
 // Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
 // Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
