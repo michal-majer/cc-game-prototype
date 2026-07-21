@@ -84,10 +84,13 @@ export function doWave(){
     rkts:   S.buildings.filter(b=>b.type==='rocket' && b.powered).length,
     inf:    S.buildings.filter(b=>b.type==='barracks' && b.powered).length,
   });
-  // Leciutki oddech na 1. fali, potem PEŁNE tempo już od 2. Poprzednie S.wave/5
-  // zamrażało wroga do ~fali 5 (3 budynki na fali 4 = 2 piechoty + czołg, żenada).
-  // Teraz wróg realnie rośnie od startu, a i tak walczy garść, nim ruszy masa.
-  const earlyRamp = Math.min(1, 0.6 + S.wave*0.2);   // fala1: 0.8 → fala2+: 1.0
+  // Oddech na otwarcie: wróg rośnie od startu, ale na PEŁNE tempo wchodzi dopiero
+  // ~fala 5, nie od 2. „Pełne tempo od 2" (0.6+wave*0.2) sypało ~2 budynki już na
+  // fali 2 — gracz nie zdążył postawić ekonomii ani obrony, nim ruszyła masa (za
+  // trudno). Łagodniejsza rampa (0.4+wave*0.12) daje ~1 budynek/falę na starcie i
+  // rozciąga dojście do maks. na 4–5 fal — czas na rozstawienie się. Sufit 1.0 bez
+  // zmian, więc późna gra (i S.wave/5, którego już nie ma) nietknięta.
+  const earlyRamp = Math.min(1, 0.4 + S.wave*0.12);  // f1:0.52 f2:0.64 f3:0.76 f4:0.88 f5:1.0
   S.eBuildDebt += earlyRamp/BAL.EBUILD_EVERY;
   while (S.eBuildDebt >= 1){ S.eBuildDebt -= 1; eBuild(); }
 }
