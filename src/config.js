@@ -119,7 +119,11 @@ export const B = {
             desc:'harvester: +6 kr./s za żyłę · ulepsz = kolejny'},
   barracks:{name:'BARAK',        short:'BARAK', fp:[1,1], cost:150, hp:200,  col:'#6fa8dc', ico:'i', drn:2, req:[],
             unit:'inf', count:1, desc:'co falę: 1× Piechota · 1×1'},
-  rocket:  {name:'WYRZUTNIA',    short:'WYRZ.', fp:[1,2], cost:300, hp:180,  col:'#9b7fd4', ico:'r', drn:2, req:[],
+  // cost 300→340: „łatwo wielu mieć" — każda rura pluje elitarną rakietą co falę,
+  // więc 3–4 wyrzutnie robiły blob, który sam wygrywał każde starcie z pancerką.
+  // Rakieta zostaje odpowiedzią na pancerz, ale stawianie ich ŚCIANY ma boleć budżet,
+  // a nie być domyślnym otwarciem na wszystko.
+  rocket:  {name:'WYRZUTNIA',    short:'WYRZ.', fp:[1,2], cost:340, hp:180,  col:'#9b7fd4', ico:'r', drn:2, req:[],
             unit:'rkt', count:1, desc:'rakiety przebijają pancerz · ×2 do czołgów'},
   bunker:  {name:'GNIAZDO RAK.',  short:'GNIAZ.',fp:[1,1], cost:180, hp:350,  col:'#8fa3a8', ico:'▲', drn:1, req:['rocket'],
             desc:'rakiety 230 px · przebija pancerz', atk:{dmg:15, range:230, rate:1.0, ap:true}},
@@ -159,7 +163,15 @@ export const U = {
   //   enemy dosypuje teraz piechotę na masówkę rakiet (patrz eBuild) — a piechota
   //   przebija ×2 przez 50 HP rakietowca. Rakieta = specjalista od pancerza, nie
   //   uniwersalna odpowiedź na wszystko.
-  rkt:  {name:'Rakietowiec', hp:50,  dmg:12, range:99,  spd:22, rate:1.2,  sz:4,  strong:['tank','kolos','lazik'], ap:true, proj:200},
+  //   range 99→84: masówka rakiet dalej rozjeżdżała pancerną doktrynę „za darmo".
+  //   Rakieta ap+×2 przegrywa 1v1 w zwarciu (czołg ją kładzie w 2,5 s, ona jego w
+  //   9,5 s) — CAŁA jej siła to OSTRZAŁ NA PODEJŚCIU: outrange + blob skupiający ogień.
+  //   Przy 99 px każda rura wpychała ~1,1 darmowego strzału, nim czołg (54) czy kolos
+  //   (66) w ogóle dosięgły; ściana wyrzutni topiła STALOWĄ PIĘŚĆ, zanim ta zdążyła
+  //   oddać cios. 84 (baza 56 × 1.5, w konwencji zasięgów) wciąż PRZEBIJA pancerny
+  //   zasięg — rola kontry nietknięta — ale ścina okno podejścia do ~0,7 strzału:
+  //   pancerni realnie wymieniają ciosy, a blob rakiet płaci stratami za rozjazd.
+  rkt:  {name:'Rakietowiec', hp:50,  dmg:12, range:84,  spd:22, rate:1.2,  sz:4,  strong:['tank','kolos','lazik'], ap:true, proj:200},
   tank: {name:'Czołg',       hp:190, dmg:19, range:54,  spd:34, rate:0.95, sz:8,  strong:['inf'], arm:5},
   // hp 90→110→125, +arm 3: łazik MA tępić piechotę (strong+COUNTER ×2), ale ginął
   // w zwarciu z gromadą, zanim ją przetrzebił. 1v1/2v1/3v1 miażdżył — problemem był
