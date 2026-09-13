@@ -77,6 +77,21 @@ kopiuje pełny JSON), pełny obiekt w konsoli (F12) i historia ostatnich 30 run�
 w `localStorage`. Z konsoli: `__front.meta()` (podgląd), `__front.resetMeta()`
 (zerowanie eskalacji) — dostępne pod `?debug` w URL.
 
+## Bot testowy (balans)
+
+`tools/bot-test.js` rozgrywa kilka partii w przeglądarce bez okna i wypisuje raport
+końca każdej: doktryna, warianty, fala, czas gry, ile bastionu zniszczone. Służy do
+sprawdzenia po zmianie balansu, czy partia ma koniec i czy da się ją wygrać.
+
+```bash
+python3 -m http.server 8123 &
+npm i playwright
+RUNS=4 STYL=natarcie node tools/bot-test.js
+```
+
+Bot gra słabo (nie kituje, nie naprawia) — pokazuje dolną granicę, nie grę człowieka.
+Pomiar z 13.09.2026: 8 partii, 0 zwycięstw, bastion 0–3%. Szczegóły w `tools/bot-test.js`.
+
 ## Dodawanie grafiki i dźwięku
 
 - **Grafika:** wrzuć PNG do `assets/…`, dopisz wpis w `MANIFEST` w `src/assets.js`.
