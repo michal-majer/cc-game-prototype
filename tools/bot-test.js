@@ -9,6 +9,7 @@
 
    Zmienne: RUNS (partie, domyślnie 4), SPEED (podkroki symulacji na klatkę, 10),
    MAXREAL (limit sekund realnych na partię, 240), STYL (obrona | natarcie),
+   TRACE=1 (wypisz skład bazy wroga w falach 1–8),
    EXE (ścieżka do Chromium, gdy Playwright nie ma własnej), URL (domyślnie
    http://localhost:8123/?debug — parametr ?debug jest wymagany).
 
@@ -20,6 +21,7 @@ const { chromium } = require('playwright');
 const RUNS = +(process.env.RUNS || 4), SPEED = +(process.env.SPEED || 10);
 const MAXREAL = +(process.env.MAXREAL || 240), STYL = process.env.STYL || 'obrona';
 const URL = process.env.URL || 'http://localhost:8123/?debug';
+const TRACE = !!process.env.TRACE;   // TRACE=1: skład bazy wroga w falach 1–8
 
 (async () => {
   const launch = { headless: true, args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
@@ -34,7 +36,7 @@ const URL = process.env.URL || 'http://localhost:8123/?debug';
     const b = await import('/src/buildings.js'), e = await import('/src/economy.js');
     const { S } = await import('/src/state.js'), { ROWS, COLS, B } = await import('/src/config.js');
     const sim = await import('/src/sim.js'), en = await import('/src/enemy.js'), cards = await import('/src/cards.js');
-    window.__gt = 0; window.__lastTimer = null;
+    window.__gt = 0; window.__lastTimer = null; window.__trace = []; window.__lastWave = -1;
     const count = t => S.buildings.filter(x => x.type === t).length;
     function place(t){
       if (S.money < B[t].cost) return false;
@@ -58,6 +60,11 @@ const URL = process.env.URL || 'http://localhost:8123/?debug';
       if (S.state === 'draft'){ const pick = (S.draft || []).find(c => c.repeat) || (S.draft || [])[S.draft.length - 1]; if (pick) cards.takeCard(pick); return; }
       if (S.state !== 'play') return;
       if (!S.ready){ S.ready = true; S.speed = SPEED; }
+      if (S.wave !== window.__lastWave && S.wave >= 1 && S.wave <= 8){
+        window.__lastWave = S.wave;
+        const c = {}; for (const t of S.eBase) c[t] = (c[t]||0) + 1;
+        window.__trace.push('f' + S.wave + ':' + Object.entries(c).map(([k,v]) => k + '×' + v).join(' '));
+      }
       if (window.__lastTimer != null && S.timer < window.__lastTimer) window.__gt += window.__lastTimer - S.timer;
       window.__lastTimer = S.timer;
       if (S.supply < S.drain + 2 && count('power') < 6) place('power');
@@ -92,11 +99,12 @@ const URL = process.env.URL || 'http://localhost:8123/?debug';
     }
     const rep = await page.evaluate(async () => {
       const { S } = await import('/src/state.js'); const m = window.__front.meta(); const h = m.history[m.history.length - 1];
-      return { state: S.state, gt: Math.round(window.__gt), wave: S.wave, h };
+      return { state: S.state, gt: Math.round(window.__gt), wave: S.wave, h, trace: window.__trace.join(' | ') };
     });
+    if (TRACE) console.log('  baza wroga:', rep.trace);
     const h = rep.h || {};
     console.log(`PARTIA ${run} (${STYL}): ${rep.state === 'win' ? 'ZWYCIĘSTWO' : rep.state === 'over' ? 'porażka' : 'limit czasu'} · fala ${rep.wave} · czas gry ~${Math.round(rep.gt / 60)} min · real ${Math.round((Date.now() - t0) / 1000)} s · ${h.doctrine || '?'} · ${(h.mods || []).join('+') || '—'} · bastion ${h.bastionDestroyedPct ?? '?'}% · zabici wróg/Twoi ${h.enemyKilled ?? '?'}/${h.playerKilled ?? '?'} · budynki ${h.buildingsBuiltTotal ?? '?'} · szczyt wroga ${h.peakEnemyOnField ?? '?'}`);
-    await page.evaluate(() => { window.__gt = 0; window.__lastTimer = null; window.__front.newRun(); });
+    await page.evaluate(() => { window.__gt = 0; window.__lastTimer = null; window.__trace = []; window.__lastWave = -1; window.__front.newRun(); });
     await page.waitForTimeout(300);
   }
   if (errors.length) console.log('BŁĘDY JS:', errors.slice(0, 5));

@@ -3,9 +3,12 @@
    metryki runu i RAPORT KOŃCOWY do analizy.
 
    Dwa cele:
-   · „za łatwo" — eskalacja: z każdym ukończonym runem front się zaostrza
-     (bastion twardszy, wróg buduje szybciej, więcej wariantów naraz). Trzymane
-     w localStorage („front.meta"), więc rośnie POWOLI przez wiele podejść.
+   · „za łatwo" — eskalacja: z każdą WYGRANĄ front się zaostrza (bastion twardszy,
+     wróg buduje szybciej, więcej wariantów naraz), do sufitu ESC_MAX. Trzymane
+     w localStorage („front.meta"). Porażka nie podnosi eskalacji — gracz, który
+     przegrywa, nie ma dostawać trudniejszej gry. Do 14.09.2026 rosła +1 za porażkę
+     i +2 za wygraną bez sufitu; po lipcowym balansowaniu telefon Michała siedział
+     na poziomie, którego nikt nie wybrał. META_V=2 zeruje stary licznik raz.
    · „powtarzalnie" — warianty: co run losujemy 1–3 modyfikatory zmieniające
      reguły (twardszy bastion, szybsze fale, mgła wojny, cięższe pancerze…),
      więc każdy run gra inaczej, mimo tych samych trzech doktryn wroga.
@@ -19,25 +22,27 @@ import { S, SECT } from './state.js';
 import { oreTotal, seamsAlive } from './economy.js';
 
 const LS_KEY = 'front.meta';
+const META_V = 2;          // zmiana wersji zeruje eskalację (historia i liczniki zostają)
+export const ESC_MAX = 6;  // sufit eskalacji: bastion +18%, rozbudowa −12%, 3 warianty
 
 function loadMeta(){
   try {
     const m = JSON.parse(localStorage.getItem(LS_KEY));
-    if (m && typeof m === 'object') return { runs:0, wins:0, esc:0, history:[], ...m };
+    if (m && typeof m === 'object'){
+      const out = { runs:0, wins:0, esc:0, history:[], ...m };
+      if (out.v !== META_V){ out.esc = 0; out.v = META_V; saveMeta(out); }
+      return out;
+    }
   } catch(e){}
-  return { runs:0, wins:0, esc:0, history:[] };
+  return { v:META_V, runs:0, wins:0, esc:0, history:[] };
 }
 function saveMeta(m){ try { localStorage.setItem(LS_KEY, JSON.stringify(m)); } catch(e){} }
 
-// Dobór budynku do STARTOWEJ bazy wroga (modyfikatory przyczółka/żył): z puli
-// `late` doktryny, ale BEZ ciężkiej fabryki. Kolos (430 HP) w 1. fali to nie
-// „trudniej" — to ściana nie do przebicia, nim gracz w ogóle ma czym. Heavy
-// należy do późnej gry (order dokłada go dopiero ~15. buildem); reszta puli
-// (fabryki, warsztaty, baraki, arty) i tak dokłada nacisku na starcie.
-function eStartPick(){
-  const pool = S.doc.late.filter(t => t !== 'heavy');
-  return pool[(Math.random()*pool.length)|0];
-}
+// Dobór budynku do STARTOWEJ bazy wroga (modyfikatory przyczółka/żył): zawsze barak.
+// Wcześniej losował z puli `late` doktryny (bez kolosa), więc czołg albo łazik potrafił
+// wyjść w PIERWSZEJ fali. Początek ma być walką piechoty — pojazdy dokłada kolejka
+// doktryny od 4. budynku. Więcej baraków na starcie to i tak wyraźnie więcej nacisku.
+function eStartPick(){ return 'barracks'; }
 
 /* --------------------------- WARIANTY POLA -------------------------------
    apply() odpala się w newRun PO resetTables i PO resecie S.* — mutuje tabele
@@ -175,11 +180,11 @@ export function finishRun(){
     oreStart: Math.round(S.oreStart), oreLeft: Math.round(oreTotal()), seamsLeft: seamsAlive(),
   };
 
-  // meta / eskalacja — win podbija mocniej (skoro dałeś radę, front rośnie szybciej)
+  // meta / eskalacja — rośnie TYLKO po wygranej, +1, do sufitu ESC_MAX
   const meta = loadMeta();
   meta.runs = (meta.runs||0) + 1;
   if (win) meta.wins = (meta.wins||0) + 1;
-  meta.esc  = (meta.esc||0) + (win ? 2 : 1);
+  if (win) meta.esc = Math.min(ESC_MAX, (meta.esc||0) + 1);
   meta.history = meta.history || [];
   meta.history.push(report);
   if (meta.history.length > 30) meta.history = meta.history.slice(-30);
@@ -223,4 +228,4 @@ export function finishRun(){
 
 // pomocnicze — dostępne z ?debug (window.__front) i z konsoli
 export function getMeta(){ return loadMeta(); }
-export function resetMeta(){ saveMeta({ runs:0, wins:0, esc:0, history:[] }); }
+export function resetMeta(){ saveMeta({ v:META_V, runs:0, wins:0, esc:0, history:[] }); }
