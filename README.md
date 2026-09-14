@@ -5,9 +5,16 @@ jednostki maszerują i walczą same — Ty podejmujesz decyzje ekonomiczne,
 przestrzenne i kontrujące, oraz ustawiasz linię natarcia.
 
 To jest port oryginalnego prototypu (jeden plik Canvas 2D) na **PixiJS**, tak by
-łatwo dodawać **grafikę i dźwięk**, i żeby grało się **na telefonie** — pole walki
-wypełnia wysokość ekranu i **przewija się w poziomie** (na desktopie widać całość,
-kółko/pinch przybliża).
+łatwo dodawać **grafikę i dźwięk**. Gra celuje w **PC** (Steam przez Electrona albo
+Tauri); wersja w przeglądarce zostaje jako darmowe demo. Pole walki przewija się
+w poziomie, kółko przybliża.
+
+**Silnik zostaje PixiJS — nie przepisujemy na Unity** (decyzja 14.09.2026). Kod jest
+skończony, a wszystko, co realnie poprawia grę, jest niezależne od silnika. Konsole nie
+są celem: jeśli Steam pójdzie dobrze, port robi wydawca za udział w przychodzie.
+Precedens: Vampire Survivors powstał w Phaserze i trafił na Steam w Electronie, a porty
+na konsole przyszły dopiero po sukcesie. Pełne uzasadnienie i koszty odrzuconej drogi:
+`decyzje/2026-09-14-silnik-front-pixijs.md` w repozytorium Ikar.
 
 ## Uruchomienie
 
@@ -28,8 +35,10 @@ To wszystko. Zero zależności do instalowania.
 - **Kafel budowy** (dół) → wybierz budynek → **tap na kratkę** = postaw.
 - **✂ ROZBIÓRKA** → tap na budynek (zwrot 50%) albo na żyłę (zaoranie).
 - **Suwak linii** (nazwy OBRONA…NATARCIE) → ustawia, jak daleko wychodzą Twoi.
+- **Rozkazy generała** (panel po prawej nad suwakiem, `Q/W/E`): nalot, forsowny marsz,
+  zrzut zaopatrzenia — za punkty rozkazów. Opis i pytania otwarte: `docs/rozkazy.md`.
 - **Klawiatura:** `1–5` linia, `←/→` linia, `Spacja` GOTÓW / natarcie / odwrót,
-  `+/−` prędkość, `1/2/3` wybór karty, `Esc` odznacz.
+  `+/−` prędkość, `1/2/3` wybór karty, `Q/W/E` rozkazy, `Esc` odznacz.
 
 ## Struktura
 
@@ -46,7 +55,8 @@ src/
   sectors.js      trzy mini-sztaby (przejmowanie terenu)
   buildings.js    stawianie, moc, poziomy, technologia, walidacja kratek
   enemy.js        AI wroga, bastion, wywiad, kontry
-  cards.js        talia (rozkazy) + otwarcia
+  cards.js        talia (ulepszenia ze sztabu) + otwarcia
+  orders.js       rozkazy generała: aktywne moce za punkty (nalot, marsz, zrzut)
   sim.js          rdzeń: obrażenia, spawn, fala, krok update(dt), linia
   render.js       render świata na Pixi + kamera (pan/pinch)
   hud.js          HUD w DOM (paski, pasek budowy, suwak, karty, log)
@@ -94,6 +104,13 @@ RUNS=4 STYL=natarcie node tools/bot-test.js
 
 Bot gra słabo (nie kituje, nie naprawia) — pokazuje dolną granicę, nie grę człowieka.
 Pomiar z 13.09.2026: 8 partii, 0 zwycięstw, bastion 0–3%. Szczegóły w `tools/bot-test.js`.
+
+## Kampania (pomysł)
+
+Rosnąca mapa zamiast startu od zera: obrona → przedpole → środek → natarcie na bastion,
+baza zostaje między etapami, kolejne teatry to dane, nie nowy kod. Opis, zasady
+i kolejność robót: `docs/kampania.md`. Rozkazy generała (aktywne moce: nalot, marsz,
+zrzut; pomysł, nie kod): `docs/rozkazy.md`.
 
 ## Dodawanie grafiki i dźwięku
 
