@@ -103,7 +103,8 @@ const TRACE = !!process.env.TRACE;   // TRACE=1: skład bazy wroga w falach 1–
     });
     if (TRACE) console.log('  baza wroga:', rep.trace);
     const h = rep.h || {};
-    console.log(`PARTIA ${run} (${STYL}): ${rep.state === 'win' ? 'ZWYCIĘSTWO' : rep.state === 'over' ? 'porażka' : 'limit czasu'} · fala ${rep.wave} · czas gry ~${Math.round(rep.gt / 60)} min · real ${Math.round((Date.now() - t0) / 1000)} s · ${h.doctrine || '?'} · ${(h.mods || []).join('+') || '—'} · bastion ${h.bastionDestroyedPct ?? '?'}% · zabici wróg/Twoi ${h.enemyKilled ?? '?'}/${h.playerKilled ?? '?'} · budynki ${h.buildingsBuiltTotal ?? '?'} · szczyt wroga ${h.peakEnemyOnField ?? '?'}`);
+    console.log(`PARTIA ${run} (${STYL}): ${rep.state === 'win' ? 'ZWYCIĘSTWO' : rep.state === 'over' ? 'porażka' : 'limit czasu'} · fala ${rep.wave} · czas gry ~${Math.round(rep.gt / 60)} min · real ${Math.round((Date.now() - t0) / 1000)} s · ${h.doctrine || '?'} · ${(h.mods || []).join('+') || '—'} · bastion ${h.bastionDestroyedPct ?? '?'}% · zabici wróg/Twoi ${h.enemyKilled ?? '?'}/${h.playerKilled ?? '?'} · budynki ${h.buildingsBuiltTotal ?? '?'} · szczyt wroga ${h.peakEnemyOnField ?? '?'}` +
+      (h.income ? ` · dochód ${h.incomeTotal} (ruda ${h.income.ruda} / sektory ${h.income.sektory} / baza ${h.income.baza} / łupy ${h.income.lupy} / złom ${h.income.zlom} / karty ${h.income.karty}) · wydane ${h.spent} · w kasie ${h.money}` : ''));
     await page.evaluate(() => { window.__gt = 0; window.__lastTimer = null; window.__trace = []; window.__lastWave = -1; window.__front.newRun(); });
     await page.waitForTimeout(300);
   }

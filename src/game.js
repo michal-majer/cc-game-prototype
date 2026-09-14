@@ -8,7 +8,7 @@
                           render (Pixi) + hud (DOM) + input
    ========================================================================= */
 
-import { resetTables, DOCTRINES, BAS_HP, BAS_X, LANE_Y,
+import { resetTables, DOCTRINES, BAS_HP, BAS_X, LANE_Y, START_MONEY,
          FRONT_MIN, FRONT_MAX, COLS, ROWS, cellAt } from './config.js';
 import { S, say, SECT } from './state.js';
 import { loadAssets } from './assets.js';
@@ -34,7 +34,7 @@ export function newRun(){
   S.hq = mkBuilding('hq', 0, 2, true);
   S.doc = DOCTRINES[(Math.random()*DOCTRINES.length)|0];
   S.eBase = [...S.doc.start];
-  S.money=250; S.wave=0; S.frontX=(FRONT_MIN+FRONT_MAX)/2;  // start = koszt rafinerii: zawsze stać na jedną (karty otwarcia i tak nadpisują)
+  S.money=START_MONEY; S.wave=0; S.frontX=(FRONT_MIN+FRONT_MAX)/2;
   S.deck=[...DECK]; S.draft=null;
   S.shake=0; S.state='play'; S.endReason=''; S.sel=null; S.upSel=null; S.hadRadar=0; S.offBrown=0;
   S.alertCd=0; S.ecoCd=0; S.si=1; S.fieldDead=false;   // start na PRZEDPOLU: pierwszy mini-sztab w zasięgu od razu S.newArm=0; S.fullCd=0;
@@ -46,6 +46,7 @@ export function newRun(){
   // i skalary S.run). Bastion i timer liczymy DOPIERO teraz, by uwzględnić basHpMul/waveMul.
   rollRun();
   S.money += S.run.moneyBonus||0;
+  if (S.stat) S.stat.inc.karty += S.run.moneyBonus||0;   // ZAOPATRZENIE liczy się do „karty i warianty"
   S.timer = waveInterval();
   const basHp = Math.round(BAS_HP * S.run.basHpMul);
   S.bastion = {x:BAS_X, y:LANE_Y, hp:basHp, maxHp:basHp, side:'e', cd:0, flash:0, dead:false};
