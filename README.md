@@ -5,9 +5,16 @@ jednostki maszerują i walczą same — Ty podejmujesz decyzje ekonomiczne,
 przestrzenne i kontrujące, oraz ustawiasz linię natarcia.
 
 To jest port oryginalnego prototypu (jeden plik Canvas 2D) na **PixiJS**, tak by
-łatwo dodawać **grafikę i dźwięk**, i żeby grało się **na telefonie** — pole walki
-wypełnia wysokość ekranu i **przewija się w poziomie** (na desktopie widać całość,
-kółko/pinch przybliża).
+łatwo dodawać **grafikę i dźwięk**. Gra celuje w **PC** (Steam przez Electrona albo
+Tauri); wersja w przeglądarce zostaje jako darmowe demo. Pole walki przewija się
+w poziomie, kółko przybliża.
+
+**Silnik zostaje PixiJS — nie przepisujemy na Unity** (decyzja 14.09.2026). Kod jest
+skończony, a wszystko, co realnie poprawia grę, jest niezależne od silnika. Konsole nie
+są celem: jeśli Steam pójdzie dobrze, port robi wydawca za udział w przychodzie.
+Precedens: Vampire Survivors powstał w Phaserze i trafił na Steam w Electronie, a porty
+na konsole przyszły dopiero po sukcesie. Pełne uzasadnienie i koszty odrzuconej drogi:
+`decyzje/2026-09-14-silnik-front-pixijs.md` w repozytorium Ikar.
 
 ## Uruchomienie
 
