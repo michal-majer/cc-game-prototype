@@ -32,6 +32,10 @@ export const EPUSH_MIN = 8;
 export const EPATIENCE = 110;
 export const EPAT_MASS = 70;
 export const ESCOUT    = 3;
+// Od której fali wywiad wroga uruchamia KONTRY (rakiety na czołgi, łaziki na piechotę,
+// piechota na rakiety, kontrbateria). Wcześniej wróg buduje wyłącznie z kolejki doktryny,
+// więc początek partii to walka piechoty, a nie pojazdy w drugiej fali.
+export const ECOUNTER_FROM = 5;
 export const ETHINK    = 2;
 export const ECOMMIT   = 26;
 export const ESHELLED  = 55;
@@ -81,15 +85,18 @@ export const BAS_SPL_R = 35;
 export const BAS_SPL_N = 3;
 export const WAVE_TIME = 30;     // rzadsze fale → mniej jednostek naraz, każda znaczy więcej (patrz waveInterval)
 export const TERR_MAX  = 15;     // 5/sektor (było 8): teren to DODATEK do rudy, nie główny przychód — mini-sztaby przestały nieść całą ekonomię
-export const ETERR_SEC = 65;
+// ETERR_SEC — co ile sekund WSZYSTKIE trzy zajęte sektory dokładają wrogowi budynek
+// (jeden sektor: 3× wolniej). 65 → 120 (14.09.2026): przy 65 s wróg dostawał budynek
+// co dwie fale za samo trzymanie terenu i partia zamieniała się w kulę śniegową.
+export const ETERR_SEC = 120;
 // Bonus wroga za trzymane mini-sztaby. Gracz z sektorów bierze KREDYTY (TERR_MAX),
 // wróg nie używa kasy — jego nagrodą jest SIŁA: każdy zajęty sztab podbija obrażenia
 // CAŁEJ jego polowej armii o ETERR_ATK (druga noga obok przyspieszonej rozbudowy z
 // eTerrBank). Wróg bierze sztaby POJEDYŃCZO i z każdego rośnie w siłę — snowball, który
-// KARZE oddanie terenu i nagradza kontestowanie: 3 sektory = +6 dmg każdej jednostce.
-// Płasko (jak karty gracza), więc masówka piechoty (CZERWONA FALA, 9→15 dmg) robi się
-// naprawdę groźna, gdy trzyma front. Chcesz zdusić bonus — odbij sztab.
-export const ETERR_ATK = 2;
+// KARZE oddanie terenu i nagradza kontestowanie: 3 sektory = +3 dmg każdej jednostce.
+// Płasko (jak karty gracza). 2 → 1 (14.09.2026): przy +6 piechota wroga (9→15) razem
+// z szybszą rozbudową z sektorów nie dawała się odbić. Chcesz zdusić bonus — odbij sztab.
+export const ETERR_ATK = 1;
 export const SELL_BACK = 0.5;
 // Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
 // Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
@@ -218,6 +225,9 @@ export const EB = {
   arty:    {name:'BATERIA ART.', unit:'arty', count:1, desc:'odłamki ×3 · 60–175 px'},
   heavy:   {name:'CIĘŻKA FABR.', unit:'kolos',count:1},
 };
+// Pierwsze TRZY budynki każdej doktryny to baraki: początek partii ma być walką piechoty
+// o mini-sztaby. Pojazdy i artyleria wchodzą od 4. budynku (~fala 5), gdy gracz ma już
+// ekonomię i czym odpowiedzieć. Charakter doktryny zostaje — zmienia się tylko moment.
 export const DOCTRINES = [
   { name:'CZERWONA FALA', tag:'Masa piechoty. Zaleją cię liczbą.',
     hint:'Pancerz kosi piechotę. Czołgi i bunkry.',
@@ -226,19 +236,19 @@ export const DOCTRINES = [
            ['barracks'],['factory'],['barracks'],['barracks'],['rocket'],
            ['barracks'],['factory'],['barracks'],['barracks'],['heavy']],
     late:['barracks','barracks','rocket','factory'] },
-  { name:'STALOWA PIĘŚĆ', tag:'Doktryna pancerna. Czołgi od pierwszej fali.',
+  { name:'STALOWA PIĘŚĆ', tag:'Doktryna pancerna. Czołgi od ~5. fali.',
     hint:'Bez rakiet nie masz czym tego przebić.',
     start:['barracks'],
-    order:[['factory'],['barracks'],['factory'],['factory'],['barracks'],
-           ['factory'],['heavy'],['factory'],['barracks'],['heavy'],
-           ['factory'],['factory'],['heavy'],['barracks'],['heavy']],
+    order:[['barracks'],['barracks'],['barracks'],['factory'],['factory'],
+           ['barracks'],['factory'],['factory'],['heavy'],['factory'],
+           ['barracks'],['heavy'],['factory'],['factory'],['heavy']],
     late:['factory','heavy','workshop','barracks'] },
   { name:'GRAD', tag:'Artyleria. Rozbiorą cię z dystansu.',
     hint:'Odłamki koszą zbitą masę. Łaziki dopadną baterie.',
     start:['barracks'],
-    order:[['rocket'],['arty'],['barracks'],['arty'],['workshop'],
-           ['barracks'],['arty'],['rocket'],['arty'],['workshop'],
-           ['arty'],['rocket'],['factory'],['arty'],['heavy']],
+    order:[['barracks'],['barracks'],['barracks'],['rocket'],['arty'],
+           ['arty'],['workshop'],['barracks'],['arty'],['rocket'],
+           ['workshop'],['arty'],['rocket'],['factory'],['heavy']],
     late:['arty','rocket','workshop','barracks'] },
 ];
 
