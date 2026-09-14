@@ -45,7 +45,7 @@ function worldTap(px,py){
   if (S.sel==='SELL'){
     if (!g.b && g.seam){
       const salv=Math.floor(Math.min(g.ore, SALV_CAP)*BAL.CLEAR_SALV);   // zaoranie płaci max z SALV_CAP — bez farmy z odrośniętych żył
-      S.money+=salv; g.ore=0; g.seam=false;
+      S.money+=salv; if (S.stat) S.stat.inc.zlom+=salv; g.ore=0; g.seam=false;
       say(salv>0?'ŻYŁA ZAORANA — ODZYSK '+salv+' kr.':'ŻYŁA ZAORANA — NIE ODROŚNIE','warn');
       explode(BASE_X+(c+0.5)*CELL, BASE_Y+(r+0.5)*CELL, 18, CO.ore); boom(0.2); S.shake=Math.max(S.shake,4);
       return;
@@ -53,7 +53,7 @@ function worldTap(px,py){
     const b=g.b; if (!b) return;
     if (b.type==='hq'){ say('SZTABU NIE SPRZEDASZ','warn'); toast('SZTABU NIE SPRZEDASZ'); return; }
     const frac=clamp(b.hp/b.maxHp,0,1);          // uszkodzony budynek wart mniej przy rozbiórce: 50% z WARTOŚCI, nie z pełnego kosztu
-    const back=Math.floor(investedOf(b)*SELL_BACK*frac); S.money+=back;
+    const back=Math.floor(investedOf(b)*SELL_BACK*frac); S.money+=back; if (S.stat) S.stat.inc.zlom+=back;
     const underC=(b.build||0)>0;
     say((underC?'ANULOWANO BUDOWĘ — ':'ROZEBRANO — ')+B[b.type].name+' · +'+back+' kr.','good');
     if (b._view){ b._view.destroy({children:true}); b._view=null; }

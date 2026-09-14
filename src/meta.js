@@ -17,7 +17,7 @@
    resetTables() (config), S.* czyści newRun(), a skalary siedzą w S.run.
    ========================================================================= */
 
-import { U, B, BAL, BAS_HP } from './config.js';
+import { U, B, BAL, BAS_HP, START_MONEY } from './config.js';
 import { S, SECT } from './state.js';
 import { oreTotal, seamsAlive } from './economy.js';
 
@@ -141,6 +141,10 @@ export function rollRun(){
     t0: (typeof performance!=='undefined' ? performance.now() : 0),
     built:{}, builtTotal:0, lost:0, cards:[],
     eKill:0, pKill:0, peakE:0, basDmg:0,
+    // dochód wg źródła (do balansu ekonomii): ruda = harvestery, sektory = teren,
+    // baza = darmowy trickle, łupy = zapłata za obrażenia bastionu, złom = rozbiórka
+    // i zaoranie żył, karty = otwarcia/karty/warianty (może być ujemne: GARNIZON zeruje kasę)
+    inc:{ ruda:0, sektory:0, baza:0, lupy:0, zlom:0, karty:0 },
   };
   return S.run;
 }
@@ -158,6 +162,11 @@ export function finishRun(){
   const maxHp = Math.round(S.bastion.maxHp);
   const basPct = maxHp ? Math.round(100*(1 - hp/maxHp)) : 0;
   const eBase = {}; for (const t of S.eBase) eBase[t] = (eBase[t]||0)+1;
+  const inc0 = st.inc || {};
+  const income = {}; let incomeTotal = 0;
+  for (const k of ['ruda','sektory','baza','lupy','zlom','karty']){ income[k] = Math.round(inc0[k]||0); incomeTotal += income[k]; }
+  const spent = Math.round(START_MONEY + incomeTotal - S.money);   // wszystko, co wyszło z kasy: budynki, ulepszenia, naprawy
+  const pct = k => incomeTotal>0 ? Math.round(100*Math.max(0,income[k])/incomeTotal) : 0;
 
   const report = {
     ts: new Date().toISOString(),
@@ -171,6 +180,8 @@ export function finishRun(){
     bastionHp: hp, bastionMax: maxHp, bastionDestroyedPct: basPct,
     bastionDamageDealt: Math.round(st.basDmg||0),
     money: Math.floor(S.money),
+    startMoney: START_MONEY, income, incomeTotal, spent,
+    incomePerMin: dur ? Math.round(incomeTotal/(dur/60)) : 0,
     buildingsBuilt: st.built||{}, buildingsBuiltTotal: st.builtTotal||0, buildingsLost: st.lost||0,
     cards: st.cards||[],
     enemyKilled: st.eKill||0, playerKilled: st.pKill||0, peakEnemyOnField: st.peakE||0,
@@ -204,6 +215,8 @@ export function finishRun(){
     console.log('zabici — wróg:', report.enemyKilled, '· Twoi:', report.playerKilled,
                 '· szczyt wroga na polu:', report.peakEnemyOnField);
     console.log('budynki postawione:'); console.table(report.buildingsBuilt);
+    console.log('dochód:', incomeTotal, '(ruda '+pct('ruda')+'% · sektory '+pct('sektory')+'%)', '· wydane:', spent, '· na koniec:', report.money);
+    console.table(income);
     console.log('karty:', report.cards.join(', ') || '—');
     console.log('ich baza:', report.enemyBase);
     console.log('meta:', { runs:meta.runs, wins:meta.wins, esc:meta.esc });
@@ -219,6 +232,8 @@ export function finishRun(){
     'BUDYNKI: postawione '+report.buildingsBuiltTotal+' · stracone '+report.buildingsLost+' · ich baza '+report.enemyBuildings+' ob.',
     'ARMIA: żoł. ⚔+'+report.army.atkS+' ⛊+'+report.army.armS+' · panc. ⚔+'+report.army.atkA+' ⛊+'+report.army.armA,
     'KARTY: '+(report.cards.join(', ') || '—'),
+    'DOCHÓD '+incomeTotal+': ruda '+income.ruda+' ('+pct('ruda')+'%) · sektory '+income.sektory+' ('+pct('sektory')+'%) · baza '+income.baza
+      +' · łupy '+income.lupy+' · złom '+income.zlom+' · karty '+income.karty+' · WYDANE '+spent+' · W KASIE '+report.money,
     'ESKALACJA '+report.esc+' · runów '+meta.runs+' · zwycięstw '+meta.wins,
     'Pełny raport w konsoli (F12) · historia: localStorage „front.meta"',
   ];

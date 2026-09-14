@@ -8,7 +8,7 @@ import {
   U, B, CO, BASE_R, LANE_Y, LANE_HALF, BAS_X, FRONT_MIN, FRONT_MAX,
   BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC, ETERR_ATK,
   COUNTER, HUNT_LEASH, ENGAGE_BAND, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
-  isHeavy, isSoldier, isArmored, BAL
+  isHeavy, isSoldier, isArmored, BAL, BASE_INCOME
 } from './config.js';
 import { S, say, lineX } from './state.js';
 import { boom, siren } from './audio.js';
@@ -45,7 +45,7 @@ export function dmgTo(t, amount, srcType, ap){
   t.hp -= d; t.flash=1;
   if (t.side==='e' && U[t.type]) S.eDmgWave += d;
   if (t===S.bastion && !t.dead){ const pay=Math.max(0, Math.min(d, t.hp+d))*RAID_PAY; S.money+=pay; S.raidPay+=pay;
-    if (S.stat) S.stat.basDmg += Math.max(0, Math.min(d, t.hp+d)); }
+    if (S.stat){ S.stat.basDmg += Math.max(0, Math.min(d, t.hp+d)); S.stat.inc.lupy += pay; } }
   return m;
 }
 
@@ -109,7 +109,11 @@ export function update(dt){
     }
   }
   if (built) recalcPower();
-  S.money += extract(dt) + terrIncome()*dt;
+  // dochód: extract() zwraca rudę + darmowy trickle bazy; teren osobno. Rozbicie idzie
+  // do raportu końcowego (S.stat.inc) — bez tego balans ekonomii szedłby na wyczucie.
+  const got=extract(dt), base=BASE_INCOME*dt, terr=terrIncome()*dt;
+  S.money += got + terr;
+  if (S.stat){ S.stat.inc.ruda += got-base; S.stat.inc.baza += base; S.stat.inc.sektory += terr; }
   updHarvesters(dt);   // wizualne pojazdy jeżdżące do żył (kosmetyka nad harvestPlan)
   S.timer -= dt;
   if (Number.isNaN(S.timer)) S.timer=waveInterval();

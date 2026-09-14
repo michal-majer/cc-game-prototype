@@ -76,7 +76,8 @@ doktryny to baraki, kontry wywiadu ruszają od 5. fali, linia startuje na PRZEDP
 
 Na **koniec runu** powstaje raport: skrót na ekranie końca (**⧉ KOPIUJ RAPORT**
 kopiuje pełny JSON), pełny obiekt w konsoli (F12) i historia ostatnich 30 runów
-w `localStorage`. Z konsoli: `__front.meta()` (podgląd), `__front.resetMeta()`
+w `localStorage`. Raport ma **rozbicie dochodu** wg źródła (ruda, sektory, baza, łupy
+z bastionu, złom, karty) plus sumę wydatków — to jest podstawa do balansu ekonomii. Z konsoli: `__front.meta()` (podgląd), `__front.resetMeta()`
 (zerowanie eskalacji) — dostępne pod `?debug` w URL.
 
 ## Bot testowy (balans)
