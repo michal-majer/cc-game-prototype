@@ -95,6 +95,12 @@ RUNS=4 STYL=natarcie node tools/bot-test.js
 Bot gra słabo (nie kituje, nie naprawia) — pokazuje dolną granicę, nie grę człowieka.
 Pomiar z 13.09.2026: 8 partii, 0 zwycięstw, bastion 0–3%. Szczegóły w `tools/bot-test.js`.
 
+## Kampania (pomysł)
+
+Rosnąca mapa zamiast startu od zera: obrona → przedpole → środek → natarcie na bastion,
+baza zostaje między etapami, kolejne teatry to dane, nie nowy kod. Opis, zasady
+i kolejność robót: `docs/kampania.md`.
+
 ## Dodawanie grafiki i dźwięku
 
 - **Grafika:** wrzuć PNG do `assets/…`, dopisz wpis w `MANIFEST` w `src/assets.js`.
