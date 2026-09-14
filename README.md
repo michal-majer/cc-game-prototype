@@ -68,14 +68,32 @@ Cały balans jest w `src/config.js` — te same stałe co w oryginale.
 Każdy run to nie tylko losowa doktryna wroga — na starcie losują się **warianty
 pola** (modyfikatory: twardszy bastion, szybsze fale, mgła wojny, cięższe
 pancerze, żyzne złoża…), więc dwa runy tej samej doktryny grają inaczej.
-**Eskalacja** rośnie z każdym ukończonym podejściem (trzymana w `localStorage`
-pod `front.meta`): front stopniowo się zaostrza, a wariantów losuje się więcej
-naraz (1 → 2 → 3). Dorzuć nowe warianty do tablicy `MODIFIERS` w `src/meta.js`.
+**Eskalacja** rośnie o 1 z każdą **wygraną** (porażka jej nie podnosi), do sufitu 6
+(trzymana w `localStorage` pod `front.meta`): front stopniowo się zaostrza, a wariantów
+losuje się więcej naraz (1 → 2 → 3). Dorzuć nowe warianty do tablicy `MODIFIERS`
+w `src/meta.js`. Początek partii to walka piechoty: pierwsze trzy budynki każdej
+doktryny to baraki, kontry wywiadu ruszają od 5. fali, linia startuje na PRZEDPOLU.
 
 Na **koniec runu** powstaje raport: skrót na ekranie końca (**⧉ KOPIUJ RAPORT**
 kopiuje pełny JSON), pełny obiekt w konsoli (F12) i historia ostatnich 30 runów
-w `localStorage`. Z konsoli: `__front.meta()` (podgląd), `__front.resetMeta()`
+w `localStorage`. Raport ma **rozbicie dochodu** wg źródła (ruda, sektory, baza, łupy
+z bastionu, złom, karty) plus sumę wydatków — to jest podstawa do balansu ekonomii. Z konsoli: `__front.meta()` (podgląd), `__front.resetMeta()`
 (zerowanie eskalacji) — dostępne pod `?debug` w URL.
+
+## Bot testowy (balans)
+
+`tools/bot-test.js` rozgrywa kilka partii w przeglądarce bez okna i wypisuje raport
+końca każdej: doktryna, warianty, fala, czas gry, ile bastionu zniszczone. Służy do
+sprawdzenia po zmianie balansu, czy partia ma koniec i czy da się ją wygrać.
+
+```bash
+python3 -m http.server 8123 &
+npm i playwright
+RUNS=4 STYL=natarcie node tools/bot-test.js
+```
+
+Bot gra słabo (nie kituje, nie naprawia) — pokazuje dolną granicę, nie grę człowieka.
+Pomiar z 13.09.2026: 8 partii, 0 zwycięstw, bastion 0–3%. Szczegóły w `tools/bot-test.js`.
 
 ## Dodawanie grafiki i dźwięku
 

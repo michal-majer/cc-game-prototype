@@ -32,6 +32,10 @@ export const EPUSH_MIN = 8;
 export const EPATIENCE = 110;
 export const EPAT_MASS = 70;
 export const ESCOUT    = 3;
+// Od której fali wywiad wroga uruchamia KONTRY (rakiety na czołgi, łaziki na piechotę,
+// piechota na rakiety, kontrbateria). Wcześniej wróg buduje wyłącznie z kolejki doktryny,
+// więc początek partii to walka piechoty, a nie pojazdy w drugiej fali.
+export const ECOUNTER_FROM = 5;
 export const ETHINK    = 2;
 export const ECOMMIT   = 26;
 export const ESHELLED  = 55;
@@ -60,8 +64,12 @@ export const CO = {
 export const BASE_INCOME = 2;
 // ORE_RATE — ile ciągnie JEDEN harvester z bogatej żyły (>5 rudy). Rafineria I poz.
 // = 1 harvester (1 żyła). Ulepszenie = kolejny harvester (kolejna żyła), aż do
-// liczby przyległych żył. 6/harvester: I poz. 6/s → II 12/s → III 18/s za rudę.
-export const ORE_RATE  = 6;
+// liczby przyległych żył. 9/harvester: I poz. 9/s → II 18/s → III 27/s za rudę.
+// 6 → 9 (14.09.2026): ruda ma nieść ekonomię, a sektory być dodatkiem. Przy 6/s dwa
+// darmowe sektory (10/s) biły rafinerię za 250 kr., więc ruda leżała nietknięta
+// (raport Michała: 1 rafineria, ruda na koniec 1 812 przy 993 na start). Pole to
+// wytrzymuje: nietknięte kratki odrastają po ORE_REGEN każda, harvester bierze z jednej.
+export const ORE_RATE  = 9;
 // Odrost rudy — ROZPRZĘGNIĘTY na dwie prędkości (regrow wybiera po fladze pull):
 //  · ORE_REGEN — żyła SPOCZYNKOWA (nietknięta): szybkie odbicie, pusta 0→450 ~90 s.
 //  · ORE_SIP   — żyła CZYNNA (pod rafinerią): odrost przy drenażu. 2 (było 1):
@@ -80,16 +88,19 @@ export const BAS_RATE  = 0.8;
 export const BAS_SPL_R = 35;
 export const BAS_SPL_N = 3;
 export const WAVE_TIME = 30;     // rzadsze fale → mniej jednostek naraz, każda znaczy więcej (patrz waveInterval)
-export const TERR_MAX  = 15;     // 5/sektor (było 8): teren to DODATEK do rudy, nie główny przychód — mini-sztaby przestały nieść całą ekonomię
-export const ETERR_SEC = 65;
+export const TERR_MAX  = 9;      // 3/sektor (było 5): teren to DODATEK do rudy — trzy sektory = jeden harvester; sektory dalej się opłacają przez karę dla wroga
+// ETERR_SEC — co ile sekund WSZYSTKIE trzy zajęte sektory dokładają wrogowi budynek
+// (jeden sektor: 3× wolniej). 65 → 120 (14.09.2026): przy 65 s wróg dostawał budynek
+// co dwie fale za samo trzymanie terenu i partia zamieniała się w kulę śniegową.
+export const ETERR_SEC = 120;
 // Bonus wroga za trzymane mini-sztaby. Gracz z sektorów bierze KREDYTY (TERR_MAX),
 // wróg nie używa kasy — jego nagrodą jest SIŁA: każdy zajęty sztab podbija obrażenia
 // CAŁEJ jego polowej armii o ETERR_ATK (druga noga obok przyspieszonej rozbudowy z
 // eTerrBank). Wróg bierze sztaby POJEDYŃCZO i z każdego rośnie w siłę — snowball, który
-// KARZE oddanie terenu i nagradza kontestowanie: 3 sektory = +6 dmg każdej jednostce.
-// Płasko (jak karty gracza), więc masówka piechoty (CZERWONA FALA, 9→15 dmg) robi się
-// naprawdę groźna, gdy trzyma front. Chcesz zdusić bonus — odbij sztab.
-export const ETERR_ATK = 2;
+// KARZE oddanie terenu i nagradza kontestowanie: 3 sektory = +3 dmg każdej jednostce.
+// Płasko (jak karty gracza). 2 → 1 (14.09.2026): przy +6 piechota wroga (9→15) razem
+// z szybszą rozbudową z sektorów nie dawała się odbić. Chcesz zdusić bonus — odbij sztab.
+export const ETERR_ATK = 1;
 export const SELL_BACK = 0.5;
 // Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
 // Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
@@ -106,6 +117,7 @@ export const BUILD_DIV = 35, BUILD_MIN = 2, BUILD_MAX = 16;
 export const MAXLVL    = 3;
 export const RAID_PAY  = 0.4;
 export const HQ_COST   = 350;
+export const START_MONEY = 250;  // = koszt rafinerii: zawsze stać na jedną (karty otwarcia nadpisują)
 export const CAP_R     = 118;
 export const CAP_RATE  = 6;   // wolniejsze przejmowanie (~17 s) → sektor to trwały bój, nie pstryknięcie
 
@@ -124,7 +136,7 @@ export const B = {
   power:   {name:'ELEKTROWNIA',  short:'PRĄD',  fp:[1,1], cost:100, hp:200,  col:'#e8b23a', ico:'⚡', sup:6, req:[],
             desc:'+6 mocy · 1×1'},
   refinery:{name:'RAFINERIA',    short:'RAF.',  fp:[2,2], cost:250, hp:250,  col:'#5fd18a', ico:'$', drn:2, req:[],
-            desc:'harvester: +6 kr./s za żyłę · ulepsz = kolejny'},
+            desc:'harvester: +9 kr./s za żyłę · ulepsz = kolejny'},
   barracks:{name:'BARAK',        short:'BARAK', fp:[1,1], cost:150, hp:200,  col:'#6fa8dc', ico:'i', drn:2, req:[],
             unit:'inf', count:1, desc:'co falę: 1× Piechota · 1×1'},
   // cost 300→340: „łatwo wielu mieć" — każda rura pluje elitarną rakietą co falę,
@@ -218,6 +230,9 @@ export const EB = {
   arty:    {name:'BATERIA ART.', unit:'arty', count:1, desc:'odłamki ×3 · 60–175 px'},
   heavy:   {name:'CIĘŻKA FABR.', unit:'kolos',count:1},
 };
+// Pierwsze TRZY budynki każdej doktryny to baraki: początek partii ma być walką piechoty
+// o mini-sztaby. Pojazdy i artyleria wchodzą od 4. budynku (~fala 5), gdy gracz ma już
+// ekonomię i czym odpowiedzieć. Charakter doktryny zostaje — zmienia się tylko moment.
 export const DOCTRINES = [
   { name:'CZERWONA FALA', tag:'Masa piechoty. Zaleją cię liczbą.',
     hint:'Pancerz kosi piechotę. Czołgi i bunkry.',
@@ -226,19 +241,19 @@ export const DOCTRINES = [
            ['barracks'],['factory'],['barracks'],['barracks'],['rocket'],
            ['barracks'],['factory'],['barracks'],['barracks'],['heavy']],
     late:['barracks','barracks','rocket','factory'] },
-  { name:'STALOWA PIĘŚĆ', tag:'Doktryna pancerna. Czołgi od pierwszej fali.',
+  { name:'STALOWA PIĘŚĆ', tag:'Doktryna pancerna. Czołgi od ~5. fali.',
     hint:'Bez rakiet nie masz czym tego przebić.',
     start:['barracks'],
-    order:[['factory'],['barracks'],['factory'],['factory'],['barracks'],
-           ['factory'],['heavy'],['factory'],['barracks'],['heavy'],
-           ['factory'],['factory'],['heavy'],['barracks'],['heavy']],
+    order:[['barracks'],['barracks'],['barracks'],['factory'],['factory'],
+           ['barracks'],['factory'],['factory'],['heavy'],['factory'],
+           ['barracks'],['heavy'],['factory'],['factory'],['heavy']],
     late:['factory','heavy','workshop','barracks'] },
   { name:'GRAD', tag:'Artyleria. Rozbiorą cię z dystansu.',
     hint:'Odłamki koszą zbitą masę. Łaziki dopadną baterie.',
     start:['barracks'],
-    order:[['rocket'],['arty'],['barracks'],['arty'],['workshop'],
-           ['barracks'],['arty'],['rocket'],['arty'],['workshop'],
-           ['arty'],['rocket'],['factory'],['arty'],['heavy']],
+    order:[['barracks'],['barracks'],['barracks'],['rocket'],['arty'],
+           ['arty'],['workshop'],['barracks'],['arty'],['rocket'],
+           ['workshop'],['arty'],['rocket'],['factory'],['heavy']],
     late:['arty','rocket','workshop','barracks'] },
 ];
 

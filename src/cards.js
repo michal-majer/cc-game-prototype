@@ -91,7 +91,9 @@ export function openDraft(src, tytul, pod){
 }
 export function takeCard(c){
   if (S.stat) S.stat.cards.push(c.n);   // metryka runu (raport końcowy)
+  const before=S.money;
   c.f();
+  if (S.stat) S.stat.inc.karty += S.money-before;   // KWATERMISTRZ +200, GARNIZON/PANCERNI −250 (zerują kasę)
   recalcPower();               // karty stawiają budynki i ruszają moc
   if (!c.repeat) S.deck=S.deck.filter(x=>x!==c);   // powtarzalne tory zostają w talii
   S.draft=null; S.state='play';

@@ -5,7 +5,7 @@
 
 import {
   U, B, EB, EARTY_CAP, EPUSH_R, EHOLD_R, EPATIENCE, EPAT_MASS, ESCOUT,
-  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X, EPUSH_MIN
+  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X, EPUSH_MIN, ECOUNTER_FROM
 } from './config.js';
 import { S, SECT, say, lineX } from './state.js';
 import { boom, siren } from './audio.js';
@@ -132,7 +132,11 @@ export function eBuild(){
   const eRkt = S.eBase.filter(t=>t==='rocket').length;
   const eBar = S.eBase.filter(t=>t==='barracks').length;
   const eWork = S.eBase.filter(t=>t==='workshop').length;
-  if (pTanks >= 2 && eRkt < pTanks && S.eArmCd <= 0){
+  // Kontry dopiero od ECOUNTER_FROM (fala 5): wcześniej trzy baraki gracza ściągały
+  // warsztat (łaziki ×2 na piechotę) już w 3.–4. fali i walka piechoty kończyła się,
+  // zanim się zaczęła. Do tej fali wróg buduje tylko z kolejki doktryny.
+  const counters = S.wave >= ECOUNTER_FROM;
+  if (counters && pTanks >= 2 && eRkt < pTanks && S.eArmCd <= 0){
     S.eBase.push('rocket'); S.eArmCd = 2; S.eBuildN++;
     say(radarLvl()>=1 ? 'WYWIAD: ODPOWIADAJA RAKIETAMI' : 'ZA ICH LINIA — DLUGIE RURY', radarLvl()>=1?'intel':'warn');
     return;
@@ -145,7 +149,7 @@ export function eBuild(){
   // to krucha masówka, a rakieta elitą; równa liczba ginie na ekranie pancerki, nim
   // dosięgnie rur. Teraz enemy celuje w ~1,5 baraka na wyrzutnię (pRkts + połowa) —
   // piechota realnie PRZELICZA rakiety i karze ich spam, gdy pancerka związuje front.
-  if (pRkts >= 2 && eBar < pRkts + Math.ceil(pRkts/2) && S.eArmCd <= 0){
+  if (counters && pRkts >= 2 && eBar < pRkts + Math.ceil(pRkts/2) && S.eArmCd <= 0){
     S.eBase.push('barracks'); S.eArmCd = 2; S.eBuildN++;
     say(radarLvl()>=1 ? 'WYWIAD: SYPIA PIECHOTE POD RAKIETY' : 'ZA ICH LINIA — TUPOT BUTOW', radarLvl()>=1?'intel':'warn');
     return;
@@ -156,12 +160,12 @@ export function eBuild(){
   // liczył czołgi/warsztaty/artylerię/rakiety, ale NIE piechotę, więc ściana baraków
   // nie prowokowała żadnej odpowiedzi i spam piechoty przechodził bezkarnie. Teraz
   // enemy dosypuje warsztat na każde ~2 baraki — łaziki kontrują tupot butów.
-  if (pInf >= 3 && eWork < Math.ceil(pInf/2) && S.eArmCd <= 0){
+  if (counters && pInf >= 3 && eWork < Math.ceil(pInf/2) && S.eArmCd <= 0){
     S.eBase.push('workshop'); S.eArmCd = 2; S.eBuildN++;
     say(radarLvl()>=1 ? 'WYWIAD: WYSYLAJA LAZIKI POD PIECHOTE' : 'ZA ICH LINIA — WARKOT SILNIKOW', radarLvl()>=1?'intel':'warn');
     return;
   }
-  if (pWheels >= 3 && eBar < pWheels*2 && S.eArmCd <= 0){
+  if (counters && pWheels >= 3 && eBar < pWheels*2 && S.eArmCd <= 0){
     S.eBase.push('barracks'); S.eArmCd = 2; S.eBuildN++;
     say(radarLvl()>=1 ? 'WYWIAD: SYPIA BARAKI — IDA TLUMEM' : 'ZA ICH LINIA — GWAR', radarLvl()>=1?'intel':'warn');
     return;
@@ -169,7 +173,7 @@ export function eBuild(){
   S.eCounterCd--;
   const pArty = I.arty;
   const eArty = S.eBase.filter(t=>t==='arty').length;
-  if (pArty >= 2 && eArty < Math.ceil(pArty/2) && S.eCounterCd <= 0){
+  if (counters && pArty >= 2 && eArty < Math.ceil(pArty/2) && S.eCounterCd <= 0){
     S.eBase.push('arty');
     S.eCounterCd = 3; S.eBuildN++;
     say(radarLvl()>=1 ? 'WYWIAD: ODPOWIADAJĄ KONTRBATERIĄ' : 'DALEKIE HUKI ZZA ICH LINII',

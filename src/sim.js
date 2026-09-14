@@ -8,7 +8,7 @@ import {
   U, B, CO, BASE_R, LANE_Y, LANE_HALF, BAS_X, FRONT_MIN, FRONT_MAX,
   BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC, ETERR_ATK,
   COUNTER, HUNT_LEASH, ENGAGE_BAND, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
-  isHeavy, isSoldier, isArmored, BAL
+  isHeavy, isSoldier, isArmored, BAL, BASE_INCOME
 } from './config.js';
 import { S, say, lineX } from './state.js';
 import { boom, siren } from './audio.js';
@@ -45,7 +45,7 @@ export function dmgTo(t, amount, srcType, ap){
   t.hp -= d; t.flash=1;
   if (t.side==='e' && U[t.type]) S.eDmgWave += d;
   if (t===S.bastion && !t.dead){ const pay=Math.max(0, Math.min(d, t.hp+d))*RAID_PAY; S.money+=pay; S.raidPay+=pay;
-    if (S.stat) S.stat.basDmg += Math.max(0, Math.min(d, t.hp+d)); }
+    if (S.stat){ S.stat.basDmg += Math.max(0, Math.min(d, t.hp+d)); S.stat.inc.lupy += pay; } }
   return m;
 }
 
@@ -84,10 +84,13 @@ export function doWave(){
     rkts:   S.buildings.filter(b=>b.type==='rocket' && b.powered).length,
     inf:    S.buildings.filter(b=>b.type==='barracks' && b.powered).length,
   });
-  // Leciutki oddech na 1. fali, potem PEŁNE tempo już od 2. Poprzednie S.wave/5
-  // zamrażało wroga do ~fali 5 (3 budynki na fali 4 = 2 piechoty + czołg, żenada).
-  // Teraz wróg realnie rośnie od startu, a i tak walczy garść, nim ruszy masa.
-  const earlyRamp = Math.min(1, 0.6 + S.wave*0.2);   // fala1: 0.8 → fala2+: 1.0
+  // Oddech na otwarcie: wróg rośnie od startu, ale na PEŁNE tempo wchodzi dopiero
+  // ~fala 5, nie od 2. „Pełne tempo od 2" (0.6+wave*0.2) sypało ~2 budynki już na
+  // fali 2 — gracz nie zdążył postawić ekonomii ani obrony, nim ruszyła masa (za
+  // trudno). Łagodniejsza rampa (0.4+wave*0.12) daje ~1 budynek/falę na starcie i
+  // rozciąga dojście do maks. na 4–5 fal — czas na rozstawienie się. Sufit 1.0 bez
+  // zmian, więc późna gra (i S.wave/5, którego już nie ma) nietknięta.
+  const earlyRamp = Math.min(1, 0.4 + S.wave*0.12);  // f1:0.52 f2:0.64 f3:0.76 f4:0.88 f5:1.0
   S.eBuildDebt += earlyRamp/BAL.EBUILD_EVERY;
   while (S.eBuildDebt >= 1){ S.eBuildDebt -= 1; eBuild(); }
 }
@@ -106,7 +109,11 @@ export function update(dt){
     }
   }
   if (built) recalcPower();
-  S.money += extract(dt) + terrIncome()*dt;
+  // dochód: extract() zwraca rudę + darmowy trickle bazy; teren osobno. Rozbicie idzie
+  // do raportu końcowego (S.stat.inc) — bez tego balans ekonomii szedłby na wyczucie.
+  const got=extract(dt), base=BASE_INCOME*dt, terr=terrIncome()*dt;
+  S.money += got + terr;
+  if (S.stat){ S.stat.inc.ruda += got-base; S.stat.inc.baza += base; S.stat.inc.sektory += terr; }
   updHarvesters(dt);   // wizualne pojazdy jeżdżące do żył (kosmetyka nad harvestPlan)
   S.timer -= dt;
   if (Number.isNaN(S.timer)) S.timer=waveInterval();
