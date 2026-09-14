@@ -88,6 +88,13 @@ budynków (`S.eBase`), doktryny (`DOCTRINES`), warianty (`MODIFIERS`), odstęp f
 i limit linii, zapis stanu między etapami (punkt kontrolny), mini-baza wroga jako punkt
 startu fal, ekran między etapami, odblokowania.
 
+## Generał i rozkazy
+
+Aktywne moce (nalot, forsowny marsz, zrzut) zależą od **generała** wybieranego na teatr;
+generałów odblokowuje się w kampanii jak budynki. Skąd biorą się punkty rozkazów (czas,
+zabici, sektory) jest otwarte — opis i propozycja: `docs/rozkazy.md`. W kampanii naturalne
+źródło to sektory: zdobyty sektor = sztab bliżej frontu = więcej rozkazów.
+
 ## Potyczka zostaje
 
 Obecny tryb (losowa doktryna, warianty, eskalacja rosnąca po wygranej) zostaje jako
