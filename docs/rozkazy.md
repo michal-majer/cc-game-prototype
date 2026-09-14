@@ -50,6 +50,11 @@ export const CMD = {
 | **Czas** | zawsze coś przybywa, łatwo zbalansować | rozkazy stają się rotacją, nie decyzją; obrona i natarcie dostają tyle samo | potyczka, początkujący |
 | **Zabici** | nagradza walkę, rozkazy przychodzą, gdy jest gorąco | kto wygrywa, dostaje więcej (kula śniegowa); obrona bez kontaktu nie ma nic | krótkie, gęste etapy |
 | **Sektory / punkty na mapie** | wiąże rozkazy z terenem i z hakiem „przesuwasz front": zdobyty sektor to sztab bliżej frontu | gracz bez sektorów (etap 1 kampanii) nie ma rozkazów | kampania z rosnącą mapą |
+| **Kredyty** (jak na obrazku: ZWIAD 100, LOTNICTWO 200, WZMOCNIENIE 150) | rozkaz konkuruje z budynkiem o te same pieniądze, więc jest decyzją; bez nowej waluty do tłumaczenia | przy nadmiarze kredytów (raporty z 14.09: 1 700–1 950 na koniec) rozkazy stają się darmowe; trzeba je wycenić wysoko albo z rosnącą ceną | potyczka i kampania, jeśli ekonomia jest ciasna |
+
+Kredyty są najprostsze do wdrożenia (brak nowej waluty, nowego HUD-u punktów) i najłatwiej
+je zepsuć nadmiarem pieniędzy. Jeśli ekonomia po 14.09 dalej zostawia ponad tysiąc na
+koniec, rozkazy za kredyty będą zlewem na nadwyżkę, co samo w sobie może być plusem.
 
 Propozycja do sprawdzenia: **sektory jako główne źródło plus wolny czas jako podłoga**
 (np. `timeEvery:40, sectorEvery:20`). Obrona ma wtedy jeden rozkaz na jakiś czas, a kto

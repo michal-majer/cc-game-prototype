@@ -88,6 +88,18 @@ budynków (`S.eBase`), doktryny (`DOCTRINES`), warianty (`MODIFIERS`), odstęp f
 i limit linii, zapis stanu między etapami (punkt kontrolny), mini-baza wroga jako punkt
 startu fal, ekran między etapami, odblokowania.
 
+## Kamera jako odsłanianie mapy (14.09, drugi obrazek Michała)
+
+Etap 1 to **zbliżenie** na bazę i przedpole, bastion poza kadrem. Każdy zdobyty sektor
+**odsuwa kamerę** i odsłania kolejny kawałek pola; w etapie 4 widać całość. Kamera w grze
+już ma powiększenie z limitami (`cam.zoom`, `cam.min/max`, `clampCam` w `src/render.js`),
+więc to jest limit kamery na etap plus płynny odjazd po zdobyciu sektora, nie nowy system.
+Skutek dla grafiki: przy zbliżeniu jednostka ma na ekranie 40–60 px, więc **źródła sprite'ów
+w 128 px**, żeby wyglądały dobrze i z bliska, i z daleka (dopisać do zamówienia u grafika).
+
+**Generał jako twarz etapu:** portret z jednym zdaniem na start etapu („Przesuń front.
+Zrób to, zanim on zrobi to pierwszy.") zamiast samouczka. Jeden portret na generała.
+
 ## Generał i rozkazy
 
 Aktywne moce (nalot, forsowny marsz, zrzut) zależą od **generała** wybieranego na teatr;
