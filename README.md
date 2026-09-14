@@ -28,8 +28,10 @@ To wszystko. Zero zależności do instalowania.
 - **Kafel budowy** (dół) → wybierz budynek → **tap na kratkę** = postaw.
 - **✂ ROZBIÓRKA** → tap na budynek (zwrot 50%) albo na żyłę (zaoranie).
 - **Suwak linii** (nazwy OBRONA…NATARCIE) → ustawia, jak daleko wychodzą Twoi.
+- **Rozkazy generała** (panel po prawej nad suwakiem, `Q/W/E`): nalot, forsowny marsz,
+  zrzut zaopatrzenia — za punkty rozkazów. Opis i pytania otwarte: `docs/rozkazy.md`.
 - **Klawiatura:** `1–5` linia, `←/→` linia, `Spacja` GOTÓW / natarcie / odwrót,
-  `+/−` prędkość, `1/2/3` wybór karty, `Esc` odznacz.
+  `+/−` prędkość, `1/2/3` wybór karty, `Q/W/E` rozkazy, `Esc` odznacz.
 
 ## Struktura
 
@@ -46,7 +48,8 @@ src/
   sectors.js      trzy mini-sztaby (przejmowanie terenu)
   buildings.js    stawianie, moc, poziomy, technologia, walidacja kratek
   enemy.js        AI wroga, bastion, wywiad, kontry
-  cards.js        talia (rozkazy) + otwarcia
+  cards.js        talia (ulepszenia ze sztabu) + otwarcia
+  orders.js       rozkazy generała: aktywne moce za punkty (nalot, marsz, zrzut)
   sim.js          rdzeń: obrażenia, spawn, fala, krok update(dt), linia
   render.js       render świata na Pixi + kamera (pan/pinch)
   hud.js          HUD w DOM (paski, pasek budowy, suwak, karty, log)
@@ -99,7 +102,8 @@ Pomiar z 13.09.2026: 8 partii, 0 zwycięstw, bastion 0–3%. Szczegóły w `tool
 
 Rosnąca mapa zamiast startu od zera: obrona → przedpole → środek → natarcie na bastion,
 baza zostaje między etapami, kolejne teatry to dane, nie nowy kod. Opis, zasady
-i kolejność robót: `docs/kampania.md`.
+i kolejność robót: `docs/kampania.md`. Rozkazy generała (aktywne moce: nalot, marsz,
+zrzut; pomysł, nie kod): `docs/rozkazy.md`.
 
 ## Dodawanie grafiki i dźwięku
 
