@@ -92,12 +92,20 @@ export function setField(len, halfH){
   HUNT_LEASH = Math.round(150 * Math.pow(kLen, 0.6));
   LANE_SHIFT = Math.round(90 * kHalf);
   SPD_MUL    = +Math.pow(kLen, SPD_EXP).toFixed(3);
-  // stanice i progi kształtu liczą się z ułamków — jedno miejsce, jeden raz
-  for (const st of STANCES) st.x = atF(st.f);
-  // NATARCIE to „wszystko na bastion" — przypinamy je DO BASTIONU, nie do końca
-  // korytarza, żeby ostatnia stanica nie wypadała kilkadziesiąt px za nim.
-  STANCES[STANCES.length-1].x = BAS_X;
+  // progi kształtu liczą się z ułamków — jedno miejsce, jeden raz
   for (const zs of Object.values(SHAPES)) for (const z of zs) z.x = atF(z.f);
+  // Stanice: najpierw ułamkowe, potem liczone OD BASTIONU, na końcu środek.
+  for (const st of STANCES) if (st.f != null) st.x = atF(st.f);
+  // „Artyleria dosięga bastionu" — z ZASIĘGU artylerii, z marginesem na to, że
+  // jednostka stoi trochę za linią. Bierzemy wartość z tabeli U, więc jeśli
+  // kiedyś ruszysz U.arty.range, stanica pojedzie razem z nią.
+  const reach = Math.max(60, ((U && U.arty ? U.arty.range : 175) - 25));
+  for (const st of STANCES){
+    if (st.fromEnd === 0)   st.x = BAS_X;
+    else if (st.fromEnd)    st.x = Math.max(atF(0.3), BAS_X - reach);
+  }
+  const iMid = STANCES.findIndex(st=>st.mid);
+  if (iMid > 0) STANCES[iMid].x = (STANCES[iMid-1].x + STANCES[iMid+1].x)/2;
 }
 
 export function setGrid(cols, rows){
@@ -105,15 +113,23 @@ export function setGrid(cols, rows){
   ROWS = clamp(rows|0, 2, GRID_MAX_ROWS);
 }
 
-/* Stanice jako UŁAMKI korytarza. Wartości `f` odtwarzają dawne pozycje
-   (BASE_R+60 / +186 / +373 / +576 / BAS_X przy polu 760 px), więc balans linii
-   zostaje ten sam — zmienia się tylko to, że teraz skalują się z mapą.        */
+/* Stanice. Dwie pierwsze to UŁAMKI korytarza, dwie ostatnie liczą się OD BASTIONU
+   — i to nie jest niekonsekwencja, tylko jedyny sposób, żeby ich nazwy nie kłamały.
+
+   NACISK znaczy „artyleria dosięga BASTIONU". To jest ODLEGŁOŚĆ, nie miejsce:
+   zasięg artylerii (175 px) jest warstwą taktyczną i NIE skaluje się z mapą.
+   Przy ułamku 0.77 na polu 760 px wychodziło 129 px do bastionu (dosięgała),
+   ale na polu 3 600 px już 782 px — artyleria nie dosięgała niczego, opis stanicy
+   był nieprawdą, a razem z nim znikała odpowiedź na zakorkowany lej w misji 6.
+
+   ŚRODEK liczy się jako PUNKT MIĘDZY PRZEDPOLEM A NACISKIEM, żeby na długiej
+   mapie nie zostawał martwy odcinek między trzecim i czwartym stopniem suwaka. */
 export const STANCES = [
   {n:'OBRONA',    f:0.08, x:0, d:'pod bunkrami · stos rośnie'},
   {n:'PRZEDPOLE', f:0.25, x:0, d:'1/4 — poza osłoną'},
-  {n:'ŚRODEK',    f:0.50, x:0, d:'1/2 — neutralny grunt'},
-  {n:'NACISK',    f:0.77, x:0, d:'3/4 — artyleria dosięga BASTIONU'},
-  {n:'NATARCIE',  f:1.00, x:0, d:'wszystko na bastion'},
+  {n:'ŚRODEK',    mid:true, x:0, d:'neutralny grunt'},
+  {n:'NACISK',    fromEnd:true, x:0, d:'artyleria dosięga BASTIONU'},
+  {n:'NATARCIE',  fromEnd:0, x:0, d:'wszystko na bastion'},
 ];
 
 /* --------------------------- KSZTALT POLA (tory) -------------------------
@@ -169,6 +185,19 @@ export function zoneAt(x){
 }
 // ile torow w tym miejscu pola
 export const lanesAt = x => zoneAt(x).n;
+/* Gdzie zaczyna sie LEJ — prog pierwszej strefy WEZSZEJ od poprzedniej.
+   Uzywa tego AI wroga: bez tego wrog masowal sie w samym gardle (182 px
+   wysokosci przy 150 jednostkach) i robil KOREK, ktorego nie da sie przebic.
+   Lej ma bramkowac wejscie GRACZA i dawac bastionowi cel w zwezeniu — nie byc
+   pozycja obronna wroga. Brak leja (ksztalt '1') = Infinity, czyli bez ograniczen. */
+export function narrowStart(){
+  const zs = SHAPES[SHAPE];
+  for (let i=1;i<zs.length;i++){
+    const h = zs[i].h == null ? 1 : zs[i].h, hp = zs[i-1].h == null ? 1 : zs[i-1].h;
+    if (h < hp) return zs[i-1].x;
+  }
+  return Infinity;
+}
 // NAJWIECEJ torow, jakie pole w ogole ma. Jednostka rodzi sie w bazie, gdzie tor
 // jest zawsze jeden — gdyby domyslny przydzial liczyc z miejsca narodzin, cala
 // armia szlaby torem 1, dopoki gracz recznie nie wyda rozkazu. Przydzial liczymy

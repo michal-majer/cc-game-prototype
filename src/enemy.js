@@ -5,7 +5,7 @@
 
 import {
   U, B, EB, EARTY_CAP, EPUSH_R, EHOLD_R, EPATIENCE, EPAT_MASS, ESCOUT,
-  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X, EPUSH_MIN, ECOUNTER_FROM
+  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X, EPUSH_MIN, ECOUNTER_FROM, narrowStart
 } from './config.js';
 import { S, SECT, say, lineX } from './state.js';
 import { boom, siren } from './audio.js';
@@ -60,7 +60,20 @@ export function eRatio(){
 // Sufit linii wroga = tuż przed JEGO przyczółkiem, a nie sztywne EHOLD_X liczone
 // od bastionu gry dowolnej. Bez tego w misji 1 (przyczółek na 800) wróg maszerował
 // na 1040 — poza pole misji, w pustkę za własnym spawnem.
-const eCap = () => Math.min(EHOLD_X, (S.espawn ? S.espawn.x : EHOLD_X) - 60);
+/* Sufit linii wroga. Trzy ograniczenia, każde z innego powodu:
+   · EHOLD_X        — nigdy nie zostawia bastionu bez osłony,
+   · przyczółek −60 — nie wychodzi za własny punkt startu fal,
+   · GARDŁO LEJA    — NIE wchodzi w zwężenie. Bez tego wróg masował 150 jednostek
+     w pasie 182 px wysokości i robił korek, którego gracz nie przebijał przez
+     dwadzieścia minut (pomiar bota: fala 46, 1277 zabitych, bastion 0%). Lej ma
+     bramkować wejście GRACZA, a nie być darmową twierdzą wroga — wróg broni się
+     PRZED lejem, na szerokim froncie, gdzie da się go rozegrać. */
+const eCap = () => {
+  const mouth = narrowStart();
+  return Math.min(EHOLD_X,
+                  (S.espawn ? S.espawn.x : EHOLD_X) - 60,
+                  mouth === Infinity ? Infinity : mouth - 40);
+};
 export function eHoldX(){
   // Bez sektorów (misje 1–2) nie ma czego kontestować — wróg trzyma się
   // pod własnym przyczółkiem i idzie dopiero, gdy zdecyduje o szturmie.

@@ -509,12 +509,18 @@ function impact(p){
 }
 
 // --- linia (jedyna decyzja w trakcie walki) ---
+// Ile pozycji suwaka daje BIEŻĄCA MISJA. Misja 3 ma DWIE, nie pięć — a bez tego
+// ograniczenia Spacja i klawisze 1–5 przestawiały linię na NATARCIE w misji,
+// która o natarciu jeszcze nie słyszała (suwak pokazywał dwa stopnie, a gra
+// chodziła po pięciu).
+const stanceN = () => Math.min(STANCES.length, Math.max(1, feat('stance') || STANCES.length));
 export function setStance(i){
-  i=Math.max(0,Math.min(STANCES.length-1,i));
+  const n = stanceN();
+  i=Math.max(0,Math.min(n-1,i));
   if (i===S.si) return;
   const fwd = i>S.si;
   S.si=i;
   say((fwd?'LINIA W PRZÓD — ':'ODWRÓT — ')+STANCES[S.si].n, fwd?'warn':'good');
   if (S.si===STANCES.length-1){ siren(); S.shake=Math.max(S.shake,6); }
 }
-export function toggleStance(){ setStance(S.si===STANCES.length-1 ? 0 : STANCES.length-1); }
+export function toggleStance(){ const n=stanceN(); setStance(S.si===n-1 ? 0 : n-1); }
