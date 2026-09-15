@@ -322,3 +322,7 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
   .lane-btn{ min-width:92px; }
   .lane-btn .ln-n{ font-size:9px; } .lane-btn .ln-s{ font-size:8px; }
 }
+
+/* ---------- PRZESUŃ: budynek na inną kratkę za ułamek wartości ---------- */
+.tile.move{ background:#12161b; border-color:#2a3340; }
+.tile.move.on{ border-color:var(--warn); }

@@ -197,7 +197,7 @@ Zasada nadrzędna: **jedna misja = jedna nowa rzecz dla gracza i jedna dla wroga
 | # | Kryptonim | Cel | Nowe u gracza | Nowe u wroga | Kształt |
 |---|---|---|---|---|---|
 | 1 | PIERWSZY DZIEŃ | Zarób X kredytów → jedna fala | elektrownia → rafineria | piechota | 1 droga |
-| 2 | ŚCIANA | Odeprzyj 8 fal | baraki, **działko na stanowisku** | tempo i masa | 1 droga |
+| 2 | ŚCIANA | Odeprzyj 10 fal | baraki, działko, rozbiórka, **PRZESUŃ** | tempo i masa | 1 droga |
 | 3 | PUNKT | Zajmij cel (od 3. fali) | łazik **albo** rakietowiec, radar, suwak (2 poz.) | mini-baza jako punkt startu fal | 1 droga |
 | 4 | ROZWIDLENIE | Opanuj 2 z 3 **dróg** | czołg, mini-baza wysunięta | pojazdy, kontry | **3 drogi** |
 | 5 | POD OSTRZAŁEM | Utrzymaj środek / dojdź do leja | budynki torowe, karty | ostrzał po torach | 3 tory → lej |
@@ -227,30 +227,48 @@ wymuszone, a „najpierw prąd" jest lekcją, nie ozdobą.
 *Do kalibracji:* cel kredytowy · czas do fali · siła fali (działa bazy mają ją
 odeprzeć nawet przy słabej zabudowie) · kredyty startowe.
 
-#### Stanowiska ogniowe — działka mają swoje miejsca
+#### Działka są częścią bazy — i dlatego trzeba planować
 
-Działko (GNIAZDO RAK.) **nie stoi na kratce budowy**. Przed bazą są gotowe
-STANOWISKA OGNIOWE i tylko tam można je postawić.
+Działko (GNIAZDO RAK.) **stoi na kratce budowy**, tak samo jak barak i rafineria.
+Jego prawdziwą ceną nie są kredyty, a miejsce.
 
-Powód jest mierzalny: na siatce misji 2 (20 kratek, cztery zajmuje sztab) gniazdo
-konkurowało o miejsce z rafinerią i barakiem, więc nigdy nie było warte
-postawienia — a to właśnie ono ma nieść pierwsze fale. Na osobnym stanowisku
-kosztuje kredyty, ale **nie kratkę**, i dopiero wtedy jest realnym wyborem.
+Była tu druga wersja — osobne STANOWISKA OGNIOWE przed bazą, po to, by działko
+nie konkurowało o kratkę. Zdjęła decyzję: z osobnym stanowiskiem gniazdo nic nie
+kosztuje poza kredytami, więc stawia się je zawsze i nie ma czego planować.
+Wróciło na kratkę, a problem „pomyliłem się i nie mam jak tego odkręcić"
+rozwiązuje **PRZESUŃ**.
 
-Liczba stanowisk rośnie z misjami razem z odsunięciem frontu: m2 — 3, m3 — 4,
-m4 — 5, m5–6 — 6. Okopujesz się tym dalej, im dalej sięgasz.
+#### PRZESUŃ — plan da się poprawić, ale nie darmowo
 
-#### Siatka bazy rośnie z kampanią
+Każdy budynek poza sztabem można przenieść na inną kratkę:
+
+- koszt **25 % wkładu** (`MOVE_FRAC`) — kupno plus wszystkie ulepszenia, więc
+  przenoszenie rozbudowanej rafinerii boli, a świeżo postawionej prawie nie;
+- budynek jest **3 s martwy** (`MOVE_SEC`) — nie strzela, nie produkuje, nie
+  daje mocy; przeprowadzka w środku szpicu to realne ryzyko;
+- odblokowane od **misji 2** (`feats.move`), razem z rozbiórką i naprawą.
+
+Rozbiórka zwraca część kredytów i zwalnia kratkę; PRZESUŃ zachowuje poziom
+ulepszeń i HP. Pierwsza jest wyjściem z martwego budynku, druga — z martwego
+układu.
+
+#### Siatka bazy rośnie z kampanią i nigdy się nie kurczy
 
 | misja | kratki | z czego |
 |---|---|---|
 | 1 | **18** (6×3) | najciaśniej w całej kampanii |
-| 2 | 20 (5×4) | + 3 stanowiska |
-| 3 | 25 → 35 (5×5 → 7×5) | rośnie za zajęty teren |
-| 4 | 36 → 42 (6×6 → 7×6) | rośnie za zajęty teren |
+| 2 | 24 (6×4) | + wiersz |
+| 3 | 30 → 35 (6×5 → 7×5) | rośnie za zajęty teren |
+| 4 | 35 → 42 (7×5 → 7×6) | rośnie za zajęty teren |
+| 5–6 | 42 (7×6) | `GRID_MAX` — dalej rosną drogi, nie baza |
 
 **Miejsce jest nagrodą za teren, nie stanem wyjściowym.** Każdy zajęty cel na
 drodze daje raz nową kolumnę kratek (§4.3), SKŁAD dwie.
+
+Siatka jest **monotoniczna**: `applyMission` bierze `max` z siatki misji i siatki
+przeniesionej z poprzedniej, więc kratka raz zdobyta zostaje. Bez tego misja 2
+(6×4) zabierała kolumnę wywalczoną w misji 1 rozbudowanej do 7×3 — gracz widział
+regres tam, gdzie obiecaliśmy wzrost.
 
 *Mina, na którą się nadziałem — i to dwa razy:* misja 1 nie ma rozbiórki, więc
 jedno miejsce na rafinerię znaczy, że gracz **bezpowrotnie blokuje tutorial**,
@@ -473,6 +491,27 @@ znikać pod losowaniem. Poprawianie (`ensureRefinerySpot`) zostaje grze dowolnej
 **Losowanie zostaje grze dowolnej**, gdzie różnorodność jest sensem — tam żyją
 warianty pola, eskalacja, losowa doktryna i losowa ruda.
 
+### Przejście między misjami jest PŁYNNE
+
+Nowa misja nie jest nową planszą. To ta sama baza, na którą **doszła plansza**
+i **przesunął się widok**:
+
+| co | jak się zachowuje między misjami |
+|---|---|
+| budynki | zostają na swoich kratkach, z poziomem ulepszeń i HP |
+| kredyty | zostają, plus przydział startowy misji (`money`) |
+| siatka | **tylko rośnie** — `max(siatka misji, siatka przeniesiona)` |
+| ruda | złoża i wyrobiska z pokrywających się kratek przechodzą |
+| pole | wydłuża się (`len`), zmienia kształt, dostaje drogi i cele |
+| kamera | ten sam zoom, przestawiona na bazę (`fitCam(keepZoom)`) |
+| armia | ginie — front zostaje za nami, wojsko odbudowujesz z baraków |
+
+Trzy rzeczy, których to wymagało, i każda była błędem, póki jej nie było:
+`applyMission` bierze `max` siatek, bo inaczej plansza się kurczyła; `buildField`
+kopiuje `ore`/`seam` na pokrywające się kratki, bo inaczej wyeksploatowana żyła
+wracała pełna; `fitCam` przyjmuje `keepZoom`, bo inaczej każde przejście
+wyrywało graczowi skalę, do której się przyzwyczaił.
+
 ---
 
 ## 4. Zasady, bez których to się rozsypie
@@ -486,6 +525,8 @@ warianty pola, eskalacja, losowa doktryna i losowa ruda.
 3. **Zdobyty sektor daje nowe kratki, nie tylko kredyty.**
 4. **Baza przechodzi między misjami w świecie, nie między światami.** Ulepszenia armii
    z kart zostają — dlatego migawka ma dwa osobne wiadra: `base` i `run`.
+   Przejście jest **płynne**: nic nie znika, plansza rośnie, widok się przesuwa.
+   Siatka jest monotoniczna — kratka raz zdobyta nie wraca do wroga.
 5. **Odblokowania rozłożone na całą kampanię.** Lista `unlock` misji JEST drzewkiem
    techniki; `req` z tabeli `B` działa tylko między budynkami obecnymi na tej liście.
 6. **Grafika świata = podmiana kafli i koloru, nie nowa mapa.** (`TILESETS` w `assets.js`.)
@@ -642,3 +683,4 @@ pod `front.camp`. Przy pakowaniu do Electrona zapis idzie do pliku.
 | Osiągnięcia za grind | W grze na 4–6 h wiszą jako nieosiągalne |
 | 4–5 światów w v1 | 6–8 godzin bez zakończenia. v1 = jeden świat, ale ramka gotowa na łączenie |
 | Warianty pola w misjach kampanii | Losowy modyfikator na dopieszczonej misji 1 to nie różnorodność, tylko szum. Warianty zostają grze dowolnej |
+| Stanowiska ogniowe przed bazą | Miały odciążyć ciasną siatkę, a zdjęły decyzję: działko za samą cenę w kredytach stawia się zawsze. Działka wracają na kratki, pomyłkę odkręca PRZESUŃ |

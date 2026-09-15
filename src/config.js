@@ -400,6 +400,10 @@ export const ETERR_SEC = 120;
 // z szybszą rozbudową z sektorów nie dawała się odbić. Chcesz zdusić bonus — odbij sztab.
 export const ETERR_ATK = 1;
 export const SELL_BACK = 0.5;
+// PRZESUNIĘCIE budynku: ułamek wartości i tyle sekund budowy. Ma być tanie
+// względem rozbiórki (50% straty) i drogie względem darmowego cofnięcia —
+// planowanie zostaje decyzją, ale pomyłka nie jest wyrokiem na całą misję.
+export const MOVE_FRAC = 0.25, MOVE_SEC = 3;
 // Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
 // Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
 // późną grą to STAŁY sink: utrzymanie ostrzeliwanego frontu kosztuje kredyty.
@@ -443,12 +447,13 @@ export const B = {
   // a nie być domyślnym otwarciem na wszystko.
   rocket:  {name:'WYRZUTNIA',    short:'WYRZ.', fp:[1,2], cost:340, hp:180,  col:'#9b7fd4', ico:'r', drn:2, req:[],
             unit:'rkt', count:1, desc:'rakiety przebijają pancerz · ×2 do czołgów'},
-  // DZIAŁKO stoi na STANOWISKU OGNIOWYM przed bazą, nie na kratce budowy.
-  // Na malej siatce misji 2 gniazdo konkurowalo o miejsce z rafineria i barakiem,
-  // wiec nigdy nie bylo warte postawienia — a to ono ma niesc pierwsze fale.
-  // Osobne stanowiska robia z niego realny wybor: kosztuje kredyty, nie kratki.
+  // DZIAŁKO jest CZĘŚCIĄ BAZY — stoi na kratce i konkuruje o miejsce z rafinerią
+  // i barakiem. To jest cała jego cena: nie kredyty, a plan. Osobne stanowiska
+  // przed bazą (próbowane 15.09) zdejmowały tę decyzję i zostawiały samo
+  // „kliknij, gdy masz 180 kredytów". Zamiast nich jest PRZESUŃ (patrz input.js):
+  // planujesz, a pomyłkę da się poprawić za część wartości.
   bunker:  {name:'GNIAZDO RAK.',  short:'GNIAZ.',fp:[1,1], cost:180, hp:350,  col:'#8fa3a8', ico:'▲', drn:1, req:['rocket'],
-            slot:true, desc:'na stanowisku · rakiety 230 px · przebija pancerz',
+            desc:'rakiety 230 px · przebija pancerz',
             atk:{dmg:15, range:230, rate:1.0, ap:true}},
   workshop:{name:'WARSZTAT',     short:'WARSZ.',fp:[2,1], cost:200, hp:220,  col:'#d9a04d', ico:'w', drn:2, req:[],
             unit:'lazik', count:1},

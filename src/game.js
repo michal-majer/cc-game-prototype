@@ -29,7 +29,7 @@ import { initPixi, app, cam, WV, screenToWorld, clearViews, renderFrame, fitCam 
 import { buildBar, buildStanceSlider, syncOverlays, updateHUD, initMinimap } from './hud.js';
 import { initInput, worldTap } from './input.js';
 import { MISSIONS, WORLDS, SKIRMISH, worldOf } from './missions.js';
-import { applyMission, applyRoadObjectives, applySlots, snapshot, restoreBase, replayCards,
+import { applyMission, applyRoadObjectives, snapshot, restoreBase, replayCards,
          finishMission, isCampaign, MIS, loadProgress } from './campaign.js';
 import { initMenu, showMenu, showBrief, showMissionEnd, hideMenu } from './menu.js';
 
@@ -42,12 +42,24 @@ function buildField(m, carry){
   resetIds();
   resetSect();
   applyRoadObjectives();          // cele biorą się z DANYCH DRÓG misji
-  applySlots();                   // stanowiska ogniowe przed bazą
 
   S.grid=[];
   for (let r=0;r<ROWS;r++){ S.grid[r]=[]; for(let c=0;c<COLS;c++) S.grid[r][c]={ore:0,seam:false,pull:false,b:null,prevOre:0}; }
   // Kampania: STAŁY układ z danych misji. Gra dowolna: losowanie (tam jest sensem).
   if (m.feats.ore !== false){ if (m.ore) oreFromMap(m.ore); else genOre(); }
+  /* PRZEJŚCIE MIĘDZY MISJAMI JEST CIĄGŁE: plansza ROŚNIE, a to, co było, zostaje.
+     Kratki, które istniały w poprzedniej misji, wracają ze SWOIM stanem —
+     razem z wypaleniem żył. Nowa mapka dokłada rudę tylko tam, gdzie siatki
+     wcześniej nie było. Bez tego każda misja zaczynałaby się pełnymi złożami,
+     czyli „wszystko zostaje" byłoby nieprawdą akurat w tym, co gracz zużył. */
+  if (carry && carry.base && carry.base.grid){
+    const cg = carry.base.grid;
+    for (let r=0; r<Math.min(ROWS, cg.length); r++)
+      for (let c=0; c<Math.min(COLS, cg[r].length); c++){
+        S.grid[r][c].ore  = cg[r][c].ore;
+        S.grid[r][c].seam = cg[r][c].seam;
+      }
+  }
   S.oreStart=Math.max(1, oreTotal());
 
   S.buildings=[]; S.units=[]; S.fx=[]; S.corpses=[]; S.deaths=[]; S.tracers=[]; S.projs=[]; S.harv=[];
@@ -61,7 +73,7 @@ function buildField(m, carry){
   S.money = m.money != null ? m.money : START_MONEY;
   S.wave=0; S.frontX=(FRONT_MIN+FRONT_MAX)/2;
   S.deck=[...DECK]; S.draft=null;
-  S.shake=0; S.state='play'; S.endReason=''; S.sel=null; S.upSel=null; S.hadRadar=0; S.offBrown=0;
+  S.shake=0; S.state='play'; S.endReason=''; S.sel=null; S.upSel=null; S.moveSel=null; S.hadRadar=0; S.offBrown=0;
   S.alertCd=0; S.ecoCd=0; S.fieldDead=false; S.newArm=0; S.fullCd=0;
   S.si = Math.min(1, Math.max(0, (m.feats.stance||1)-1));   // start na PRZEDPOLU, gdy suwak istnieje
   S.laneOrder = -1; S.pLaneRR = 0;                           // domyślnie: siły rozdzielone po torach
@@ -133,13 +145,15 @@ function buildField(m, carry){
 export function startMission(id, carry){
   const m = (id === 'skirmish') ? SKIRMISH : MISSIONS[id];
   if (!m) return;
-  applyMission(m);
+  applyMission(m, carry);
   buildField(m, carry);
   // PUNKT KONTROLNY na start każdej misji — „powtórz" wraca DO NIEGO,
   // nie do początku świata (FRONT.md §4.1). To on robi kampanię płynną.
   S.checkpoint = { id, carry: carry ? JSON.parse(JSON.stringify(carry)) : null };
   buildBar(); buildStanceSlider();
-  fitCam();
+  // Kamera: między misjami TRZYMA zoom (widok tylko się przesuwa, plansza rośnie);
+  // przy wejściu z menu przelicza go od zera pod nowe pole.
+  fitCam(!!carry);
   hideMenu();
   if (isCampaign()) showBrief(m); else { S.ready = false; syncOverlays(); }
 }

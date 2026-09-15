@@ -14,7 +14,7 @@ import {
 import { S, SECT, lineX } from './state.js';
 import { buildTex, unitTex, unitSheet, tex, tileTex, markTex, hasTiles } from './assets.js';
 import { shellMark } from './sim.js';
-import { radarLvl, canUp, maxLvl, fits, slotAt, isSlotType } from './buildings.js';
+import { radarLvl, canUp, maxLvl, fits, canMove, fitsMoved, moveCost } from './buildings.js';
 import { eTerrCtrl } from './sectors.js';
 import { bEff, eHoldX } from './enemy.js';
 
@@ -251,7 +251,13 @@ export function setFollow(mode){
    pusty kawałek korytarza, a siatkę trzymałaby za ekranem. Na pierwszej fali
    kamera sama przechodzi na front (autoFollowFront), o ile gracz nie wziął jej
    w swoje ręce. */
-export function fitCam(){ cam._init=false; resizeCam(); setFollow('base'); }
+export function fitCam(keepZoom){
+  // keepZoom — przejście MIĘDZY misjami: plansza rośnie, ale widok nie skacze.
+  // Przy wejściu z menu zoom liczy się od zera, bo pole może być inne o rząd.
+  if (!keepZoom) cam._init=false;
+  resizeCam();
+  setFollow('base');
+}
 // Woła sim przy pierwszej fali. Nie nadpisuje decyzji gracza: jeśli sam przewinął
 // pole albo wybrał ⌂ BAZA po starcie, zostaje jak chciał.
 export function autoFollowFront(){ if (cam.follow==='base') setFollow('front'); }
@@ -377,7 +383,6 @@ function drawWorld(){
 
   for (const c of S.corpses) g.rect(c.x-c.s/2,c.y-c.s/2,c.s,c.s*0.6).fill({color:c.c, alpha:0.5});
 
-  drawSlots(g);
   drawBaseGrid(g);
   wtEnd();
 }
@@ -462,29 +467,10 @@ function ensureBuildingView(b){
   v.lab.anchor.set(0.5,1); v.addChild(v.lab);
   buildLayer.addChild(v); b._view=v; return v;
 }
-/* Stanowiska ogniowe — gotowe pozycje na działka PRZED bazą. Puste rysujemy
-   jako obrys z ikoną, żeby gracz WIDZIAŁ, że ma gdzie postawić, zanim odblokuje
-   działko: to jest zaproszenie, nie nagroda za zgadnięcie.                    */
-function drawSlots(g){
-  for (const sl of (S.slots||[])){
-    if (sl.b) continue;
-    const R=24, free = S.sel && isSlotType(S.sel);
-    const col = free ? CO.ok : '#5c6a70';
-    g.roundRect(sl.x-R, sl.y-R*0.72, R*2, R*1.44, 4).fill({color:'#10171a', alpha:0.75});
-    g.roundRect(sl.x-R+0.5, sl.y-R*0.72+0.5, R*2-1, R*1.44-1, 4)
-     .stroke({width: free?2:1, color:col, alpha: free?0.95:0.55});
-    wt('▲', sl.x, sl.y-3, 13, col, {alpha: free?1:0.6, bold:true});
-    wt('STANOWISKO', sl.x, sl.y+R*0.72+7, 7, col, {alpha:0.7});
-  }
-}
 function drawBuildings(){
   for (const b of S.buildings){
     const v=ensureBuildingView(b), d=B[b.type];
-    // budynek na stanowisku nie ma kratek — rysuje się wokół własnej pozycji
-    const [w,h]=d.fp;
-    const R = b.slot>=0
-      ? {x:b.x-26, y:b.y-18, w:52, h:36}
-      : {x:BASE_X+b.c*CELL, y:BASE_Y+b.r*CELL, w:w*CELL, h:h*CELL};
+    const [w,h]=d.fp, R={x:BASE_X+b.c*CELL, y:BASE_Y+b.r*CELL, w:w*CELL, h:h*CELL};
     const pulse = b.brown && (now()%600<300);
     const building = (b.build||0)>0;
     const body = b.flash>0 ? '#ffffff' : building ? '#28323a' : (b.powered ? d.col : (pulse?'#5c2a2a':'#3d2222'));
@@ -755,17 +741,34 @@ function drawOver(){
 function drawGhost(){
   const g=ghostG; g.clear();
   if (S.state!=='play') return;
-  // działko celuje w STANOWISKO, nie w kratkę
-  if (S.sel && isSlotType(S.sel) && S.wmouse.over){
-    const i = slotAt(S.wmouse.x, S.wmouse.y, 34);
-    if (i>=0){
-      const sl=S.slots[i], ok=!sl.b && S.money>=B[S.sel].cost;
-      g.roundRect(sl.x-26, sl.y-19, 52, 38, 4).fill({color: ok?B[S.sel].col:CO.red, alpha:0.35});
-      g.roundRect(sl.x-26, sl.y-19, 52, 38, 4).stroke({width:2, color: ok?B[S.sel].col:CO.red});
+  const cell = S.wmouse.over ? cellAt(S.wmouse.x,S.wmouse.y) : null;
+  /* PRZESUŃ: chwycony budynek świeci, a pod kursorem widać, czy się zmieści.
+     Bez tego „dwa tapnięcia" byłyby zgadywaniem, co jest w ręku.            */
+  if (S.sel==='MOVE'){
+    const b=S.moveSel;
+    if (b){
+      const [bw,bh]=B[b.type].fp;
+      g.rect(BASE_X+b.c*CELL+2, BASE_Y+b.r*CELL+2, bw*CELL-4, bh*CELL-4)
+       .stroke({width:2, color:CO.warn, alpha:0.9});
+      if (cell){
+        const ok = fitsMoved(b,cell.c,cell.r) && S.money>=moveCost(b);
+        for (let rr=cell.r; rr<cell.r+bh; rr++) for (let cc=cell.c; cc<cell.c+bw; cc++){
+          const bad = cc<0||cc>=COLS||rr<0||rr>=ROWS ||
+            (S.grid[rr]&&S.grid[rr][cc]&&(S.grid[rr][cc].ore>0||(S.grid[rr][cc].b&&S.grid[rr][cc].b!==b)));
+          g.rect(BASE_X+cc*CELL+3, BASE_Y+rr*CELL+3, CELL-6, CELL-6)
+           .fill({color:bad?CO.red:B[b.type].col, alpha:0.45});
+        }
+        g.rect(BASE_X+cell.c*CELL+1, BASE_Y+cell.r*CELL+1, bw*CELL-2, bh*CELL-2)
+         .stroke({width:2, color: ok?B[b.type].col:CO.red});
+      }
+    } else if (cell){
+      const bb=S.grid[cell.r][cell.c].b;
+      if (bb) g.rect(BASE_X+bb.c*CELL+2, BASE_Y+bb.r*CELL+2,
+                     B[bb.type].fp[0]*CELL-4, B[bb.type].fp[1]*CELL-4)
+               .stroke({width:2, color: canMove(bb)?CO.warn:CO.dim});
     }
     return;
   }
-  const cell = S.wmouse.over ? cellAt(S.wmouse.x,S.wmouse.y) : null;
   if (S.sel && S.sel!=='SELL' && cell){
     const d=B[S.sel], [w,h]=d.fp;
     const ok = fits(S.sel,cell.c,cell.r) && S.money>=d.cost;

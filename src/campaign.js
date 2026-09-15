@@ -26,7 +26,7 @@ import {
   B, U, COLS, ROWS, BASE_X, BASE_Y, CELL, GRID_MAX_COLS, GRID_MAX_ROWS,
   LANE_Y, BAS_X, BAS_HP, FRONT_MIN, START_MONEY, DOCTRINES,
   STANCES, setGrid, setShape, setField, halfForShape, atF, fieldX1, resetTables, clamp,
-  setRoads, roadY, roadPointX, roadCount, roadName, sectKind, corridorHalf,
+  setRoads, roadY, roadPointX, roadCount, roadName, sectKind,
 } from './config.js';
 import { S, SECT, say } from './state.js';
 import { MISSIONS, WORLDS, SKIRMISH, worldOf } from './missions.js';
@@ -82,38 +82,29 @@ export function missionReq(t){
   return u ? req.filter(r => u.includes(r)) : req;
 }
 
-/* --------------------------- STANOWISKA OGNIOWE --------------------------
-   Gotowe pozycje na działka PRZED bazą — poza siatką budowy. Działko kosztuje
-   kredyty, ale NIE kratkę, więc na ciasnej siatce pierwszych misji przestaje
-   konkurować z rafinerią i barakiem. Liczba stanowisk rośnie z misjami razem
-   z odsunięciem frontu: im dalej sięgasz, tym więcej masz gdzie się okopać.
-
-   Pozycja to UŁAMEK długości pola (f) i ułamek szerokości korytarza (y),
-   więc stanowiska nie rozjeżdżają się przy zmianie rozmiaru mapy.            */
-export function applySlots(){
-  S.slots = [];
-  for (const sl of (MIS().slots || [])){
-    const x = atF(sl.f);
-    S.slots.push({ x, y: LANE_Y + (sl.y||0) * corridorHalf(x) * 0.7, b:null });
-  }
-}
-
 /* ------------------------- NAŁOŻENIE DANYCH MISJI ------------------------
-   Woła game.js przed newRun/newMission. Rusza tylko to, co jest DANYMI:
-   siatkę, kształt, pole, sektory, wroga. Zero logiki rozgrywki.             */
-export function applyMission(m){
+   Woła game.js przed budową pola. Rusza tylko to, co jest DANYMI: siatkę,
+   kształt, drogi, długość pola, wroga. Zero logiki rozgrywki.                */
+export function applyMission(m, carry){
   S.mission = m;
-  const [gc, gr] = m.grid || [GRID_MAX_COLS, GRID_MAX_ROWS];
+  let [gc, gr] = m.grid || [GRID_MAX_COLS, GRID_MAX_ROWS];
+  /* PLANSZA NIGDY SIĘ NIE KURCZY. To niezmiennik, nie staranność w danych:
+     przejście ma być ciągłe („wszystko zostaje, plansza rośnie"), a siatka
+     mniejsza od poprzedniej znaczy, że budynki z brzegu po prostu przepadają.
+     Pomiar złapał to od razu: misja 1 gra na 6×3, misja 2 miała 5×4 — kolumna
+     piąta znikała razem z tym, co na niej stało.                             */
+  if (carry && carry.base){
+    gc = Math.max(gc, carry.base.cols || 0);
+    gr = Math.max(gr, carry.base.rows || 0);
+  }
   setGrid(gc, gr);
-  // KOLEJNOŚĆ MA ZNACZENIE: kształt najpierw (z niego liczy się domyślna wysokość
-  // korytarza), potem długość pola — setField przelicza z niej stanice, progi
-  // kształtu, promień sektorów, smycz i mnożnik marszu.
+  // KOLEJNOŚĆ MA ZNACZENIE: kształt → DROGI → długość pola. Wysokość świata
+  // liczy się z drog (ich odstępu i łuków), a stanice i promień celów
+  // z długości pola.
   setShape(m.shape || '1');
-  // KOLEJNOŚĆ: kształt → DROGI → długość pola. Wysokość świata liczy się z drog
-  // (ich odstępu i łuków), a stanice i promień celów z długości pola.
   setRoads(m.roads, m.roadGap, m.roadW);
   setField(m.len || 760, m.halfH || halfForShape());
-  S.gridMax = m.gridMax || [gc, gr];            // dokąd może urosnąć siatka (nowe kratki z sektorów)
+  S.gridMax = m.gridMax || [gc, gr];            // dokąd może urosnąć siatka
   S.misWaveT = m.waveT || null;
   S.misGrow = m.enemy && m.enemy.grow != null ? m.enemy.grow : 1;
   S.shell = (m.enemy && m.enemy.shell) ? { ...m.enemy.shell, t:m.enemy.shell.every, lane:-1, warnT:0 } : null;
@@ -131,8 +122,7 @@ export function applyRoadObjectives(){
   SECT.length = 0;
   // BARIERKA NA DANE: cel nie może leżeć dalej, niż sięga NAJDALSZA STANICA,
   // jaką ta misja daje. Inaczej misja jest po prostu nieprzechodnia — armia
-  // zatrzymuje się na linii i nie ma jak dojść do celu (misja 3 miała suwak
-  // z dwiema pozycjami i cel w połowie pola; bot grał ją do 6. fali bez szans).
+  // zatrzymuje się na linii i nie ma jak dojść do celu.
   const nSt = Math.max(1, Math.min(STANCES.length, feat('stance') || STANCES.length));
   const xMax = STANCES[nSt-1].x;
   for (let i=0;i<roadCount();i++){
@@ -246,6 +236,9 @@ export function snapshot(){
   return {
     base: {
       money: S.money,
+      // Ruda zapisuje się RAZEM ZE STANEM WYPALENIA: przejście do kolejnej misji
+      // ma być ciągłe, a nie darmowym uzupełnieniem złóż. Kratki poza dawną
+      // siatką dokłada mapka nowej misji (patrz carryOre w game.js).
       grid: S.grid.map(row => row.map(g => ({ ore:g.ore, seam:g.seam, bid: g.b ? g.b.id : 0 }))),
       buildings: S.buildings.map(b => ({ id:b.id, type:b.type, c:b.c, r:b.r, lvl:b.lvl,
                                          hp:b.hp, maxHp:b.maxHp })),

@@ -10,7 +10,7 @@ import { S, say, SECT } from './state.js';
 import { isMuted } from './audio.js';
 import { incomeRate, oreBreak, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { terrIncome } from './sectors.js';
-import { radarLvl, unlocked, reqText, canUp, upCost, upText, freeSlots, isSlotType } from './buildings.js';
+import { radarLvl, unlocked, reqText, canUp, upCost, upText } from './buildings.js';
 import { eComp, eRatio, wavePlan } from './enemy.js';
 import { takeCard } from './cards.js';
 import { setStance, setArmyLane } from './sim.js';
@@ -44,6 +44,14 @@ export function buildBar(){
   sell.addEventListener('click', ()=>{ S.sel = S.sel==='SELL'?null:'SELL'; S.upSel=null; });
   bar.appendChild(sell);
   }
+  if (feat('move')){
+  const mv=document.createElement('div'); mv.className='tile move'; mv.dataset.type='MOVE';
+  mv.innerHTML=`<span class="ico">✥</span><span class="nm">PRZESUŃ</span>`+
+               `<span class="cost warn">25% wartości</span>`+
+               `<span class="desc">chwyć budynek, wskaż kratkę · na czas przeprowadzki jest martwy</span>`;
+  mv.addEventListener('click', ()=>{ S.sel = S.sel==='MOVE'?null:'MOVE'; S.upSel=null; S.moveSel=null; });
+  bar.appendChild(mv);
+  }
   if (feat('repair')){
   const rep=document.createElement('div'); rep.className='tile repair'; rep.dataset.type='REPAIR';
   rep.innerHTML=`<span class="ico">✚</span><span class="nm">NAPRAWA</span>`+
@@ -58,6 +66,7 @@ function updateBar(){
     const t=el.dataset.type;
     if (t==='SELL'){ el.classList.toggle('on', S.sel==='SELL'); continue; }
     if (t==='REPAIR'){ el.classList.toggle('on', S.sel==='REPAIR'); continue; }
+    if (t==='MOVE'){ el.classList.toggle('on', S.sel==='MOVE'); continue; }
     const d=B[t], lock=!unlocked(t), afford=S.money>=d.cost;
     el.classList.toggle('lock', lock);
     el.classList.toggle('poor', !lock && !afford);
@@ -67,7 +76,7 @@ function updateBar(){
     el.querySelector('.ico').style.color = lock?'#2b3538':d.col;
     el.querySelector('.nm').textContent = d.name;
     el.querySelector('.nm').style.color = lock?'#46555a':(afford?CO.txt:CO.dim);
-    el.querySelector('.fp').textContent = isSlotType(t) ? '▲' : d.fp[0]+'×'+d.fp[1];
+    el.querySelector('.fp').textContent = d.fp[0]+'×'+d.fp[1];
     const costEl=el.querySelector('.cost'), descEl=el.querySelector('.desc');
     if (lock){ costEl.textContent='wymaga: '+reqText(t); costEl.style.color='#3d4b4f'; descEl.textContent=''; }
     else {
@@ -75,13 +84,6 @@ function updateBar(){
       costEl.textContent = d.cost+' kr.'+extra;
       costEl.style.color = afford?CO.warn:'#5a6467';
       let sub=d.desc||''; if (d.unit) sub='co falę: '+(d.count||1)+'× '+U[d.unit].name;
-      // Działko nie zajmuje kratki — kafel ma mówić, ILE STANOWISK jest wolnych,
-      // bo to ono, a nie kredyty, ogranicza liczbę dział.
-      if (isSlotType(t)){
-        const f=freeSlots();
-        sub = f ? 'na stanowisku · wolne: '+f : 'BRAK WOLNYCH STANOWISK';
-        el.classList.toggle('poor', !f);
-      }
       descEl.textContent=sub;
     }
   }

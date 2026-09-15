@@ -171,16 +171,25 @@ Bot to dolna granica — nie kituje i nie rozgrywa suwaka. Wyzwanie robi **rytm
 (szpice i oddechy), nie masa**: przy potrójnej liczbie piechoty, ale równym
 strumieniu, bot wygrywał ze sztabem na 100%. Szczegóły i pomiary: `FRONT.md` §3b.
 
-### Stanowiska ogniowe i siatka bazy
+### Siatka bazy, działka i PRZESUŃ
 
-Działko **nie stoi na kratce** — przed bazą są gotowe STANOWISKA OGNIOWE i tylko tam
-można je postawić. Na ciasnej siatce pierwszych misji gniazdo konkurowało o miejsce
-z rafinerią i barakiem, więc nigdy nie było warte postawienia; na osobnym stanowisku
-kosztuje kredyty, ale nie kratkę. Stanowisk przybywa z misjami (3 → 4 → 5 → 6).
+Działko (GNIAZDO RAK.) **stoi na kratce** i konkuruje o nią z rafinerią i barakiem —
+to jest jego prawdziwa cena. Osobne stanowiska przed bazą były tu przez chwilę
+i zdejmowały decyzję: skoro nic nie kosztują poza kredytami, stawia się je zawsze.
 
-Siatka bazy rośnie przez całą kampanię: **18 kratek w misji 1** (najciaśniej), 20, 25→35,
-36→42. Każdy zajęty cel na drodze daje raz nową kolumnę — **miejsce jest nagrodą za
-teren, nie stanem wyjściowym**.
+Pomyłkę odkręca **PRZESUŃ** (od misji 2): budynek idzie na inną kratkę za **25 %
+wkładu** (kupno + ulepszenia) i jest przez **3 s martwy**. Rozbiórka jest wyjściem
+z martwego budynku, PRZESUŃ — z martwego układu.
+
+Siatka bazy rośnie przez całą kampanię i **nigdy się nie kurczy**: 18 kratek w misji 1
+(6×3, najciaśniej), 24, 30→35, 35→42, potem 42. Każdy zajęty cel na drodze daje raz
+nową kolumnę — **miejsce jest nagrodą za teren, nie stanem wyjściowym**.
+
+### Przejście między misjami
+
+Nowa misja to nie nowa plansza. Budynki, ulepszenia, kredyty i wyeksploatowane
+złoża zostają; dochodzi plansza (dłuższe pole, drogi, cele) i przestawia się widok
+przy zachowanym zoomie. Armia ginie — front zostaje za nami, wojsko odbudowujesz.
 
 ### Rozmiar mapy
 

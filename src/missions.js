@@ -40,14 +40,6 @@
                                    o kierunku. Jedna droga = brak rozwidlenia.
      roadGap int                 — odstęp między osiami dróg (domyślnie 300)
      roadW   int                 — szerokość jednej drogi (domyślnie 150)
-     slots   [{f,y}]             — STANOWISKA OGNIOWE przed bazą: gotowe pozycje
-                                   na działka, POZA siatką budowy. Działko kosztuje
-                                   kredyty, ale nie kratkę — na ciasnej siatce
-                                   pierwszych misji to jedyny sposób, żeby było
-                                   warte postawienia. f = ułamek długości pola,
-                                   y = ułamek szerokości korytarza (−1..1).
-                                   Liczba stanowisk rośnie z misjami razem
-                                   z odsunięciem frontu.
      reqAdd  {typ:[wymagania]}   — wymaganie DOPISANE przez misję (patrz m1)
      ore     ['..##..', …]       — STAŁY UKŁAD ZŁÓŻ, wiersz = wiersz siatki:
                                    # bogata ruda · o uboga · . puste.
@@ -76,19 +68,9 @@
    Liczby są DO SPRAWDZENIA W GRZE. Struktura nie.
    ========================================================================= */
 
-/* Stanowiska ogniowe: rosną z misjami. Pierwsze dwa siedzą przy samej bazie
-   po skosie, kolejne coraz dalej w przedpole — okopujesz się tym dalej, im
-   dalej sięgasz. Misja 1 nie ma żadnych: jedna misja = jedna nowa rzecz.     */
-const SLOTS = [
-  { f:0.05, y:-0.75 }, { f:0.05, y: 0.75 },
-  { f:0.10, y: 0    }, { f:0.13, y:-0.75 },
-  { f:0.13, y: 0.75 }, { f:0.17, y: 0    },
-];
-const slots = n => SLOTS.slice(0, n);
-
 // domyślne wyłączenie wszystkiego — misja włącza tylko to, czego uczy
 const OFF = { stance:0, sectors:0, cards:false, radar:0, sell:false, repair:false,
-              upgrade:false, ore:true, terrIncome:false };
+              move:false, upgrade:false, ore:true, terrIncome:false };
 const feats = o => ({ ...OFF, ...o });
 
 export const MISSIONS = {
@@ -159,19 +141,21 @@ export const MISSIONS = {
     id:'m2', n:2, code:'ŚCIANA',
     teach:'Kredyty trzeba zamienić w armię.',
     gen:'Osiem fal. Nie oddasz ani kratki.',
-    brief:['Przed bazą są trzy STANOWISKA OGNIOWE. Działko nie zajmuje kratki.',
+    brief:['GNIAZDO zajmuje kratkę tak samo jak barak. Wybierasz, nie dokładasz.',
            'Gniazdo strzela samo. Barak co falę wystawia żołnierza.',
+           'Postawione źle? PRZESUŃ przenosi budynek za ćwierć kosztu.',
            'Czwarta, ósma i dziesiąta uderzą ciasno. Między nimi odbudujesz.'],
-    // Trzy stanowiska: działko kosztuje kredyty, ale NIE miejsce w bazie —
-    // dopiero wtedy jest realną alternatywą dla baraku na tak ciasnej siatce.
-    grid:[5,4], shape:'1', len:1300, money:450, slots:slots(3),
-    // Sztab w kolumnach 0–1 (wiersze 2–3). Trzy kratki rudy: para u góry pod
-    // rafinerię przy sztabie, jedna w prawym dolnym rogu pod drugą — znów dwa
-    // rozłączne miejsca, więc układ nie da się zakorkować.
-    ore:['..##.',
-         '.....',
-         '.....',
-         '....#'],
+    // Działko stoi na kratce — inaczej nie byłoby wyboru, tylko dokładanie.
+    // Ciasna siatka + koszt kratki = pierwsza misja, w której UKŁAD bazy jest
+    // decyzją, a nie formalnością. PRZESUŃ (feats.move) jest zaworem: pomyłkę
+    // da się odkręcić za 25% wkładu, ale budynek jest 3 s martwy.
+    // Siatka ROŚNIE przez całą kampanię i NIGDY się nie kurczy (6×3 → 6×4 →
+    // 6×5→7×5 → 7×5→7×6). Misja 2 dokłada wiersz, nie zabiera kolumny.
+    grid:[6,4], shape:'1', len:1300, money:450,
+    ore:['..##..',
+         '......',
+         '......',
+         '....#.'],
     /* DZIESIĘĆ FAL ZE SZPICAMI I ODDECHAMI — i to jest cała kalibracja tej misji.
 
        Pomiar pokazał, że sama MASA nie robi wyzwania: przy potrójnej liczbie
@@ -197,7 +181,7 @@ export const MISSIONS = {
       { t:21, inf:30, lazik:7 },          // ▲ szturm końcowy
     ],
     unlock:['power','refinery','barracks','bunker'],
-    feats:feats({ sell:true, repair:true }),
+    feats:feats({ sell:true, repair:true, move:true }),
     // Szturm kończy się tam, gdzie kończy się plan — misja obronna ma mieć koniec.
     goal:{ kind:'waves', target:10 },
     // `assault` — to nie front, tylko szturm na bazę: idą, nie stoją. Bez tego
@@ -221,15 +205,15 @@ export const MISSIONS = {
            'Suwak ustawia linię: pod osłoną albo na przedpolu.',
            'Radar pokaże, co nadchodzi. Kosztuje tyle, co armia.',
            'Masz siedem fal, żeby go zająć. Ósma znaczy, że nie zdążyłeś.'],
-    grid:[5,5], gridMax:[7,5], shape:'1', len:2100, money:500, slots:slots(4),
+    grid:[6,5], gridMax:[7,5], shape:'1', len:2100, money:500,
     // Cztery kratki rudy — misja pierwszy raz utrzymuje wojsko W POLU, więc
-    // ekonomia musi unieść więcej niż w dwójce. Mapka ma pięć kolumn, a siatka
-    // rośnie do siedmiu: kolumny 5–6 dochodzą puste, jako czysty zlew na kredyty.
-    ore:['..##.',
-         '.....',
-         '....#',
-         '.....',
-         '..#..'],
+    // ekonomia musi unieść więcej niż w dwójce. Mapka ma sześć kolumn, a siatka
+    // rośnie do siedmiu: siódma dochodzi pusta, jako czysty zlew na kredyty.
+    ore:['..##..',
+         '......',
+         '......',
+         '....#.',
+         '.....#'],
     /* Krzywa ŁAGODNIEJSZA niż w dwójce, mimo że misja jest późniejsza: tam
        broniłeś się pod działami, tu pierwszy raz WYCHODZISZ POZA ICH ZASIĘG
        (cel leży 20 px za zasięgiem gniazd — to jest zamierzone). Pierwsza wersja
@@ -252,7 +236,7 @@ export const MISSIONS = {
       { t:22, inf:16, lazik:3 },          // ta leci już tylko wtedy, gdy nie zdążyłeś
     ],
     unlock:['power','refinery','barracks','bunker','workshop','radar'],
-    feats:feats({ stance:2, sectors:1, radar:1, sell:true, repair:true, upgrade:true, terrIncome:true }),
+    feats:feats({ stance:2, sectors:1, radar:1, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
     // Jedna droga, jeden cel — i stoi DOKŁADNIE na najdalszej linii, jaką ten
     // suwak daje (PRZEDPOLE, 1/4 pola). Cel, do którego misja nie pozwala dojść,
     // jest misją nieprzechodnią, nie trudną.
@@ -281,7 +265,12 @@ export const MISSIONS = {
     brief:['Za gardłem korytarz rozchodzi się na trzy niezależne drogi.',
            'Każda ma co innego do wzięcia. Górna i dolna są dłuższe.',
            'Opanuj dwie. Trzeciej nie obronisz — i o to chodzi.'],
-    grid:[6,6], gridMax:[7,6], shape:'1-3-1', len:3200, money:600, slots:slots(5),   // zajęty cel = nowe kratki
+    grid:[7,5], gridMax:[7,6], shape:'1-3-1', len:3200, money:600,   // zajęty cel = nowe kratki
+    ore:['..##...',
+         '.......',
+         '......#',
+         '....#..',
+         '..#....'],
     // Trzy drogi, trzy RÓŻNE powody, żeby nią pójść. Górna daje moc i tnie ich
     // fale, ale jest najdłuższa; środkowa jest krótka i płaci kredytami;
     // dolna daje miejsce w bazie i wywiad. Nie da się wziąć wszystkiego —
@@ -295,7 +284,7 @@ export const MISSIONS = {
                                             { kind:'wieza',   n:'WIEŻA',     f:0.72 }] },
     ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory'],
-    feats:feats({ stance:4, sectors:3, radar:2, sell:true, repair:true, upgrade:true, terrIncome:true }),
+    feats:feats({ stance:4, sectors:3, radar:2, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'roads', target:2 },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks'], grow:0.85, spawnF:0.97, bastion:0 },
     waveT:[45, 30],
@@ -318,7 +307,13 @@ export const MISSIONS = {
     brief:['Trzymasz środek. Oni ostrzeliwują tory po kolei.',
            'Ostrzał jest zapowiadany. Zdążysz ewakuować albo przyjąć i odbudować.',
            'Sztab przysyła rozkazy — pierwsze karty do wyboru.'],
-    grid:[7,6], shape:'1-3-1', len:3200, money:650, slots:slots(6),
+    grid:[7,6], shape:'1-3-1', len:3200, money:650,
+    ore:['..##...',
+         '.......',
+         '......#',
+         '....#..',
+         '..#....',
+         '.....#.'],
     // Te same drogi co w misji 4 — gracz już wie, co na której jest. Nowa jest
     // tylko cena ich trzymania: ostrzał bije po drogach, z zapowiedzią.
     roadGap:300, roadW:150,
@@ -330,7 +325,7 @@ export const MISSIONS = {
                                             { kind:'wieza',   n:'WIEŻA',   f:0.72 }] },
     ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory','reactor'],
-    feats:feats({ stance:4, sectors:3, radar:2, cards:true, sell:true, repair:true, upgrade:true, terrIncome:true }),
+    feats:feats({ stance:4, sectors:3, radar:2, cards:true, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'hold', target:2, waves:4 },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks','rocket'], grow:1,
             spawnF:0.97, bastion:0, shell:{ every:26, warn:5, dmg:26, r:52 } },
@@ -353,7 +348,13 @@ export const MISSIONS = {
     brief:['Korytarz zwęża się przed bastionem. Wejdziecie po kilku.',
            'Bastion bije w gardło, nie w całe pole.',
            'Artyleria i ciężka fabryka są Twoje. Reszta to kolejność.'],
-    grid:[7,6], shape:'1-3-1', len:3600, money:700, slots:slots(6),
+    grid:[7,6], shape:'1-3-1', len:3600, money:700,
+    ore:['..##...',
+         '.......',
+         '......#',
+         '....#..',
+         '..#....',
+         '.....#.'],
     // W finale drogi są szersze i bez objazdów: tu treścią nie jest wybór trasy,
     // a KOLEJNOŚĆ WEJŚCIA w lej. Baterie na skrzydłach są jedyną rzeczą, która
     // ścina ich fale — bez nich gardło jest nie do przejścia.
@@ -365,7 +366,7 @@ export const MISSIONS = {
     ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory',
             'reactor','lab','arty','heavy'],
-    feats:feats({ stance:5, sectors:3, radar:2, cards:true, sell:true, repair:true, upgrade:true, terrIncome:true }),
+    feats:feats({ stance:5, sectors:3, radar:2, cards:true, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'bastion' },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks','rocket','factory'], grow:1,
             spawnF:0.97, bastion:2200, shell:{ every:22, warn:4, dmg:30, r:56 } },
@@ -396,7 +397,7 @@ export const SKIRMISH = {
   id:'skirmish', n:0, code:'GRA DOWOLNA',
   teach:'Wszystko naraz.', gen:'Front jak zawsze. Reszta losowa.',
   brief:['Losowa doktryna, losowe warianty pola, pełna eskalacja.'],
-  grid:[7,6], shape:'1-3-1', len:3200, money:null, slots:slots(6),
+  grid:[7,6], shape:'1-3-1', len:3200, money:null,
   roadGap:300, roadW:150,
   roads:[
     { n:'GÓRNA',    y:-1, bow:0.30, sect:[{ kind:'most',    n:'MOST',    f:0.40 },

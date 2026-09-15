@@ -3,13 +3,13 @@
    klawiatura. Tap na kratkę = buduj / ulepsz / rozbierz (zależnie od trybu).
    ========================================================================= */
 
-import { B, CELL, BASE_X, BASE_Y, ROWS, COLS, CO, SELL_BACK, REPAIR_FRAC, SALV_CAP, HQ_COST, BAL, cellAt, cellsOf, clamp } from './config.js';
+import { B, CELL, BASE_X, BASE_Y, ROWS, COLS, CO, SELL_BACK, REPAIR_FRAC, SALV_CAP, BAL, cellAt, cellsOf, clamp } from './config.js';
 import { S, say } from './state.js';
 import { boom, resumeAudio, setMuted, isMuted } from './audio.js';
 import { explode } from './effects.js';
 import { app, cam, clampCam, screenToWorld, freeCam, setFollow } from './render.js';
-import { fits, unlocked, canUp, upCost, mkBuilding, mkSlotBuilding, recalcPower, clearCells,
-         isSlotType, slotAt, freeSlots } from './buildings.js';
+import { fits, unlocked, canUp, upCost, mkBuilding, recalcPower, clearCells,
+         canMove, moveCost, moveBuilding, investedIn, fitsMoved } from './buildings.js';
 import { setStance, toggleStance, setArmyLane } from './sim.js';
 import { isCampaign } from './campaign.js';
 import { showMenu } from './menu.js';
@@ -18,14 +18,6 @@ import { toast, syncOverlays } from './hud.js';
 import { newRun } from './game.js';
 
 const qs = id => document.getElementById(id);
-
-// wartość włożona w budynek (koszt + ulepszenia) — baza dla złomu i naprawy.
-// Sztab ma koszt 0, więc liczymy go po HQ_COST (jak jego ulepszenia).
-function investedOf(b){
-  const unit = b.type==='hq' ? HQ_COST : B[b.type].cost;
-  let put=unit; for (let l=1;l<b.lvl;l++) put+=unit*l;
-  return put;
-}
 
 // ulepszenie budynku — wołane z drugiego tapnięcia i z przycisku ULEPSZ w panelu
 function doUpgrade(b){
@@ -38,60 +30,38 @@ function doUpgrade(b){
   b.flash=1; explode(b.x,b.y,10,B[b.type].col); boom(0.1); recalcPower();
 }
 
-/* Stanowisko ogniowe: budowa, rozbiórka, naprawa i ulepszanie działka, które
-   NIE stoi na kratce. Osobna ścieżka, bo cała reszta wejścia mówi kratkami.  */
-function slotTap(i){
-  const sl = S.slots[i], b = sl.b;
-  if (S.sel && isSlotType(S.sel)){
-    if (b){ toast('STANOWISKO ZAJĘTE'); return true; }
-    if (!unlocked(S.sel)) return true;
-    const cost = B[S.sel].cost;
-    if (S.money<cost){ say('BRAK ŚRODKÓW','warn'); toast('BRAK ŚRODKÓW'); return true; }
-    S.money-=cost; mkSlotBuilding(S.sel, i);
-    say('ROZPOCZĘTO BUDOWĘ — '+B[S.sel].name+' NA STANOWISKU','good'); boom(0.15); recalcPower();
-    return true;
-  }
-  if (!b) return S.sel ? (toast('TU STOI DZIAŁKO, NIE BUDYNEK'), true) : false;
-  if (S.sel==='SELL'){
-    const frac=clamp(b.hp/b.maxHp,0,1);
-    const back=Math.floor(investedOf(b)*SELL_BACK*frac); S.money+=back;
-    if (S.stat) S.stat.inc.zlom+=back;
-    say('ROZEBRANO — '+B[b.type].name+' · +'+back+' kr.','good');
-    if (b._view){ b._view.destroy({children:true}); b._view=null; }
-    clearCells(b); S.buildings.splice(S.buildings.indexOf(b),1);
-    explode(b.x,b.y,16,CO.dim); boom(0.14); recalcPower();
-    return true;
-  }
-  if (S.sel==='REPAIR'){
-    if (b.hp>=b.maxHp){ toast('PEŁNE HP'); return true; }
-    const miss=1-clamp(b.hp/b.maxHp,0,1);
-    const cost=Math.ceil(investedOf(b)*miss*REPAIR_FRAC);
-    if (S.money<cost){ toast('BRAK ŚRODKÓW — '+cost+' kr.'); return true; }
-    S.money-=cost; b.hp=b.maxHp; b.flash=1;
-    say('NAPRAWIONO — '+B[b.type].name,'good'); explode(b.x,b.y,12,CO.ok); boom(0.12);
-    return true;
-  }
-  if (!S.sel){ if (S.upSel!==b){ S.upSel=b; } else doUpgrade(b); return true; }
-  return false;
-}
-
 function worldTap(px,py){
   if (S.state!=='play') return;
   const w=screenToWorld(px,py);
-  // stanowiska są POZA siatką, więc sprawdzamy je przed kratkami
-  const si = slotAt(w.x, w.y);
-  if (si >= 0 && slotTap(si)) return;
   const cell=cellAt(w.x,w.y);
-  if (!cell){
-    if (S.sel && isSlotType(S.sel)) toast(freeSlots() ? 'WSKAŻ STANOWISKO OGNIOWE' : 'BRAK WOLNYCH STANOWISK');
-    return;
-  }
-  // działko nie stoi na kratce — kieruj na stanowisko
-  if (S.sel && isSlotType(S.sel)){
-    toast(freeSlots() ? 'DZIAŁKO STAWIA SIĘ NA STANOWISKU' : 'BRAK WOLNYCH STANOWISK');
-    return;
-  }
+  if (!cell){ if (S.sel==='MOVE') S.moveSel=null; return; }
   const {c,r}=cell, g=S.grid[r][c];
+
+  /* PRZESUŃ — dwa tapnięcia: chwyć budynek, wskaż kratkę. Ciasna siatka ma
+     wymuszać PLANOWANIE, ale nie karać za pomyłkę bardziej niż za złą
+     strategię: jedna elektrownia w złym miejscu potrafiła zamknąć jedyne
+     miejsce na rafinerię i zakleszczyć całą misję.                          */
+  if (S.sel==='MOVE'){
+    if (!S.moveSel){
+      const b=g.b;
+      if (!b) return;
+      if (!canMove(b)){ toast(b.type==='hq' ? 'SZTABU NIE PRZESUNIESZ' : 'W BUDOWIE'); return; }
+      S.moveSel=b; say('CHWYTASZ — '+B[b.type].name+' · wskaż kratkę · '+moveCost(b)+' kr.','warn');
+      return;
+    }
+    const b=S.moveSel, cost=moveCost(b);
+    // Odkładamy TYLKO po tapnięciu w kratkę-kotwicę. „Dowolna własna kratka”
+    // zjadała przesunięcie o jedno pole — a to najczęstsza korekta, jaka jest.
+    if (c===b.c && r===b.r){ S.moveSel=null; return; }
+    if (S.money<cost){ toast('BRAK ŚRODKÓW — '+cost+' kr.'); return; }
+    if (!fitsMoved(b,c,r)){ toast('TU SIĘ NIE ZMIEŚCI'); return; }
+    S.money-=cost;
+    moveBuilding(b,c,r);
+    say('PRZENIESIONO — '+B[b.type].name+' · −'+cost+' kr.','good');
+    explode(b.x,b.y,12,B[b.type].col); boom(0.12);
+    S.moveSel=null;
+    return;
+  }
 
   if (S.sel==='SELL'){
     if (!g.b && g.seam){
@@ -104,7 +74,7 @@ function worldTap(px,py){
     const b=g.b; if (!b) return;
     if (b.type==='hq'){ say('SZTABU NIE SPRZEDASZ','warn'); toast('SZTABU NIE SPRZEDASZ'); return; }
     const frac=clamp(b.hp/b.maxHp,0,1);          // uszkodzony budynek wart mniej przy rozbiórce: 50% z WARTOŚCI, nie z pełnego kosztu
-    const back=Math.floor(investedOf(b)*SELL_BACK*frac); S.money+=back; if (S.stat) S.stat.inc.zlom+=back;
+    const back=Math.floor(investedIn(b)*SELL_BACK*frac); S.money+=back; if (S.stat) S.stat.inc.zlom+=back;
     const underC=(b.build||0)>0;
     say((underC?'ANULOWANO BUDOWĘ — ':'ROZEBRANO — ')+B[b.type].name+' · +'+back+' kr.','good');
     if (b._view){ b._view.destroy({children:true}); b._view=null; }
@@ -117,7 +87,7 @@ function worldTap(px,py){
     if ((b.build||0)>0){ toast('W BUDOWIE'); return; }
     if (b.hp>=b.maxHp){ toast('PEŁNE HP'); return; }
     const miss=1-clamp(b.hp/b.maxHp,0,1);
-    const cost=Math.ceil(investedOf(b)*miss*REPAIR_FRAC);   // im bardziej uszkodzony, tym drożej
+    const cost=Math.ceil(investedIn(b)*miss*REPAIR_FRAC);   // im bardziej uszkodzony, tym drożej
     if (S.money<cost){ say('BRAK ŚRODKÓW — '+cost+' kr.','warn'); toast('BRAK ŚRODKÓW — '+cost+' kr.'); return; }
     S.money-=cost; b.hp=b.maxHp; b.flash=1;
     say('NAPRAWIONO — '+B[b.type].name+' · −'+cost+' kr.','good');

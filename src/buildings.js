@@ -4,6 +4,7 @@
 
 import {
   B, U, CO, BASE_X, BASE_Y, CELL, COLS, ROWS, MAXLVL, NOUP, HQ_COST, ORE_RATE,
+  MOVE_FRAC, MOVE_SEC,
   BUILD_DIV, BUILD_MIN, BUILD_MAX, BAL, clamp, cellsOf, ringOf, fpOf, plObj
 } from './config.js';
 import { S, say } from './state.js';
@@ -28,8 +29,6 @@ export const radarLvl = () => {
 // na cały świat (FRONT.md §4.5 — dziś 13 budynków i 17 kart od razu); w grze
 // dowolnej `allows` przepuszcza wszystko i zostaje samo drzewko `req`.
 export const unlocked = t => allows(t) && missionReq(t).every(hasTech);
-// wolne stanowiska (do paska budowy i podpowiedzi)
-export const freeSlots = () => (S.slots||[]).filter(s=>!s.b).length;
 export const reqText  = t => missionReq(t).map(x=>B[x].name).join(' + ');
 export const maxLvl   = () => hasTech('lab') ? MAXLVL+1 : MAXLVL;
 
@@ -84,7 +83,7 @@ export const resetIds = () => { BID = 1; };
 export function mkBuilding(type,c,r,instant=false){
   const d=B[type], [w,h]=d.fp;
   const bt = instant ? 0 : buildSec(type);   // sztab i darowizny z kart stają natychmiast
-  const b={type,c,r,lvl:1, id:BID++, slot:-1, x:BASE_X+(c+w/2)*CELL, y:BASE_Y+(r+h/2)*CELL,
+  const b={type,c,r,lvl:1, id:BID++, x:BASE_X+(c+w/2)*CELL, y:BASE_Y+(r+h/2)*CELL,
            hp:d.hp,maxHp:d.hp, brown:false, powered:false, cd:0, side:'p', flash:0,
            build:bt, buildMax:bt};
   for (const [cc,rr] of cellsOf(type,c,r)){ S.grid[rr][cc].b=b; S.grid[rr][cc].seam=false; }
@@ -92,38 +91,46 @@ export function mkBuilding(type,c,r,instant=false){
   S.buildings.push(b); return b;
 }
 
-/* --------------------------- STANOWISKA OGNIOWE --------------------------
-   Budynek na stanowisku NIE zajmuje kratki: ma slot zamiast (c,r), a jego
-   pozycja bierze się ze stanowiska. Dzięki temu działko kosztuje kredyty,
-   ale nie miejsce w bazie — i na ciasnej siatce pierwszych misji przestaje
-   konkurować z rafinerią, co było jedynym powodem, dla którego nikt go nie
-   stawiał.                                                                   */
-export const isSlotType = t => !!B[t].slot;
-export const slotFree   = i => S.slots && S.slots[i] && !S.slots[i].b;
-export function slotAt(wx, wy, r=30){
-  if (!S.slots) return -1;
-  let best=-1, bd=r*r;
-  for (let i=0;i<S.slots.length;i++){
-    const s=S.slots[i], d=(s.x-wx)*(s.x-wx)+(s.y-wy)*(s.y-wy);
-    if (d<bd){ bd=d; best=i; }
-  }
-  return best;
+/* --------------------------- PRZENIESIENIE -------------------------------
+   Budynek da się PRZESUNĄĆ na inną kratkę za ułamek wartości. Bez tego ciasna
+   siatka karze za pomyłkę bardziej niż za złą strategię: jedna elektrownia
+   w złym miejscu potrafiła zamknąć jedyne miejsce na rafinerię. Przeniesienie
+   zachowuje poziom i HP, ale budynek na czas przeprowadzki jest MARTWY
+   (bez mocy, ognia i produkcji), więc przestawianie w trakcie fali boli.     */
+export function canMove(b){ return !!b && b.type!=='hq' && bReady(b); }
+export const moveCost = b => Math.ceil(investedIn(b) * MOVE_FRAC);
+// wartość włożona w budynek (koszt + ulepszenia) — wspólna dla złomu, naprawy
+// i przeniesienia, żeby trzy miejsca nie liczyły tego samego trzema wzorami
+export function investedIn(b){
+  const unit = b.type==='hq' ? HQ_COST : B[b.type].cost;
+  let put = unit;
+  for (let l=1; l<b.lvl; l++) put += unit*l;
+  return put;
 }
-export function mkSlotBuilding(type, i, instant=false){
-  const sl = S.slots && S.slots[i];
-  if (!sl || sl.b) return null;
-  const d=B[type], bt = instant ? 0 : buildSec(type);
-  const b={type, c:-1, r:-1, lvl:1, id:BID++, slot:i, x:sl.x, y:sl.y,
-           hp:d.hp,maxHp:d.hp, brown:false, powered:false, cd:0, side:'p', flash:0,
-           build:bt, buildMax:bt};
-  sl.b = b;
-  if (S.stat){ S.stat.built[type]=(S.stat.built[type]||0)+1; S.stat.builtTotal++; }
-  S.buildings.push(b); return b;
+/* Test kratki docelowej MUSI pomijać własne kratki budynku — inaczej rafineria
+   2×2 nie przesunie się o jedną kolumnę („tu się nie zmieści", bo zderza się
+   sama ze sobą), a to jest najczęstsza korekta, jaką się w ogóle robi.        */
+export function fitsMoved(b, c, r){
+  if (!b) return false;
+  clearCells(b);
+  const ok = fits(b.type, c, r);
+  for (const [cc,rr] of cellsOf(b.type,b.c,b.r)) S.grid[rr][cc].b=b;   // cofnij próbę
+  return ok;
 }
-export function clearCells(b){
-  if (b.slot >= 0){ if (S.slots && S.slots[b.slot]) S.slots[b.slot].b = null; return; }
-  for (const [cc,rr] of cellsOf(b.type,b.c,b.r)) S.grid[rr][cc].b=null;
+export function moveBuilding(b, c, r){
+  if (!canMove(b) || !fitsMoved(b, c, r)) return false;
+  clearCells(b);
+  b.c=c; b.r=r;
+  const [w,h]=B[b.type].fp;
+  b.x = BASE_X+(c+w/2)*CELL; b.y = BASE_Y+(r+h/2)*CELL;
+  for (const [cc,rr] of cellsOf(b.type,c,r)){ S.grid[rr][cc].b=b; S.grid[rr][cc].seam=false; }
+  b.build = MOVE_SEC; b.buildMax = MOVE_SEC;      // przeprowadzka = budynek chwilowo martwy
+  b.flash = 1;
+  recalcPower();
+  return true;
 }
+
+export function clearCells(b){ for (const [cc,rr] of cellsOf(b.type,b.c,b.r)) S.grid[rr][cc].b=null; }
 
 export function killBuilding(b){
   if (b.type!=='hq'){ say('OBIEKT UTRACONY — '+B[b.type].name,'bad'); if (S.stat) S.stat.lost++; }
@@ -150,11 +157,7 @@ export function recalcPower(){
   S.supply=sectSupply();          // MOSTY na drogach wpinaja sie do sieci jak elektrownie
   for (const b of S.buildings) if (bReady(b)) S.supply += bSup(b);
   const cand = S.buildings.filter(b=>bReady(b) && bDrn(b)>0);
-  // Budynek na stanowisku nie ma (c,r) — jego odległość od sztabu liczymy
-  // w świecie i przeliczamy na kratki, żeby kolejka wyłączania była spójna.
-  const dHQ = b => b.slot>=0
-    ? (Math.abs(b.x-S.hq.x)+Math.abs(b.y-S.hq.y))/CELL
-    : Math.abs(b.c-S.hq.c)+Math.abs(b.r-S.hq.r);
+  const dHQ = b => Math.abs(b.c-S.hq.c)+Math.abs(b.r-S.hq.r);
   cand.sort((a,b)=> dHQ(b)-dHQ(a));
   for (const b of S.buildings) b.brown=false;
   S.drain = cand.reduce((s,b)=>s+bDrn(b),0);
