@@ -7,7 +7,7 @@ import { B, CELL, BASE_X, BASE_Y, ROWS, COLS, CO, SELL_BACK, REPAIR_FRAC, SALV_C
 import { S, say } from './state.js';
 import { boom, resumeAudio, setMuted, isMuted } from './audio.js';
 import { explode } from './effects.js';
-import { app, cam, clampCam, screenToWorld } from './render.js';
+import { app, cam, clampCam, screenToWorld, freeCam, setFollow } from './render.js';
 import { fits, unlocked, canUp, upCost, mkBuilding, recalcPower, clearCells } from './buildings.js';
 import { setStance, toggleStance, setArmyLane } from './sim.js';
 import { isCampaign } from './campaign.js';
@@ -114,6 +114,7 @@ function initPointer(){
     const w=screenToWorld(e.offsetX,e.offsetY);
     S.wmouse.x=w.x; S.wmouse.y=w.y; S.wmouse.over=true;
     if (mode==='pinch' && pts.size>=2){
+      freeCam();                       // gracz chwycił pole — kamera przestaje prowadzić
       const [a,b]=[...pts.values()]; const nd=dist(a,b);
       const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
       const wBefore=screenToWorld(mid.x,mid.y);
@@ -125,7 +126,7 @@ function initPointer(){
     }
     if (mode==='maybe' || mode==='pan'){
       const dx=e.offsetX-startX, dy=e.offsetY-startY;
-      if (!moved && Math.hypot(dx,dy)>8){ moved=true; mode='pan'; }
+      if (!moved && Math.hypot(dx,dy)>8){ moved=true; mode='pan'; freeCam(); }
       if (mode==='pan'){ cam.panX+=e.movementX||0; cam.panY+=e.movementY||0; clampCam(); }
     }
   });
@@ -140,6 +141,7 @@ function initPointer(){
   el.addEventListener('pointerleave', ()=>{ S.wmouse.over=false; });
   el.addEventListener('wheel', e=>{
     e.preventDefault();
+    freeCam();
     const wBefore=screenToWorld(e.offsetX,e.offsetY);
     cam.zoom=clamp(cam.zoom*(e.deltaY<0?1.12:0.89), cam.min, cam.max);
     cam.panX=e.offsetX-wBefore.x*cam.zoom; cam.panY=e.offsetY-wBefore.y*cam.zoom; clampCam();
@@ -149,6 +151,10 @@ function initPointer(){
 function initButtons(){
   qs('stance-btn').addEventListener('click', ()=>{ resumeAudio(); toggleStance(); });
   qs('speed-btn').addEventListener('click', ()=>{ S.speed = S.speed>=3?1:S.speed+1; });
+  // Na dużej, przewijanej mapie baza jest po lewej, a walka po prawej — bez tych
+  // dwóch przycisków gracz przewijałby w tę i we w tę przy każdej fali.
+  qs('cam-front').addEventListener('click', ()=>{ setFollow(cam.follow==='front'?'':'front'); });
+  qs('cam-base').addEventListener('click',  ()=>{ setFollow(cam.follow==='base' ?'':'base');  });
   qs('mute-btn').addEventListener('click', ()=>{ setMuted(!isMuted()); });
   // W kampanii ten przycisk wraca DO MENU (skąd widać postęp i można powtórzyć
   // misję od punktu kontrolnego); w grze dowolnej zostaje „NOWA" z potwierdzeniem.
@@ -196,6 +202,9 @@ function initButtons(){
     // tory: Q/W/E kierują całość na tor, R rozdziela po równo
     const L={KeyQ:0, KeyW:1, KeyE:2, KeyR:-1}[e.code];
     if (L!==undefined) setArmyLane(L);
+    // kamera: F = za frontem, B = na bazę (duża mapa, dwa punkty zainteresowania)
+    if (e.code==='KeyF') setFollow(cam.follow==='front'?'':'front');
+    if (e.code==='KeyB') setFollow(cam.follow==='base' ?'':'base');
   });
 }
 

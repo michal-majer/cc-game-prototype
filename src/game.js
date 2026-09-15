@@ -26,7 +26,7 @@ import { openDraft, OPEN, DECK } from './cards.js';
 import { rollRun, finishRun, newStat, getMeta, resetMeta } from './meta.js';
 import { update, waveInterval } from './sim.js';
 import { initPixi, app, cam, WV, screenToWorld, clearViews, renderFrame, fitCam } from './render.js';
-import { buildBar, buildStanceSlider, syncOverlays, updateHUD } from './hud.js';
+import { buildBar, buildStanceSlider, syncOverlays, updateHUD, initMinimap } from './hud.js';
 import { initInput, worldTap } from './input.js';
 import { MISSIONS, WORLDS, SKIRMISH, worldOf } from './missions.js';
 import { applyMission, applySectors, snapshot, restoreBase, replayCards,
@@ -155,6 +155,7 @@ async function main(){
   try { await loadAssets(); } catch(e){}
   buildBar();
   buildStanceSlider();
+  initMinimap();
   initInput();
   initMenu({ startMission, restartMission, nextMission, newRun });
 

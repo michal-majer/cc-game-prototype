@@ -33,9 +33,65 @@ Gdzie to siedzi w kodzie: `src/missions.js` (dane) → `src/campaign.js` (ramka)
 
 ---
 
-## 2. Kształt pola: 1 / 3 / 1
+## 2. Mapa i kształt pola: 1 / 3 / 1
 
-**Decyzja nadrzędna nad wszystkim poniżej.** Korytarz nie ma stałej szerokości:
+**Mapa jest dużo większa od ekranu i przewijana.** To nie jest kosmetyka — to zmienia
+rolę kamery i wymusza, żeby geometria była danymi, nie stałymi.
+
+### Mapa jako jedna liczba
+
+Długość korytarza to `len` w danych misji. **Wszystko na korytarzu podane jest
+UŁAMKAMI tej długości**, nie pikselami: stanice (`STANCES.f`), progi kształtu
+(`SHAPES[].f`), pozycje mini-sztabów, przyczółek wroga (`spawnF`), promień
+przejmowania. Bez tego każda zmiana rozmiaru mapy znaczyłaby ręczne przeliczanie
+pięciu miejsc naraz, za każdym razem.
+
+Stan: misje 1–2 to 1 300 px, misja 3 — 2 100, misje 4–5 — 3 200, misja 6 — 3 600.
+Dawne pole miało 760 px.
+
+**Co skaluje się z mapą, a co nie** — i to jest tu cała ostrożność:
+
+| Skaluje się | Nie skaluje się |
+|---|---|
+| stanice, sektory, progi kształtu | **zasięgi broni** — w nich zakodowane są KONTRY |
+| promień mini-sztabu, smycz łowcy | rozmiary jednostek |
+| przerzut między torami | `ENGAGE_BAND`, `CONTACT`, `BAS_RANGE` |
+| prędkość marszu (`SPD_MUL`) | HP, obrażenia, tempo strzału |
+
+Przeskalowanie zasięgów rozjechałoby wszystkie luki między jednostkami — a to one
+są grą. Dlatego warstwa taktyczna (kilkadziesiąt pikseli) zostaje identyczna,
+a zmienia się tylko, ile tej warstwy mieści się na mapie.
+
+**`SPD_MUL` — prędkość marszu, wykładnik podliniowy 0.6.** Przy 1.0 czas przejścia
+byłby taki sam jak na starej mapie, czyli większa mapa nie dawałaby nic poza
+ładniejszym widokiem. Przy 0.6 pole ×4 daje marsz ~1,7× dłuższy: mapa realnie
+jest większa, a nie jest slalomem przez pustkę. To jest pokrętło tempa.
+
+### Kamera jest oknem, nie skalowaniem do ekranu
+
+Dawniej kamera dobierała zoom tak, by **zmieścić całe pole** — przy polu 3 200 px
+znaczyłoby to jednostki po kilka pikseli. Teraz:
+
+- domyślny zoom wypełnia pasmo **w pionie** (cały korytarz od góry do dołu),
+  a w poziomie się przewija; na telefonie wygrywa szerokość, bo inaczej widać
+  10% mapy i nawet nie sąsiedni tor;
+- zoom out sięga **całego pola** — ale to wybór gracza, nie stan domyślny;
+- **kamera sama jedzie za frontem**; chwycenie pola przełącza ją w tryb wolny,
+  a `⌖ FRONT` / `⌂ BAZA` (klawisze `F` / `B`) wracają do prowadzenia;
+- **misja startuje na BAZIE**, nie na froncie: przed pierwszą falą gracz tylko
+  buduje, a buduje w bazie. Na pierwszej fali kamera sama przechodzi na front,
+  o ile gracz nie wziął jej w swoje ręce;
+- **minimapa** (pasek nad suwakiem linii) pokazuje całość: bazę, korytarz, kto
+  trzyma które mini-sztaby, jednostki obu stron, linię frontu i **okno widoku**.
+  Klik przewija. Bez niej duża mapa jest karą, nie funkcją.
+
+Wysokości paneli HUD-a są **mierzone z DOM** (`--top-h`), nie zgadywane — pasek
+górny zawija się inaczej na każdej szerokości i każda sztywna liczba była tam
+kiedyś błędna.
+
+### Kształt korytarza
+
+Korytarz nie ma stałej szerokości:
 
 ```
    BAZA │ 1 tor  │      3 tory      │ lej │ BASTION
@@ -70,6 +126,10 @@ drugiego świata** (`'1-2-1'` w `SHAPES`): darmowa różnorodność bez nowego k
    a `terrIncome()` płaci proporcjonalnie — za darmo, z kształtu.
 6. **Przepustowość leja to jedna liczba** (`h` ostatniej strefy w `SHAPES`) —
    główne pokrętło misji 6. HP bastionu rusza się OSTATNIE.
+7. **Zwężenie jest stopniowe, nie skokowe.** Liczba torów jest dyskretna (nie ma
+   półtora toru), ale szerokość przechodzi łagodnie przez pas `TAPER_F`: lej ma
+   ściskać coraz mocniej w miarę podchodzenia, a nie ciąć pole pionową ścianą.
+   Gracz czyta z pola, ile jeszcze ma miejsca — i to JEST mechanika misji 6.
 
 ---
 
@@ -189,6 +249,7 @@ poniżej 5 = misja zepsuta.
 5. **Odblokowania rozłożone na całą kampanię.** Lista `unlock` misji JEST drzewkiem
    techniki; `req` z tabeli `B` działa tylko między budynkami obecnymi na tej liście.
 6. **Grafika świata = podmiana kafli i koloru, nie nowa mapa.** (`TILESETS` w `assets.js`.)
+   Rozmiar mapy to jedna liczba w danych misji (`len`), nie nowa geometria.
 7. **Mechanika zamykana w swojej misji, liczby nigdy.** „Czołg na 100%" = arkusz
    z 4 animacjami, wersja wroga sprawdzona po odbiciu, dźwięk strzału i śmierci, wpis
    w `U` z opisem, zachowanie wroga w `enemy.js`, interakcja z kartami, przebieg bota.

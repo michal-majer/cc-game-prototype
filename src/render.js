@@ -8,7 +8,7 @@ import * as PIXI from '../vendor/pixi.min.mjs';
 import {
   CO, U, B, BASE_X, BASE_Y, CELL, COLS, ROWS, BASE_R, LANE_Y, LANE_HALF, BAS_X,
   STANCES, CAP_R, TERR_MAX, ORE_SIP, BAL, HEX, clamp, ringOf, cellAt,
-  lanesAt, laneCY, corridorHalf, shapeId
+  lanesAt, laneCY, corridorHalf, shapeId, fieldX1, LANE_HALF as LH
 } from './config.js';
 import { S, SECT, lineX } from './state.js';
 import { buildTex, unitTex, unitSheet, tex, tileTex, markTex, hasTiles } from './assets.js';
@@ -18,8 +18,13 @@ import { eTerrCtrl } from './sectors.js';
 import { bEff, eHoldX } from './enemy.js';
 
 export const app = new PIXI.Application();
-export const WV = { x:24, y:150, w:1170, h:356 };     // widoczny wycinek świata
-export const cam = { zoom:1, min:0.2, max:3, panX:0, panY:0, _init:false };
+// Prostokąt świata — LICZONY PER MISJA (measureWorld), nie stała. Mapa jest
+// dużo większa od ekranu; to jest obszar, po którym kamera się przewija.
+export const WV = { x:0, y:0, w:1170, h:356 };
+export const cam = { zoom:1, min:0.2, max:3, panX:0, panY:0,
+                     // 'front' = jedź za linią styku · 'base' = trzymaj bazę
+                     // '' = wolne przewijanie (ustawia się samo po chwyceniu pola)
+                     follow:'front', _init:false };
 
 const SREF = 12, GB = SREF*3.6;
 const TEAM_P = 0xa3c9ff, TEAM_E = 0xff6f5c;   // zabarwienie sprite'ów jednostek: gracz niebieski / wróg czerwony
@@ -127,44 +132,125 @@ function buildGround(){
     put(tileTex('skala', c+900, r+900), BASE_X + c*T, BASE_Y + r*T);
 }
 
-/* --------------------------------- KAMERA -------------------------------- */
+/* ================================= KAMERA ================================
+   Mapa jest DUŻO WIĘKSZA OD EKRANU i przewijana. To zmienia rolę kamery:
+   dawniej dobierała zoom tak, by ZMIEŚCIĆ CAŁE POLE — co przy polu 3 200 px
+   znaczyłoby, że jednostki mają kilka pikseli i nic nie widać.
+
+   Teraz kamera jest OKNEM:
+     · domyślny zoom wypełnia pasmo W PIONIE (cały korytarz widać od góry
+       do dołu), a w poziomie się przewija — to jest „zoom taktyczny",
+     · zoom OUT sięga do całego pola (cam.min), żeby dało się rzucić okiem
+       na całość, ale to jest wybór gracza, nie stan domyślny,
+     · kamera SAMA JEDZIE ZA FRONTEM (cam.follow), bo na dużej mapie gracz
+       inaczej gubi walkę; chwycenie pola przełącza ją w tryb wolny,
+       a przyciski ⌖ FRONT / ⌂ BAZA wracają do prowadzenia.
+
+   Bez prowadzenia kamery duża mapa jest karą, nie funkcją: baza jest po lewej,
+   walka po prawej, a gracz musiałby przewijać w tę i we w tę przy każdej fali. */
+/* Pasmo, w którym mieszka pole walki. MIERZONE Z DOM, nie zgadywane liczbami:
+   HUD zawija się inaczej na każdej szerokości (na telefonie pasek górny bierze
+   dwa wiersze), a zgadywane 96/66 px raz było za mało, raz za dużo — panele
+   nachodziły na siebie i na pole. Górna granica to spód paska górnego, dolna
+   to szczyt dolnego stosu (minimapa → suwak → pasek budowy).                  */
 function bandRect(){
   const sw=app.screen.width, sh=app.screen.height;
-  const top = sw<=720 ? 96 : 66;
-  const bot = (sw<=720 ? 92 : 100) + 44;
-  return { sw, sh, top, bandH: Math.max(60, sh - top - bot) };
+  const tb=document.getElementById('topbar'), mm=document.getElementById('minimap');
+  const top  = (tb && tb.offsetHeight ? tb.offsetHeight : 66) + 4;
+  const botY = (mm && mm.offsetTop ? mm.offsetTop - 8 : sh - 180);
+  return { sw, sh, top, bandH: Math.max(60, botY - top) };
 }
-// Widoczny wycinek świata kończy się tam, gdzie kończy się misja (S.camX).
-// Misja 1 gra na krótkim polu, misja 4 „odjeżdża kamerą" na pełną szerokość —
-// jedna liczba w danych misji, zero nowej koncepcji.
-export const viewW = () => clamp(fieldEnd() + 30 - WV.x, 300, WV.w);
-// Prawa krawędź POLA MISJI. Misja 1 gra na krótkim odcinku, misja 4 „odjeżdża
-// kamerą" na pełną szerokość — jedna liczba w danych misji (camX), zero nowej
-// koncepcji. Rysujemy i clampujemy kamerę do tej samej liczby, więc gracz nie
-// ogląda pustego pasa za przyczółkiem wroga.
-export const fieldEnd = () => (S.camX || BAS_X+50);
-// Nowa misja = nowe pole: przelicz zoom od zera, zamiast trzymać ten z poprzedniej.
-export function fitCam(){ cam._init=false; resizeCam(); }
+// prawa krawędź świata (koniec korytarza + margines na przyczółek)
+export const fieldEnd = () => fieldX1() + 60;
+
+// Zmierz prostokąt świata bieżącej misji: baza + korytarz + marginesy.
+// Korytarz bywa wyższy niż siatka bazy (trzy tory) albo niższy (jeden tor),
+// więc bierzemy obwiednię obu.
+function measureWorld(){
+  const top = Math.min(BASE_Y - 28, LANE_Y - LH - 44);
+  const bot = Math.max(BASE_Y + ROWS*CELL + 28, LANE_Y + LH + 44);
+  WV.x = BASE_X - 28;
+  WV.y = top;
+  WV.w = Math.max(400, fieldEnd() - WV.x);
+  WV.h = Math.max(200, bot - top);
+}
+
+// Ile świata ma być widać w POZIOMIE na starcie. Na szerokim ekranie zoom
+// ogranicza wysokość korytarza (widać go całego), ale na telefonie samo
+// „wypełnij pasmo w pionie" dawało 380 px świata na ekranie — 10% mapy, czyli
+// gracz nie widzi nawet sąsiedniego toru. Wtedy wygrywa szerokość.
+const TAC_W = 1150;
 export function resizeCam(){
-  const {sw, sh, bandH}=bandRect();
-  const fillH = bandH / WV.h;
-  const fitAll= Math.min(sw / viewW(), fillH);
-  cam.min = Math.min(fitAll, fillH);
-  cam.max = Math.max(fillH*1.8, fitAll*3);
-  const portraitish = sw<=900 || sw < sh*1.2;
-  const z0 = portraitish ? fillH : fitAll;
-  if (!cam._init){ cam.zoom = z0; cam._init=true; }
+  measureWorld();
+  const {sw, bandH}=bandRect();
+  const zFill = bandH / WV.h;                  // cały korytarz w pionie — zoom taktyczny
+  const zAll  = Math.min(sw / WV.w, zFill);    // całe pole na ekranie (na dużej mapie: mało)
+  cam.min = Math.min(zAll * 0.85, zFill);
+  cam.max = Math.max(zFill * 2.4, 2.2);
+  if (!cam._init){ cam.zoom = Math.min(zFill, sw / TAC_W); cam._init=true; }
   cam.zoom = clamp(cam.zoom, cam.min, cam.max);
   clampCam();
 }
 export function clampCam(){
   const {sw, top, bandH}=bandRect();
   cam.zoom = clamp(cam.zoom, cam.min, cam.max);
-  const cw=viewW()*cam.zoom, ch=WV.h*cam.zoom;
+  const cw=WV.w*cam.zoom, ch=WV.h*cam.zoom;
   if (cw<=sw) cam.panX = (sw-cw)/2 - WV.x*cam.zoom;
   else cam.panX = clamp(cam.panX, sw-cw-WV.x*cam.zoom, -WV.x*cam.zoom);
   if (ch<=bandH) cam.panY = top + (bandH-ch)/2 - WV.y*cam.zoom;
   else cam.panY = clamp(cam.panY, top+bandH-ch-WV.y*cam.zoom, top-WV.y*cam.zoom);
+}
+
+// Punkt, na którym kamera ma się trzymać w trybie prowadzonym.
+function followPoint(){
+  if (cam.follow==='base') return { x: BASE_X + COLS*CELL/2, y: BASE_Y + ROWS*CELL/2 };
+  return { x: S.frontX, y: LANE_Y };
+}
+// Prowadzenie kamery — wygładzone, żeby front „niósł" widok, a nie szarpał nim.
+function updateCam(dt){
+  if (!cam.follow) return;
+  const {sw, top, bandH}=bandRect();
+  const p = followPoint();
+  const k = Math.min(1, dt*3.2);
+  cam.panX += ((sw/2 - p.x*cam.zoom) - cam.panX) * k;
+  cam.panY += ((top + bandH/2 - p.y*cam.zoom) - cam.panY) * k;
+  clampCam();
+}
+// wywoływane z input.js: chwycenie pola przerywa prowadzenie
+export function freeCam(){ cam.follow=''; }
+export function setFollow(mode){
+  cam.follow = mode;
+  if (mode){                      // skok bez animacji, żeby przycisk działał od razu
+    const {sw, top, bandH}=bandRect();
+    const p = followPoint();
+    cam.panX = sw/2 - p.x*cam.zoom;
+    cam.panY = top + bandH/2 - p.y*cam.zoom;
+    clampCam();
+  }
+}
+/* Nowa misja = nowe pole: przelicz zoom i patrz NA BAZĘ.
+   Na dużej mapie to nie kosmetyka: przed pierwszą falą gracz nic nie robi poza
+   budowaniem, a buduje w bazie — kamera ustawiona na front pokazywałaby wtedy
+   pusty kawałek korytarza, a siatkę trzymałaby za ekranem. Na pierwszej fali
+   kamera sama przechodzi na front (autoFollowFront), o ile gracz nie wziął jej
+   w swoje ręce. */
+export function fitCam(){ cam._init=false; resizeCam(); setFollow('base'); }
+// Woła sim przy pierwszej fali. Nie nadpisuje decyzji gracza: jeśli sam przewinął
+// pole albo wybrał ⌂ BAZA po starcie, zostaje jak chciał.
+export function autoFollowFront(){ if (cam.follow==='base') setFollow('front'); }
+// dla minimapy: widoczny wycinek świata w px świata
+export function viewport(){
+  const {sw, top, bandH}=bandRect();
+  return { x:(0-cam.panX)/cam.zoom, y:(top-cam.panY)/cam.zoom,
+           w:sw/cam.zoom, h:bandH/cam.zoom };
+}
+// przewiń tak, by dany punkt świata był na środku (klik w minimapę)
+export function panTo(wx, wy){
+  const {sw, top, bandH}=bandRect();
+  cam.follow='';
+  cam.panX = sw/2 - wx*cam.zoom;
+  if (wy != null) cam.panY = top + bandH/2 - wy*cam.zoom;
+  clampCam();
 }
 function applyCam(){
   worldRoot.scale.set(cam.zoom);
@@ -230,7 +316,7 @@ function drawWorld(){
     const mx=q.x-MS_W/2, my=qy-MS_H/2;
     const yName = lane ? qy-MS_H/2-16 : qy-secH(q)-16;
     const yBar  = lane ? qy-MS_H/2-11 : qy-secH(q)-12;
-    const yInfo = lane ? qy+MS_H/2+9  : qy-secH(q)-26;
+    const yInfo = lane ? qy+MS_H/2+15 : qy-secH(q)-26;
     g.roundRect(mx,my,MS_W,MS_H,3).fill('#11171a');
     g.roundRect(mx,my,MS_W,MS_H,3).fill({color:col, alpha:q.own?0.30:0.10});
     g.roundRect(mx+0.5,my+0.5,MS_W-1,MS_H-1,3).stroke({width:q.own?2:1,color:col});
@@ -259,7 +345,7 @@ function drawWorld(){
   if (massed>0){
     const hx = eHoldX();
     dashV(g, hx, ly, ly+lh, CO.red, 0.4);
-    wt('TRZYMAJĄ TEREN — '+massed, hx, ly-4, 8, CO.red);
+    wt('TRZYMAJĄ TEREN — '+massed, hx, ly-17, 8, CO.red);
   }
   const stN = (S.mission && S.mission.feats) ? (S.mission.feats.stance||0) : STANCES.length;
   if (stN >= 2 && S.si < stN-1){
@@ -289,10 +375,10 @@ function corridorPoly(step){
   return out;
 }
 function drawCorridor(g, ly, lh){
-  g.rect(BASE_R,ly,fieldEnd()-BASE_R,lh).fill({color:'#0c1012', alpha:0.55});   // pobocze
+  g.rect(BASE_R,ly,fieldEnd()-BASE_R,lh).fill({color:'#0c1012', alpha:0.7});   // pobocze
   const poly=corridorPoly(26);
-  g.poly(poly).fill(CO.dirt);
-  g.poly(poly).stroke({width:1.5, color:CO.laneEdge});
+  g.poly(poly).fill('#212a2c');
+  g.poly(poly).stroke({width:2, color:CO.laneEdge});
   // separatory torów — w strefie szerokiej, przerywane, żeby nie udawały ściany
   for (let x=BASE_R; x<fieldEnd(); x+=26){
     const n=lanesAt(x+13);
@@ -666,6 +752,7 @@ function drawHarvesters(){
 let _animLast = now();
 export function renderFrame(){
   const t=now(), adt=Math.min(0.05,(t-_animLast)/1000); _animLast=t;  // dt do animacji sprite'ów (czas realny)
+  updateCam(adt);
   applyCam();
   buildGround();
   drawWorld();

@@ -6,8 +6,13 @@ przestrzenne i kontrujące, oraz ustawiasz linię natarcia.
 
 To jest port oryginalnego prototypu (jeden plik Canvas 2D) na **PixiJS**, tak by
 łatwo dodawać **grafikę i dźwięk**. Gra celuje w **PC** (Steam przez Electrona albo
-Tauri); wersja w przeglądarce zostaje jako darmowe demo. Pole walki przewija się
-w poziomie, kółko przybliża.
+Tauri); wersja w przeglądarce zostaje jako darmowe demo.
+
+**Mapa jest dużo większa od ekranu i przewijana** (misja 6 to 3 600 px korytarza).
+Kamera jest oknem, nie skalowaniem do ekranu: domyślnie jedzie za frontem, misja
+startuje na bazie, a minimapa nad suwakiem linii pokazuje całość i okno widoku.
+`⌖ FRONT` / `⌂ BAZA` (klawisze `F` / `B`) wracają do prowadzenia, przeciągnięcie
+pola je zwalnia, kółko przybliża.
 
 **Silnik zostaje PixiJS — nie przepisujemy na Unity** (decyzja 14.09.2026). Kod jest
 skończony, a wszystko, co realnie poprawia grę, jest niezależne od silnika. Konsole nie
@@ -37,8 +42,10 @@ To wszystko. Zero zależności do instalowania.
 - **Suwak linii** (nazwy OBRONA…NATARCIE) → ustawia, jak daleko wychodzą Twoi.
 - **Rozkaz torowy** (przyciski po prawej nad paskiem budowy): TOR 1/2/3 ściąga całą
   armię na jeden tor, ROZDZIEL rozkłada ją po równo. Widoczne tylko tam, gdzie tory są.
+- **Kamera:** `⌖ FRONT` jedzie za linią styku, `⌂ BAZA` wraca na siatkę, przeciągnięcie
+  pola zwalnia prowadzenie. **Minimapa** nad suwakiem linii: klik = przewiń tam.
 - **Klawiatura:** `1–5` linia, `←/→` linia, `Spacja` GOTÓW / natarcie / odwrót,
-  `+/−` prędkość, `1/2/3` wybór karty, `Q/W/E/R` tory, `Esc` odznacz / menu.
+  `+/−` prędkość, `1/2/3` wybór karty, `Q/W/E/R` tory, `F/B` kamera, `Esc` odznacz / menu.
 
 ## Struktura
 
@@ -132,6 +139,17 @@ src/menu.js       EKRANY: menu · wybór misji · odprawa · ocena sztabu
 Pełny projekt gry — kształt pola 1/3/1, treść każdej misji, co odrzucone i dlaczego,
 kolejność robót: **`FRONT.md`**. Rozkazy generała (aktywne moce; pomysł, nie kod,
 wycięte z v1): `docs/rozkazy.md`.
+
+### Rozmiar mapy
+
+Długość korytarza to **jedna liczba w danych misji** (`len`), a wszystko na nim —
+stanice, mini-sztaby, progi kształtu, przyczółek wroga — podane jest **ułamkami**
+tej długości. Skaluje się z mapą także promień przejmowania i prędkość marszu
+(`SPD_MUL`, wykładnik 0.6 — większa mapa to realnie dłuższy przemarsz, nie ten sam).
+
+**Zasięgi broni i rozmiary jednostek NIE skalują się.** W zasięgach zakodowane są
+kontry; przeskalowanie ich rozjechałoby wszystkie luki między jednostkami. Warstwa
+taktyczna zostaje identyczna — zmienia się tylko, ile jej mieści się na mapie.
 
 ### Tory (kształt pola 1/3/1)
 

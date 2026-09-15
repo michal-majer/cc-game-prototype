@@ -45,6 +45,8 @@
     <div class="ctrls">
       <button id="stance-btn" class="btn stance">▮▮ PRZEDPOLE</button>
       <button id="speed-btn" class="btn">» 1×</button>
+      <button id="cam-front" class="btn cam on">⌖<span class="btxt"> FRONT</span></button>
+      <button id="cam-base" class="btn cam">⌂<span class="btxt"> BAZA</span></button>
       <button id="new-btn" class="btn">⟲ NOWA</button>
       <button id="mute-btn" class="btn">♪ WŁ.</button>
     </div>
@@ -62,6 +64,9 @@
   <!-- Łączność / log -->
   <div id="log" class="hud"></div>
   <button id="log-toggle" class="hud">▌ LOG</button>
+
+  <!-- Minimapa: cała mapa na jednym pasku + okno widoku -->
+  <canvas id="minimap" class="hud"></canvas>
 
   <!-- Suwak linii -->
   <div id="stance-slider" class="hud"></div>

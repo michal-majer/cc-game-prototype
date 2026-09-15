@@ -6,7 +6,7 @@
 import {
   CO, B, U, BAR, STANCES, TERR_MAX, WAVE_TIME, ORE_SIP, EPATIENCE, EPAT_MASS
 } from './config.js';
-import { S, say } from './state.js';
+import { S, say, SECT } from './state.js';
 import { isMuted } from './audio.js';
 import { incomeRate, oreBreak, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { terrIncome } from './sectors.js';
@@ -15,7 +15,9 @@ import { eComp, eRatio } from './enemy.js';
 import { takeCard } from './cards.js';
 import { setStance, setArmyLane } from './sim.js';
 import { MIS, feat, isCampaign, goalText, goalNow, goalDone } from './campaign.js';
-import { maxLanes } from './config.js';
+import { maxLanes, BASE_X, BASE_Y, BASE_R, CELL, COLS, ROWS, LANE_Y, LANE_HALF,
+         fieldX1, CAP_R } from './config.js';
+import { cam, viewport, panTo, fieldEnd } from './render.js';
 
 const qs = id => document.getElementById(id);
 const KCOL = {WOJSKO:CO.blue, RUDA:CO.ore, KRATKI:CO.ok, 'WRÓG':CO.red, WROG:CO.red};
@@ -122,7 +124,7 @@ export function renderCards(){
   syncOverlays();
 }
 // elementy HUD-a, które w menu mają zniknąć razem z polem walki
-const CHROME = ['topbar','intel','log','log-toggle','stance-slider','buildbar','objective','lanes'];
+const CHROME = ['topbar','intel','log','log-toggle','stance-slider','buildbar','objective','lanes','minimap'];
 export function syncOverlays(){
   const inMenu = S.state==='menu';
   for (const id of CHROME){ const el=qs(id); if (el) el.classList.toggle('off', inMenu); }
@@ -141,6 +143,91 @@ export function syncOverlays(){
     if (rep) rep.innerHTML = (S.report||[]).map(l=>`<div class="rl">${l}</div>`).join('');
   }
   qs('ready').classList.toggle('hidden', !(S.state==='play' && !S.ready));
+}
+
+/* -------------------------------- MINIMAPA -------------------------------
+   Mapa jest dużo większa od ekranu, więc gracz musi mieć CAŁOŚĆ na jednym
+   pasku: gdzie stoi front, kto trzyma które mini-sztaby, gdzie jest jego baza
+   i gdzie akurat patrzy kamera. Bez tego przewijanie jest zgadywaniem.
+
+   Rysowane w 2D canvasie, nie w Pixi: minimapa należy do HUD-a, a HUD jest
+   w DOM — dzięki temu nie wchodzi w kamerę świata ani w jej zoom.
+   Klik / przeciągnięcie = przewiń tam (i zwolnij prowadzenie kamery).        */
+let mmCv=null, mmCtx=null;
+export function initMinimap(){
+  mmCv = qs('minimap'); if (!mmCv) return;
+  mmCtx = mmCv.getContext('2d');
+  const jump = e => {
+    const r = mmCv.getBoundingClientRect();
+    const f = Math.max(0, Math.min(1, (e.clientX - r.left)/r.width));
+    panTo(mmX2world(f), LANE_Y);
+  };
+  let down=false;
+  mmCv.addEventListener('pointerdown', e=>{ down=true; mmCv.setPointerCapture(e.pointerId); jump(e); });
+  mmCv.addEventListener('pointermove', e=>{ if (down) jump(e); });
+  mmCv.addEventListener('pointerup',   ()=>{ down=false; });
+  mmCv.addEventListener('pointercancel',()=>{ down=false; });
+}
+// świat ↔ minimapa: pasek pokrywa BAZĘ i cały korytarz
+const mmX0 = () => BASE_X - 20;
+const mmX1 = () => fieldEnd();
+const mmX2world = f => mmX0() + (mmX1()-mmX0())*f;
+
+function drawMinimap(){
+  if (!mmCtx) return;
+  const el = mmCv;
+  const wCss = el.clientWidth, hCss = el.clientHeight;
+  if (!wCss || !hCss) return;
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  if (el.width !== Math.round(wCss*dpr) || el.height !== Math.round(hCss*dpr)){
+    el.width = Math.round(wCss*dpr); el.height = Math.round(hCss*dpr);
+  }
+  const g = mmCtx;
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,wCss,hCss);
+
+  const x0=mmX0(), x1=mmX1(), sx = wCss/(x1-x0);
+  const X = wx => (wx-x0)*sx;
+  const midY = hCss/2;
+  const hy = v => midY + v*(hCss*0.42)/Math.max(1,LANE_HALF);   // pion: korytarz na całą wysokość paska
+
+  g.fillStyle='#070b0c'; g.fillRect(0,0,wCss,hCss);
+  // korytarz — jaśniejszy od tła, inaczej pasek jest czarnym prostokątem
+  g.fillStyle='#33423f';
+  g.fillRect(X(BASE_R), hy(-LANE_HALF), X(fieldX1())-X(BASE_R), hy(LANE_HALF)-hy(-LANE_HALF));
+  g.strokeStyle='#4b5f5c'; g.lineWidth=1;
+  g.strokeRect(X(BASE_R)+0.5, hy(-LANE_HALF)+0.5, X(fieldX1())-X(BASE_R)-1, hy(LANE_HALF)-hy(-LANE_HALF)-1);
+  // baza
+  g.fillStyle='#3c5566';
+  g.fillRect(X(BASE_X), hy(-LANE_HALF*0.7), Math.max(3, COLS*CELL*sx), hy(LANE_HALF*0.7)-hy(-LANE_HALF*0.7));
+  // mini-sztaby: kolor = kto trzyma. Sektor TOROWY rysuje się w swoim torze,
+  // inaczej trzy sektory środka zlewają się w jedną plamę.
+  const nLanes = Math.max(1, maxLanes());
+  for (const q of SECT){
+    const lane = q.lane>=0;
+    const cy = lane ? (-LANE_HALF + (2*LANE_HALF/nLanes)*(q.lane+0.5)) : 0;
+    const hh = lane ? (LANE_HALF/nLanes)*0.8 : LANE_HALF*0.8;
+    g.fillStyle = q.own===1 ? CO.warn : q.own===-1 ? CO.red : '#4a5a5e';
+    g.fillRect(X(q.x)-Math.max(1.5,CAP_R*sx/2), hy(cy-hh), Math.max(3,CAP_R*sx), hy(cy+hh)-hy(cy-hh));
+  }
+  // przyczółek / bastion wroga
+  if (S.bastion && !S.bastion.dead){
+    g.fillStyle = CO.red;
+    g.fillRect(X(S.bastion.x)-2, hy(-LANE_HALF*0.7), 4, hy(LANE_HALF*0.7)-hy(-LANE_HALF*0.7));
+  }
+  // jednostki jako punkty — jedyna rzecz, która mówi „walka jest TAM"
+  for (const u of S.units){
+    if (u.hp<=0) continue;
+    g.fillStyle = u.side==='p' ? '#7dc0ff' : '#ff8a7a';
+    g.fillRect(X(u.x)-1.2, hy(u.y-LANE_Y)-1.2, 2.8, 2.8);
+  }
+  // linia frontu
+  g.fillStyle='#ffffff'; g.fillRect(X(S.frontX)-0.5, 0, 1.4, hCss);
+  // okno widoku — to ono mówi graczowi, którą część mapy właśnie widzi
+  const vp = viewport();
+  g.strokeStyle = cam.follow ? CO.ok : '#dfe8ea';
+  g.lineWidth = 1.4;
+  g.strokeRect(X(vp.x)+0.7, 1.4, Math.max(8, vp.w*sx)-1.4, hCss-2.8);
 }
 
 /* ------------------------- cel misji + rozkaz torowy ---------------------- */
@@ -190,8 +277,22 @@ function updateLog(){
   if (html!==logShown){ el.innerHTML=html; logShown=html; }
 }
 
+// Wysokość paska górnego trafia do CSS jako --top-h, żeby panele (wywiad, cel)
+// wieszały się POD nim, a nie na zgadywanych 100 px. Na telefonie pasek zawija
+// się w dwa wiersze i każda sztywna liczba była tam błędna.
+let topHShown = -1;
+function syncTopH(){
+  const tb = qs('topbar'); if (!tb) return;
+  const h = tb.offsetHeight;
+  if (h && h !== topHShown){
+    topHShown = h;
+    document.documentElement.style.setProperty('--top-h', h + 'px');
+  }
+}
+
 /* ------------------------------- pełny HUD ------------------------------- */
 export function updateHUD(){
+  syncTopH();
   // kredyty
   const ir=incomeRate(), ti=terrIncome();
   qs('cr').textContent=Math.floor(S.money);
@@ -273,6 +374,13 @@ export function updateHUD(){
   updateUpgradePanel();
   updateObjective();
   updateLanes();
+  updateCamBtns();
+  drawMinimap();
+}
+
+function updateCamBtns(){
+  qs('cam-front').classList.toggle('on', cam.follow==='front');
+  qs('cam-base').classList.toggle('on', cam.follow==='base');
 }
 
 /* ---- panel ulepszenia budynku (po tapnięciu; koszt + efekt kolejnego poziomu) ---- */

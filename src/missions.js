@@ -16,6 +16,16 @@
    POLA REKORDU MISJI
      grid    [kolumny, wiersze]  — siatka bazy (mniejsza = ciaśniej)
      shape   '1' | '1-3-1'       — kształt korytarza (config.SHAPES)
+     len     int                 — DŁUGOŚĆ KORYTARZA w px. Mapa jest większa od
+                                   ekranu i przewijana; wszystko na korytarzu
+                                   (stanice, sektory, progi kształtu, przyczółek)
+                                   liczy się UŁAMKAMI tej liczby, więc to jedyne
+                                   pokrętło rozmiaru pola. Marsz skaluje się
+                                   podliniowo (config.SPD_MUL), więc dłuższe pole
+                                   to realnie dłuższy przemarsz, nie ten sam.
+     halfH   int                 — połowa wysokości korytarza; domyślnie z kształtu
+                                   (1 tor → ciasno, 3 tory → pas na tor)
+     spawnF  0..1                — gdzie na korytarzu stoi przyczółek wroga
      money   int                 — kredyty na start
      unlock  [typ budynku]       — CO JEST NA PASKU. To jest drzewko techniki
                                    kampanii; `req` z tabeli B działa tylko
@@ -50,7 +60,7 @@ export const MISSIONS = {
     brief:['Sztab stoi. Reszta zależy od Ciebie.',
            'Elektrownia daje moc. Rafineria zamienia rudę w kredyty.',
            'Za 55 sekund zameldują się goście. Działa sztabu je przyjmą.'],
-    grid:[5,4], shape:'1', money:400, camX:860,
+    grid:[5,4], shape:'1', len:1300, money:400,
     unlock:['power','refinery'],
     feats:feats({}),
     // Cel liczy KREDYTY ZAROBIONE, nie saldo. Liczony po saldzie karałby za budowanie,
@@ -60,7 +70,7 @@ export const MISSIONS = {
     // tuż PO odparciu fali, bez nich to cztery minuty i kilka fal — presja bez
     // twardego limitu czasu.
     goal:{ kind:'money', target:600, after:1 },
-    enemy:{ doc:'CZERWONA FALA', base:['barracks'], grow:0, spawnX:800, bastion:0 },
+    enemy:{ doc:'CZERWONA FALA', base:['barracks'], grow:0, spawnF:0.97, bastion:0 },
     waveT:[55, 45],
     par:{ sec:150, loss:0 },
   },
@@ -79,11 +89,11 @@ export const MISSIONS = {
     brief:['Ciaśniej niż wczoraj. Każda kratka to decyzja.',
            'Gniazdo strzela samo. Barak co falę wystawia żołnierza.',
            'Fale 1–3 przyjmiesz gniazdem. Od czwartej potrzebujesz ludzi.'],
-    grid:[5,4], shape:'1', money:450, camX:860,
+    grid:[5,4], shape:'1', len:1300, money:450,
     unlock:['power','refinery','barracks','bunker'],
     feats:feats({ sell:true, repair:true }),
     goal:{ kind:'waves', target:8 },
-    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.5, spawnX:820, bastion:0 },
+    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.5, spawnF:0.97, bastion:0 },
     waveT:[40, 34],
     par:{ sec:330, loss:6 },
   },
@@ -103,11 +113,11 @@ export const MISSIONS = {
            'Suwak ustawia linię: pod osłoną albo na przedpolu.',
            'Radar pokaże, co nadchodzi. Kosztuje tyle, co armia.',
            'Przejęty mini-sztab płaci kredytami i otwiera nowe kratki.'],
-    grid:[5,5], gridMax:[7,5], shape:'1', money:500, camX:1000,   // przejęty sztab = +1 kolumna kratek
+    grid:[5,5], gridMax:[7,5], shape:'1', len:2100, money:500,   // przejęty sztab = +1 kolumna kratek
     unlock:['power','refinery','barracks','bunker','workshop','radar'],
     feats:feats({ stance:2, sectors:1, radar:1, sell:true, repair:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'sectors', target:1 },
-    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.7, spawnX:980, bastion:0 },
+    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.7, spawnF:0.97, bastion:0 },
     waveT:[45, 32],
     par:{ sec:420, loss:10 },
   },
@@ -127,11 +137,11 @@ export const MISSIONS = {
     brief:['Korytarz się rozszerza. Trzy tory, trzy mini-sztaby.',
            'Weź dwa. Trzeciego nie obronisz — i o to chodzi.',
            'Fabryka daje czołgi. Oni odpowiedzą rakietami.'],
-    grid:[7,6], shape:'1-3-1', money:600, camX:1200,
+    grid:[7,6], shape:'1-3-1', len:3200, money:600,
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory'],
     feats:feats({ stance:4, sectors:3, radar:2, sell:true, repair:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'sectors', target:2 },
-    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks'], grow:0.85, spawnX:1090, bastion:0 },
+    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks'], grow:0.85, spawnF:0.97, bastion:0 },
     waveT:[45, 30],
     par:{ sec:540, loss:16 },
   },
@@ -152,12 +162,12 @@ export const MISSIONS = {
     brief:['Trzymasz środek. Oni ostrzeliwują tory po kolei.',
            'Ostrzał jest zapowiadany. Zdążysz ewakuować albo przyjąć i odbudować.',
            'Sztab przysyła rozkazy — pierwsze karty do wyboru.'],
-    grid:[7,6], shape:'1-3-1', money:650, camX:1200,
+    grid:[7,6], shape:'1-3-1', len:3200, money:650,
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory','reactor'],
     feats:feats({ stance:4, sectors:3, radar:2, cards:true, sell:true, repair:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'hold', target:2, waves:4 },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks','rocket'], grow:1,
-            spawnX:1110, bastion:0, shell:{ every:26, warn:5, dmg:26, r:52 } },
+            spawnF:0.97, bastion:0, shell:{ every:26, warn:5, dmg:26, r:52 } },
     waveT:[40, 30],
     par:{ sec:600, loss:22 },
   },
@@ -177,13 +187,13 @@ export const MISSIONS = {
     brief:['Korytarz zwęża się przed bastionem. Wejdziecie po kilku.',
            'Bastion bije w gardło, nie w całe pole.',
            'Artyleria i ciężka fabryka są Twoje. Reszta to kolejność.'],
-    grid:[7,6], shape:'1-3-1', money:700, camX:1200,
+    grid:[7,6], shape:'1-3-1', len:3600, money:700,
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory',
             'reactor','lab','arty','heavy'],
     feats:feats({ stance:5, sectors:3, radar:2, cards:true, sell:true, repair:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'bastion' },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks','rocket','factory'], grow:1,
-            spawnX:1114, bastion:2200, shell:{ every:22, warn:4, dmg:30, r:56 } },
+            spawnF:0.97, bastion:2200, shell:{ every:22, warn:4, dmg:30, r:56 } },
     waveT:[40, 30],
     par:{ sec:900, loss:30 },
   },
@@ -211,12 +221,12 @@ export const SKIRMISH = {
   id:'skirmish', n:0, code:'GRA DOWOLNA',
   teach:'Wszystko naraz.', gen:'Front jak zawsze. Reszta losowa.',
   brief:['Losowa doktryna, losowe warianty pola, pełna eskalacja.'],
-  grid:[7,6], shape:'1', money:null, camX:1200,
+  grid:[7,6], shape:'1-3-1', len:3200, money:null,
   unlock:null,                       // null = pełne drzewko z tabeli B (req jak dotąd)
   feats:feats({ stance:5, sectors:3, radar:2, cards:true, sell:true, repair:true,
                 upgrade:true, terrIncome:true }),
   goal:{ kind:'bastion' },
-  enemy:{ doc:null, base:null, grow:1, spawnX:null, bastion:null },
+  enemy:{ doc:null, base:null, grow:1, spawnF:0.97, bastion:2200 },
   waveT:null,
   par:{ sec:900, loss:30 },
 };

@@ -9,7 +9,7 @@ import {
   BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC, ETERR_ATK,
   COUNTER, HUNT_LEASH, ENGAGE_BAND, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
   isHeavy, isSoldier, isArmored, BAL, BASE_INCOME,
-  lanesAt, laneCY, laneHalf, corridorHalf, LANE_SHIFT, maxLanes
+  lanesAt, laneCY, laneHalf, corridorHalf, LANE_SHIFT, maxLanes, SPD_MUL
 } from './config.js';
 import { S, say, lineX } from './state.js';
 import { MIS, feat, goalDone } from './campaign.js';
@@ -21,6 +21,7 @@ import { updSect, terrIncome, eTerrCtrl, secE, secP } from './sectors.js';
 import { eDecide, eBuild, eComp, eHoldX } from './enemy.js';
 import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor, recalcPower } from './buildings.js';
 import { openDraft } from './cards.js';
+import { autoFollowFront } from './render.js';
 
 // Odstęp do następnej fali. Wolniejszy początek: pierwsze fale rzadziej, żeby
 // garść jednostek realnie biła się o mini-sztaby, zanim ruszy masa. Rozpędza
@@ -120,6 +121,7 @@ export function doWave(){
   const g = MIS().goal || {};
   if (g.kind==='hold') S.holdT = secP() >= g.target ? (S.holdT||0)+1 : 0;
   siren(); S.shake=Math.max(S.shake,4);
+  if (S.wave===1) autoFollowFront();     // koniec budowania w spokoju — patrz na front
   say('FALA '+S.wave, 'warn');
   // Rozkaz co 3 fale (było 5): przy krótkiej grze karty — jedyny tor skalowania
   // armii — musiały pojawiać się częściej, inaczej run kończył się, nim tor dmg/pancerz
@@ -314,7 +316,10 @@ export function update(dt){
       const fwd = u.side==='p' ? 1 : -1;
       if (isHeavy(d) && vx*fwd < 0) sMul = BACK_MUL;
       if (u.fireT>0){ vx=0; vy=0; }        // przy strzale żołnierz staje (nie strzela w marszu)
-      u.x += vx*d.spd*sMul*dt; u.y += vy*d.spd*sMul*dt;
+      // SPD_MUL — jedyne miejsce, w którym mapa wpływa na prędkość. Skaluje
+      // wszystkich jednakowo, więc relacje i kontry zostają (patrz config).
+      const sp = d.spd * SPD_MUL;
+      u.x += vx*sp*sMul*dt; u.y += vy*sp*sMul*dt;
     }
     // TOR jako rozkaz: jednostka dojeżdża do środka SWOJEGO toru i tam trzyma pas.
     // Zmiana u.lane (rozkaz gracza) natychmiast przestawia cel — przerzut kosztuje
@@ -357,7 +362,7 @@ export function update(dt){
   // ściśnięty w tłumie i drepczący w miejscu pokazuje idle (stoi i strzela) zamiast „ślizgać się".
   for (const u of S.units){
     if (u._sx==null) continue;
-    if (Math.abs(u.x-u._sx)+Math.abs(u.y-u._sy) > U[u.type].spd*dt*0.45) u.moveT=0.12;
+    if (Math.abs(u.x-u._sx)+Math.abs(u.y-u._sy) > U[u.type].spd*SPD_MUL*dt*0.45) u.moveT=0.12;
   }
 
   for (let i=S.units.length-1;i>=0;i--){
@@ -391,9 +396,9 @@ export function update(dt){
   }
   if (S.state!=='play' && S.wave>S.best) S.best=S.wave;
 
-  // Front porusza się w obrębie POLA MISJI — misja 1 gra na krótkim odcinku,
-  // więc FRONT_MAX (liczony od bastionu gry dowolnej) trzeba do niej przyciąć.
-  const fMax = Math.min(FRONT_MAX, (S.camX || FRONT_MAX) - 40);
+  // FRONT_MAX liczy się z długości korytarza misji (setField), więc front sam
+  // z siebie nie wyjdzie poza pole — nie ma już czego przycinać.
+  const fMax = FRONT_MAX;
   let target;
   if (S.bastion.dead) target=fMax;
   else {

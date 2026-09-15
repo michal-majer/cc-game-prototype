@@ -24,8 +24,8 @@
 
 import {
   B, U, COLS, ROWS, BASE_X, BASE_Y, CELL, GRID_MAX_COLS, GRID_MAX_ROWS,
-  LANE_Y, BAS_X, BAS_HP, FRONT_MIN, FRONT_MAX, START_MONEY, DOCTRINES,
-  STANCES, setGrid, setShape, resetTables, clamp,
+  LANE_Y, BAS_X, BAS_HP, FRONT_MIN, START_MONEY, DOCTRINES,
+  STANCES, setGrid, setShape, setField, halfForShape, atF, fieldX1, resetTables, clamp,
 } from './config.js';
 import { S, SECT, say } from './state.js';
 import { MISSIONS, WORLDS, SKIRMISH, worldOf } from './missions.js';
@@ -83,23 +83,30 @@ export function applyMission(m){
   S.mission = m;
   const [gc, gr] = m.grid || [GRID_MAX_COLS, GRID_MAX_ROWS];
   setGrid(gc, gr);
+  // KOLEJNOŚĆ MA ZNACZENIE: kształt najpierw (z niego liczy się domyślna wysokość
+  // korytarza), potem długość pola — setField przelicza z niej stanice, progi
+  // kształtu, promień sektorów, smycz i mnożnik marszu.
   setShape(m.shape || '1');
+  setField(m.len || 760, m.halfH || halfForShape(m.shape || '1'));
   S.gridMax = m.gridMax || [gc, gr];            // dokąd może urosnąć siatka (nowe kratki z sektorów)
-  S.camX = m.camX || BAS_X + 50;                // limit kamery per misja (misja 4: kamera odjeżdża)
   S.misWaveT = m.waveT || null;
   S.misGrow = m.enemy && m.enemy.grow != null ? m.enemy.grow : 1;
   S.shell = (m.enemy && m.enemy.shell) ? { ...m.enemy.shell, t:m.enemy.shell.every, lane:-1, warnT:0 } : null;
-  S.espawn = { x: (m.enemy && m.enemy.spawnX) || BAS_X - 36, y: LANE_Y };
+  // Przyczółek wroga siedzi na końcu korytarza — ułamkiem, nie pikselem, żeby
+  // zmiana długości pola nie zostawiała go w pustce albo za bastionem.
+  S.espawn = { x: atF(m.spawnF != null ? m.spawnF : 0.97), y: LANE_Y };
   S.goalT = 0; S.holdT = 0;                     // liczniki celów „utrzymaj"
 }
 
 // Sektory (mini-sztaby) to też dane misji: ile ich jest i gdzie.
 // SECT jest importowany jako const w kilku modułach — mutujemy W MIEJSCU.
 export function applySectors(n){
+  // Pozycje sektorów UŁAMKAMI korytarza — te same miejsca co stanice
+  // PRZEDPOLE / ŚRODEK / NACISK, więc suwak linii i teren mówią o tym samym.
   const POS = [
-    { n:'PRZEDPOLE', x:FRONT_MIN+186 },
-    { n:'ŚRODEK',    x:FRONT_MIN+373 },
-    { n:'NACISK',    x:FRONT_MIN+576 },
+    { n:'PRZEDPOLE', x:atF(0.25) },
+    { n:'ŚRODEK',    x:atF(0.50) },
+    { n:'NACISK',    x:atF(0.77) },
   ];
   SECT.length = 0;
   // Sektory idą za kształtem: przy trzech torach ŚRODEK dostaje po jednym na tor

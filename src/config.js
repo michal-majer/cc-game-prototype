@@ -22,15 +22,99 @@ export const GRID_MAX_COLS = 7, GRID_MAX_ROWS = 6;
 export let COLS = GRID_MAX_COLS, ROWS = GRID_MAX_ROWS;
 export const BASE_X = 40, BASE_Y = 176;
 export const BASE_R = BASE_X + GRID_MAX_COLS*CELL;   // 404 — stale, niezalezne od COLS
-export const LANE_Y = 332, LANE_HALF = 130;
-export const BAS_X = 1150;
-export const FRONT_MIN = BASE_R, FRONT_MAX = BAS_X - 30;
-export const EHOLD_X = BAS_X - 110;
+export const LANE_Y = 332;
+export const FRONT_MIN = BASE_R;
+
+/* ============================ ŚWIAT / KORYTARZ ===========================
+   MAPA JEST DUŻO WIĘKSZA OD EKRANU I PRZEWIJANA. Dlatego długość korytarza
+   NIE jest stałą — jest DANĄ MISJI (`len` w missions.js), a wszystkie punkty
+   na korytarzu podane są UŁAMKAMI jego długości, nie pikselami.
+
+   Bez tego każda zmiana rozmiaru mapy znaczyłaby ręczne przeliczanie stanic,
+   sektorów, progów kształtu, linii wroga i kamery — czyli pięciu miejsc
+   naraz, za każdym razem. Teraz jest jedna liczba w danych misji.
+
+   Co jest UŁAMKIEM (skaluje się z mapą):
+     · stanice (STANCES.f) · progi kształtu (SHAPES[].f) · pozycje sektorów
+     · promień przejmowania (CAP_R) · smycz łowcy (HUNT_LEASH)
+   Co zostaje W PIKSELACH (warstwa taktyczna, NIE skalujemy):
+     · zasięgi broni i rozmiary jednostek — w nich zakodowane są KONTRY
+       (patrz komentarz przy tabeli U); przeskalowanie ich rozjechałoby
+       wszystkie luki między jednostkami
+     · ENGAGE_BAND, CONTACT, BAS_RANGE — liczone względem zasięgów
+
+   `let` + eksport = żywe wiązanie: importerzy widzą nowe wartości bez żadnej
+   przeróbki, a setField() jest jedynym miejscem, które je liczy.            */
+
+const LEN_REF  = 760;    // dawna długość pola — odniesienie dla skal poniżej
+const HALF_REF = 130;    // dawna połowa wysokości korytarza
+
+export let FIELD_LEN = LEN_REF;      // długość korytarza w px (dana misji)
+export let LANE_HALF = HALF_REF;     // połowa wysokości korytarza
+export let BAS_X     = BASE_R + FIELD_LEN - 46;
+export let FRONT_MAX = BAS_X - 30;
+export let EHOLD_X   = BAS_X - 110;
+export let CAP_R     = 118;          // promień przejmowania mini-sztabu
+export let HUNT_LEASH = 150;         // jak daleko za linię łowca goni zwierzynę
+export let LANE_SHIFT = 90;          // px/s przy przerzucie MIĘDZY torami
+export let SPD_MUL   = 1;            // mnożnik marszu — patrz niżej
+
+// Punkt na korytarzu z ułamka jego długości (0 = skraj bazy, 1 = bastion).
+export const atF = f => BASE_R + FIELD_LEN * f;
+export const fieldX1 = () => BASE_R + FIELD_LEN;
+
+/* SPD_MUL — mnożnik PRĘDKOŚCI MARSZU, nie zasięgów.
+   Na dużo większej mapie sam przemarsz zjadłby misję: przy dawnych 26 px/s
+   piechota szłaby przez pole misji 6 blisko dwie minuty w jedną stronę.
+   Skalujemy WSZYSTKIE jednostki JEDNAKOWO, więc relacje między nimi (łazik
+   najszybszy, artyleria najwolniejsza) i wszystkie kontry zostają nietknięte —
+   zmienia się wyłącznie czas dojścia.
+
+   Wykładnik PODLINIOWY (0.6), nie 1.0, i to jest sedno: przy 1.0 czas przejścia
+   byłby identyczny jak na starej mapie, czyli większa mapa nie dawałaby NICZEGO
+   poza ładniejszym widokiem. Przy 0.6 pole ×4 daje marsz ~1,7× dłuższy — mapa
+   realnie JEST większa, a nie jest slalomem przez pustkę.
+   To jest pokrętło tempa: podnieś do 1.0 = krótsze marsze, zejdź do 0.3 = dłuższe. */
+const SPD_EXP = 0.6;
+
+export function setField(len, halfH){
+  FIELD_LEN = clamp(len|0, 400, 20000);
+  LANE_HALF = clamp(halfH|0 || HALF_REF, 80, 900);
+  BAS_X     = BASE_R + FIELD_LEN - 46;
+  FRONT_MAX = BAS_X - 30;
+  EHOLD_X   = BAS_X - 110;
+  const kLen  = FIELD_LEN / LEN_REF;
+  const kHalf = LANE_HALF / HALF_REF;
+  // Promień mini-sztabu rośnie PODLINIOWO i ma sufit: przy skali liniowej na polu
+  // 3 200 px wychodziło 420 px, czyli strefa na trzecią część mapy — sąsiednie
+  // sektory zachodziłyby na siebie i „stanie w sektorze" przestałoby być miejscem.
+  CAP_R      = Math.round(clamp(118 * Math.pow(kLen, 0.6), 90, 240));
+  HUNT_LEASH = Math.round(150 * Math.pow(kLen, 0.6));
+  LANE_SHIFT = Math.round(90 * kHalf);
+  SPD_MUL    = +Math.pow(kLen, SPD_EXP).toFixed(3);
+  // stanice i progi kształtu liczą się z ułamków — jedno miejsce, jeden raz
+  for (const st of STANCES) st.x = atF(st.f);
+  // NATARCIE to „wszystko na bastion" — przypinamy je DO BASTIONU, nie do końca
+  // korytarza, żeby ostatnia stanica nie wypadała kilkadziesiąt px za nim.
+  STANCES[STANCES.length-1].x = BAS_X;
+  for (const zs of Object.values(SHAPES)) for (const z of zs) z.x = atF(z.f);
+}
 
 export function setGrid(cols, rows){
   COLS = clamp(cols|0, 2, GRID_MAX_COLS);
   ROWS = clamp(rows|0, 2, GRID_MAX_ROWS);
 }
+
+/* Stanice jako UŁAMKI korytarza. Wartości `f` odtwarzają dawne pozycje
+   (BASE_R+60 / +186 / +373 / +576 / BAS_X przy polu 760 px), więc balans linii
+   zostaje ten sam — zmienia się tylko to, że teraz skalują się z mapą.        */
+export const STANCES = [
+  {n:'OBRONA',    f:0.08, x:0, d:'pod bunkrami · stos rośnie'},
+  {n:'PRZEDPOLE', f:0.25, x:0, d:'1/4 — poza osłoną'},
+  {n:'ŚRODEK',    f:0.50, x:0, d:'1/2 — neutralny grunt'},
+  {n:'NACISK',    f:0.77, x:0, d:'3/4 — artyleria dosięga BASTIONU'},
+  {n:'NATARCIE',  f:1.00, x:0, d:'wszystko na bastion'},
+];
 
 /* --------------------------- KSZTALT POLA (tory) -------------------------
    Korytarz nie ma stalej szerokosci (patrz FRONT.md §2): przy bazie 1 tor,
@@ -58,18 +142,25 @@ export function setGrid(cols, rows){
 // n = ile torow · h = polowa wysokosci korytarza w tej strefie (ulamek LANE_HALF).
 // h < 1 to LEJ: przewagi liczebnej nie da sie wprowadzic naraz. PRZEPUSTOWOSC LEJA
 // (h ostatniej strefy) to glowne pokretlo misji 6 — HP bastionu rusza sie OSTATNIE.
+// f = prog strefy jako UŁAMEK długości korytarza · n = ile torow
+// h = polowa wysokosci korytarza w tej strefie (ulamek LANE_HALF).
+// h < 1 to LEJ: przewagi liczebnej nie da sie wprowadzic naraz. PRZEPUSTOWOSC LEJA
+// (h ostatniej strefy) to glowne pokretlo misji 6 — HP bastionu rusza sie OSTATNIE.
 export const SHAPES = {
-  '1':     [{ x: BAS_X + 80, n: 1, h: 1 }],                 // waski korytarz na calej dlugosci (Swiat II)
-  '1-3-1': [{ x: FRONT_MIN + 150, n: 1, h: 0.62 },          // przy bazie — waskie gardlo
-            { x: FRONT_MIN + 600, n: 3, h: 1    },          // srodek — jedyny wybor kierunku
-            { x: BAS_X + 80,      n: 1, h: 0.38 }],         // LEJ przed bastionem
-  '1-2-1': [{ x: FRONT_MIN + 150, n: 1, h: 0.62 },          // rezerwa: ksztalt drugiego swiata
-            { x: FRONT_MIN + 600, n: 2, h: 1    },
-            { x: BAS_X + 80,      n: 1, h: 0.38 }],
+  '1':     [{ f: 1.1,  n: 1, h: 1,    x:0 }],               // waski korytarz na calej dlugosci (Swiat II)
+  '1-3-1': [{ f: 0.20, n: 1, h: 0.62, x:0 },                // przy bazie — waskie gardlo
+            { f: 0.80, n: 3, h: 1,    x:0 },                // srodek — jedyny wybor kierunku
+            { f: 1.1,  n: 1, h: 0.38, x:0 }],               // LEJ przed bastionem
+  '1-2-1': [{ f: 0.20, n: 1, h: 0.62, x:0 },                // rezerwa: ksztalt drugiego swiata
+            { f: 0.80, n: 2, h: 1,    x:0 },
+            { f: 1.1,  n: 1, h: 0.38, x:0 }],
 };
 let SHAPE = '1';
 export const shapeId = () => SHAPE;
 export function setShape(id){ SHAPE = SHAPES[id] ? id : '1'; }
+// domyślna wysokość korytarza z KSZTAŁTU: trzy tory potrzebują realnego pasa
+// na tor, jeden tor ma być ciasny. Jedna dana mniej w tabeli misji.
+export const halfForShape = id => (SHAPES[id]||SHAPES['1']).some(z=>z.n>1) ? 240 : 150;
 // strefa ksztaltu obejmujaca x (pierwszy prog wiekszy od x wygrywa)
 export function zoneAt(x){
   const zs = SHAPES[SHAPE];
@@ -83,8 +174,26 @@ export const lanesAt = x => zoneAt(x).n;
 // armia szlaby torem 1, dopoki gracz recznie nie wyda rozkazu. Przydzial liczymy
 // wiec z SZEROKIEJ strefy, do ktorej i tak zmierza.
 export const maxLanes = () => SHAPES[SHAPE].reduce((m,z)=>Math.max(m,z.n), 1);
-// polowa wysokosci PRZEJEZDNEGO korytarza w tym miejscu (lej = mniej)
-export const corridorHalf = x => LANE_HALF * (zoneAt(x).h == null ? 1 : zoneAt(x).h);
+/* Polowa wysokosci PRZEJEZDNEGO korytarza w tym miejscu.
+
+   ZWEZENIE JEST STOPNIOWE, nie skokowe. Progi stref sa dyskretne (liczba torow
+   nie moze byc ulamkiem), ale SZEROKOSC przechodzi lagodnie przez pas TAPER:
+   lej ma sciskac coraz mocniej w miare podchodzenia, a nie ciac pole pionowa
+   sciana. Gracz czyta z pola, ile jeszcze ma miejsca — i to jest cala mechanika
+   misji 6 („przepustowosc leja"), wiec musi byc widoczna, a nie nagla.          */
+const TAPER_F = 0.07;                     // szerokosc pasa przejscia (ulamek pola)
+export function corridorHalf(x){
+  const zs = SHAPES[SHAPE];
+  let i = zs.length - 1;
+  for (let k = 0; k < zs.length; k++) if (x < zs[k].x){ i = k; break; }
+  const h  = zs[i].h == null ? 1 : zs[i].h;
+  if (i === 0) return LANE_HALF * h;
+  const hPrev = zs[i-1].h == null ? 1 : zs[i-1].h;
+  if (hPrev === h) return LANE_HALF * h;
+  const start = zs[i-1].x, band = FIELD_LEN * TAPER_F;
+  const t = clamp((x - start) / band, 0, 1);
+  return LANE_HALF * (hPrev + (h - hPrev) * t);
+}
 // srodek toru `lane` (0..n-1) przy szerokosci n torow, w miejscu x
 export function laneCY(lane, n, x){
   const half = x == null ? LANE_HALF : corridorHalf(x);
@@ -97,10 +206,8 @@ export const laneHalf = (n, x) => {
   const half = x == null ? LANE_HALF : corridorHalf(x);
   return n <= 1 ? half : Math.max(6, half/n - 4);
 };
-// jak szybko jednostka przechodzi MIEDZY torami po zmianie rozkazu (px/s).
-// Przerzut ma cos kosztowac — jednostka w polowie drogi nie strzela w swoim pasie
-// — ale nie ma byc karny: 90 px/s to ~1,5 s na sasiedni tor przy trzech torach.
-export const LANE_SHIFT = 90;
+// Przerzut MIĘDZY torami (LANE_SHIFT) skaluje się z wysokością korytarza —
+// szerszy pas to dłuższa droga w poprzek, ale ten sam koszt w sekundach.
 
 // --- AI wroga ---
 export const EARTY_CAP = 3;
@@ -120,14 +227,6 @@ export const ECOUNTER_FROM = 5;
 export const ETHINK    = 2;
 export const ECOMMIT   = 26;
 export const ESHELLED  = 55;
-
-export const STANCES = [
-  {n:'OBRONA',    x:BASE_R+60,  d:'pod bunkrami · stos rośnie'},
-  {n:'PRZEDPOLE', x:BASE_R+186, d:'1/4 — poza osłoną'},
-  {n:'ŚRODEK',    x:BASE_R+373, d:'1/2 — neutralny grunt'},
-  {n:'NACISK',    x:BASE_R+576, d:'3/4 — artyleria dosięga BASTIONU'},
-  {n:'NATARCIE',  x:BAS_X,      d:'wszystko na bastion'},
-];
 
 export const CO = {
   bg:'#0f1315', dirt:'#1a2022', grid:'#232c2f', gridHi:'#2f3b3f', laneEdge:'#39474b',
@@ -199,8 +298,8 @@ export const MAXLVL    = 3;
 export const RAID_PAY  = 0.4;
 export const HQ_COST   = 350;
 export const START_MONEY = 250;  // = koszt rafinerii: zawsze stać na jedną (karty otwarcia nadpisują)
-export const CAP_R     = 118;
 export const CAP_RATE  = 6;   // wolniejsze przejmowanie (~17 s) → sektor to trwały bój, nie pstryknięcie
+// CAP_R (promień mini-sztabu) skaluje się z długością pola — patrz setField.
 
 // --- BALANS RUCHOMY (karty + resetTables) ---
 // EBUILD_EVERY: co ile fal wróg dokłada budynek. Niżej = szybsza eskalacja.
@@ -288,7 +387,6 @@ export const U = {
   kolos:{name:'Kolos',       hp:430, dmg:32, range:66,  spd:21, rate:1.1,  sz:11, strong:['inf'], arm:6},
 };
 export const COUNTER   = 2.0;
-export const HUNT_LEASH = 150;
 // Pasmo walki: jak daleko ZA LINIĄ trzymana jednostka podejdzie, by dosięgnąć
 // wroga strzałem, zamiast stać jak słup pod ostrzałem dłuższego zasięgu. Kryje
 // zwarcie z pancernymi (czołg 54, kolos 66 px), ale NIE pozwala gonić kitera
