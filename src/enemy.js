@@ -8,6 +8,7 @@ import {
   ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X, EPUSH_MIN, ECOUNTER_FROM, narrowStart
 } from './config.js';
 import { S, SECT, say, lineX } from './state.js';
+import { MIS } from './campaign.js';
 import { boom, siren } from './audio.js';
 import { bDmg, radarLvl } from './buildings.js';
 import { terrCtrl, sectWeaken } from './sectors.js';
@@ -91,6 +92,19 @@ export function eDecide(){
   const shelled = S.eDmgWave > ESHELLED;
   S.eDmgWave = 0;
   if (!n){ S.eStance='hold'; S.eHoldT=0; return; }
+  /* SZTURM vs FRONT — dwie różne sytuacje, a dotąd był tylko jeden kod.
+     Domyślna logika modeluje FRONT: wróg trzyma linię, kontestuje teren
+     i naciera dopiero, gdy uzbiera przewagę. W misji OBRONNEJ to znaczy, że
+     przy porządnej obronie NIE NACIERA NIGDY — stoi tysiąc pikseli od bazy,
+     pole się nie czyści i „odeprzyj 8 fal" nie kończy się nawet po dwudziestu
+     dwóch (pomiar: 12:27 w misji liczonej na pięć minut).
+     `enemy.assault` mówi: oni tu przyszli SZTURMOWAĆ. Idą i już.
+     Tak samo po OSTATNIEJ fali skończonego szturmu — nie mają na co czekać. */
+  const E = MIS().enemy || {};
+  if (E.assault || (E.waves && S.wave > E.waves)){
+    if (S.eStance!=='push'){ S.eStance='push'; S.ePush=ECOMMIT; }
+    return;
+  }
   // Ostrzał wyzwala szarżę „nie damy się ostrzeliwać" — ale TYLKO gdy wróg nie jest
   // wyraźnie słabszy (r >= EHOLD_R). Bezwarunkowo (jak dawniej) wystarczyło łupnąć
   // artylerią w garstkę, by rzuciła się na bazę i zginęła bez sensu — najkrótsza droga

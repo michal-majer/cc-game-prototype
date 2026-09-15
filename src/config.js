@@ -443,8 +443,13 @@ export const B = {
   // a nie być domyślnym otwarciem na wszystko.
   rocket:  {name:'WYRZUTNIA',    short:'WYRZ.', fp:[1,2], cost:340, hp:180,  col:'#9b7fd4', ico:'r', drn:2, req:[],
             unit:'rkt', count:1, desc:'rakiety przebijają pancerz · ×2 do czołgów'},
+  // DZIAŁKO stoi na STANOWISKU OGNIOWYM przed bazą, nie na kratce budowy.
+  // Na malej siatce misji 2 gniazdo konkurowalo o miejsce z rafineria i barakiem,
+  // wiec nigdy nie bylo warte postawienia — a to ono ma niesc pierwsze fale.
+  // Osobne stanowiska robia z niego realny wybor: kosztuje kredyty, nie kratki.
   bunker:  {name:'GNIAZDO RAK.',  short:'GNIAZ.',fp:[1,1], cost:180, hp:350,  col:'#8fa3a8', ico:'▲', drn:1, req:['rocket'],
-            desc:'rakiety 230 px · przebija pancerz', atk:{dmg:15, range:230, rate:1.0, ap:true}},
+            slot:true, desc:'na stanowisku · rakiety 230 px · przebija pancerz',
+            atk:{dmg:15, range:230, rate:1.0, ap:true}},
   workshop:{name:'WARSZTAT',     short:'WARSZ.',fp:[2,1], cost:200, hp:220,  col:'#d9a04d', ico:'w', drn:2, req:[],
             unit:'lazik', count:1},
   factory: {name:'FABRYKA',      short:'FABR.', fp:[2,2], cost:400, hp:300,  col:'#4d9de0', ico:'T', drn:3, req:['radar'],

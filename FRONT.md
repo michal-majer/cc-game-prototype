@@ -196,9 +196,9 @@ Zasada nadrzędna: **jedna misja = jedna nowa rzecz dla gracza i jedna dla wroga
 
 | # | Kryptonim | Cel | Nowe u gracza | Nowe u wroga | Kształt |
 |---|---|---|---|---|---|
-| 1 | PIERWSZY DZIEŃ | Zbierz X kredytów → jedna fala | elektrownia, rafineria | piechota | 1 tor |
-| 2 | ŚCIANA | Odeprzyj 8 fal | baraki, działko | tempo i masa | 1 tor |
-| 3 | PUNKT | Przejmij sektor | łazik **albo** rakietowiec, radar, suwak (2 poz.) | mini-baza jako punkt startu fal | 1 tor |
+| 1 | PIERWSZY DZIEŃ | Zarób X kredytów → jedna fala | elektrownia → rafineria | piechota | 1 droga |
+| 2 | ŚCIANA | Odeprzyj 8 fal | baraki, **działko na stanowisku** | tempo i masa | 1 droga |
+| 3 | PUNKT | Zajmij cel (od 3. fali) | łazik **albo** rakietowiec, radar, suwak (2 poz.) | mini-baza jako punkt startu fal | 1 droga |
 | 4 | ROZWIDLENIE | Opanuj 2 z 3 **dróg** | czołg, mini-baza wysunięta | pojazdy, kontry | **3 drogi** |
 | 5 | POD OSTRZAŁEM | Utrzymaj środek / dojdź do leja | budynki torowe, karty | ostrzał po torach | 3 tory → lej |
 | 6 | LEJ | Zniszcz bastion | pełny suwak, artyleria, ciężkie | bastion bije w gardło | lej |
@@ -219,9 +219,44 @@ Portret generała z jednym zdaniem zamiast samouczka. Pasek budowy pokazuje **dw
 budynki**. Nie ma: suwaka, sektorów, kart, radaru, wariantów pola, eskalacji,
 rozbiórki, ulepszania.
 
-*Do kalibracji:* cel kredytowy (ma wymusić oba budynki, nie samo czekanie) · czas do
-fali · siła fali (działa bazy mają ją odeprzeć nawet przy słabej zabudowie) · rozmiar
-siatki · kredyty startowe.
+**Rafineria WYMAGA elektrowni** (`reqAdd` w danych misji). Bez tego misja o ekonomii
+przechodziła się JEDNYM budynkiem: sztab daje 4 mocy, rafineria bierze 2, więc prąd
+był zbędny — pomiar pokazał wygraną w 0:59 z samą rafinerią. Teraz oba są naprawdę
+wymuszone, a „najpierw prąd" jest lekcją, nie ozdobą.
+
+*Do kalibracji:* cel kredytowy · czas do fali · siła fali (działa bazy mają ją
+odeprzeć nawet przy słabej zabudowie) · kredyty startowe.
+
+#### Stanowiska ogniowe — działka mają swoje miejsca
+
+Działko (GNIAZDO RAK.) **nie stoi na kratce budowy**. Przed bazą są gotowe
+STANOWISKA OGNIOWE i tylko tam można je postawić.
+
+Powód jest mierzalny: na siatce misji 2 (20 kratek, cztery zajmuje sztab) gniazdo
+konkurowało o miejsce z rafinerią i barakiem, więc nigdy nie było warte
+postawienia — a to właśnie ono ma nieść pierwsze fale. Na osobnym stanowisku
+kosztuje kredyty, ale **nie kratkę**, i dopiero wtedy jest realnym wyborem.
+
+Liczba stanowisk rośnie z misjami razem z odsunięciem frontu: m2 — 3, m3 — 4,
+m4 — 5, m5–6 — 6. Okopujesz się tym dalej, im dalej sięgasz.
+
+#### Siatka bazy rośnie z kampanią
+
+| misja | kratki | z czego |
+|---|---|---|
+| 1 | **18** (6×3) | najciaśniej w całej kampanii |
+| 2 | 20 (5×4) | + 3 stanowiska |
+| 3 | 25 → 35 (5×5 → 7×5) | rośnie za zajęty teren |
+| 4 | 36 → 42 (6×6 → 7×6) | rośnie za zajęty teren |
+
+**Miejsce jest nagrodą za teren, nie stanem wyjściowym.** Każdy zajęty cel na
+drodze daje raz nową kolumnę kratek (§4.3), SKŁAD dwie.
+
+*Mina, na którą się nadziałem:* przy 5×3 (15 kratek) zostawało dokładnie jedno
+miejsce na rafinerię 2×2 przy złożu — a misja 1 nie ma rozbiórki, więc gracz
+mógł **zablokować tutorial jednym kliknięciem**, stawiając tam elektrownię.
+Stąd 6×3 i `ensureRefinerySpot()`, które gwarantuje trzy różne miejsca na
+ciasnej siatce, zdejmując kratki żyły od brzegu, aż się znajdą.
 
 ### Misja 2 — ŚCIANA
 
@@ -234,6 +269,14 @@ Czyta się jako obrona, nie ekspansja. Fale 1–3 działko wystarcza; 4–8 potr
 *Pułapka:* pokusa zrobienia tower defense na własnych zasadach. **Nie.** Cokolwiek tu
 wejdzie, musi mówić tym samym słownictwem co reszta gry — inaczej gracz nauczy się
 rzeczy, która zniknie w misji 3, i odbierze to jako cofnięcie.
+
+**Szturm jest SKOŃCZONY: osiem fal i ani jednej więcej** (`enemy.waves`), a wróg
+w tej misji **idzie, nie stoi** (`enemy.assault`). Domyślna logika wroga modeluje
+FRONT: trzyma linię i naciera dopiero, gdy uzbiera przewagę. W misji obronnej
+znaczyło to, że przy porządnej obronie NIE NACIERA NIGDY — stał tysiąc pikseli od
+bazy, pole się nie czyściło i „odeprzyj 8 fal" nie kończyło się nawet po dwudziestu
+dwóch (pomiar: 12:27 w misji liczonej na pięć minut). To nie front, tylko szturm
+na bazę — i tak się teraz zachowuje.
 
 ### Misja 3 — PUNKT
 
@@ -248,6 +291,9 @@ wiesz, co nadchodzi. W misji obronnej byłby ikoną.
 
 *Nowe kratki to nie ozdoba* — pierwszy realny zlew na kredyty i odpowiedź na „siatka
 pełna, 1 700 kredytów bez zastosowania".
+
+**Cel nie zalicza się przed 3. falą** (`goal.after`). Bez tego misja kończyła się
+w 1:21 na drugiej fali — czyli zanim gracz w ogóle zobaczył, po co był radar.
 
 ### Misja 4 — ROZWIDLENIE
 

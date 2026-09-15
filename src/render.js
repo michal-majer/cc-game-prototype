@@ -14,7 +14,7 @@ import {
 import { S, SECT, lineX } from './state.js';
 import { buildTex, unitTex, unitSheet, tex, tileTex, markTex, hasTiles } from './assets.js';
 import { shellMark } from './sim.js';
-import { radarLvl, canUp, maxLvl, fits } from './buildings.js';
+import { radarLvl, canUp, maxLvl, fits, slotAt, isSlotType } from './buildings.js';
 import { eTerrCtrl } from './sectors.js';
 import { bEff, eHoldX } from './enemy.js';
 
@@ -377,6 +377,7 @@ function drawWorld(){
 
   for (const c of S.corpses) g.rect(c.x-c.s/2,c.y-c.s/2,c.s,c.s*0.6).fill({color:c.c, alpha:0.5});
 
+  drawSlots(g);
   drawBaseGrid(g);
   wtEnd();
 }
@@ -461,10 +462,29 @@ function ensureBuildingView(b){
   v.lab.anchor.set(0.5,1); v.addChild(v.lab);
   buildLayer.addChild(v); b._view=v; return v;
 }
+/* Stanowiska ogniowe — gotowe pozycje na działka PRZED bazą. Puste rysujemy
+   jako obrys z ikoną, żeby gracz WIDZIAŁ, że ma gdzie postawić, zanim odblokuje
+   działko: to jest zaproszenie, nie nagroda za zgadnięcie.                    */
+function drawSlots(g){
+  for (const sl of (S.slots||[])){
+    if (sl.b) continue;
+    const R=24, free = S.sel && isSlotType(S.sel);
+    const col = free ? CO.ok : '#5c6a70';
+    g.roundRect(sl.x-R, sl.y-R*0.72, R*2, R*1.44, 4).fill({color:'#10171a', alpha:0.75});
+    g.roundRect(sl.x-R+0.5, sl.y-R*0.72+0.5, R*2-1, R*1.44-1, 4)
+     .stroke({width: free?2:1, color:col, alpha: free?0.95:0.55});
+    wt('▲', sl.x, sl.y-3, 13, col, {alpha: free?1:0.6, bold:true});
+    wt('STANOWISKO', sl.x, sl.y+R*0.72+7, 7, col, {alpha:0.7});
+  }
+}
 function drawBuildings(){
   for (const b of S.buildings){
     const v=ensureBuildingView(b), d=B[b.type];
-    const [w,h]=d.fp, R={x:BASE_X+b.c*CELL, y:BASE_Y+b.r*CELL, w:w*CELL, h:h*CELL};
+    // budynek na stanowisku nie ma kratek — rysuje się wokół własnej pozycji
+    const [w,h]=d.fp;
+    const R = b.slot>=0
+      ? {x:b.x-26, y:b.y-18, w:52, h:36}
+      : {x:BASE_X+b.c*CELL, y:BASE_Y+b.r*CELL, w:w*CELL, h:h*CELL};
     const pulse = b.brown && (now()%600<300);
     const building = (b.build||0)>0;
     const body = b.flash>0 ? '#ffffff' : building ? '#28323a' : (b.powered ? d.col : (pulse?'#5c2a2a':'#3d2222'));
@@ -735,6 +755,16 @@ function drawOver(){
 function drawGhost(){
   const g=ghostG; g.clear();
   if (S.state!=='play') return;
+  // działko celuje w STANOWISKO, nie w kratkę
+  if (S.sel && isSlotType(S.sel) && S.wmouse.over){
+    const i = slotAt(S.wmouse.x, S.wmouse.y, 34);
+    if (i>=0){
+      const sl=S.slots[i], ok=!sl.b && S.money>=B[S.sel].cost;
+      g.roundRect(sl.x-26, sl.y-19, 52, 38, 4).fill({color: ok?B[S.sel].col:CO.red, alpha:0.35});
+      g.roundRect(sl.x-26, sl.y-19, 52, 38, 4).stroke({width:2, color: ok?B[S.sel].col:CO.red});
+    }
+    return;
+  }
   const cell = S.wmouse.over ? cellAt(S.wmouse.x,S.wmouse.y) : null;
   if (S.sel && S.sel!=='SELL' && cell){
     const d=B[S.sel], [w,h]=d.fp;

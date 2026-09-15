@@ -48,7 +48,7 @@ export function genOre(){
   // i nie zostawiło miejsca na rafinerię, która ma z tej rudy ciągnąć.
   const CELLS = COLS*ROWS;
   const nSeeds = CELLS >= 30 ? 2 : 1;              // małe pole = jedno złoże
-  const size0  = Math.max(3, Math.min(5, Math.round(CELLS*0.10)));   // 7×6 → 4, 5×4 → 3
+  const size0  = Math.max(2, Math.min(5, Math.round(CELLS*0.10)));   // 7×6 → 4, 5×4 → 2, 5×3 → 2
   const c0     = Math.min(2, COLS-1);              // kolumny 0–1 rezerwuje sztab
   const seeds=[];
   const far = (c,r) => !seeds.some(s=>Math.abs(s.c-c)+Math.abs(s.r-r)<3);
@@ -81,6 +81,53 @@ export function genOre(){
   }
   // placyk pod sztab: kolumny 0–1 zawsze wolne od rudy
   for (let r=0;r<ROWS;r++) for (let c=0;c<Math.min(2,COLS);c++){ S.grid[r][c].ore=0; S.grid[r][c].seam=false; }
+  ensureRefinerySpot();
+}
+
+/* GWARANCJA: na siatce MUSI istnieć miejsce na rafinerię PRZY ZŁOŻU.
+
+   Na ciasnej siatce misji 1 (5×3 = 15 kratek, z czego cztery bierze sztab)
+   losowa żyła potrafiła zająć dokładnie te kratki, które były jedynym miejscem
+   na rafinerię 2×2 — i misja o ekonomii stawała się nie do przejścia. Pomiar:
+   bot postawił elektrownię i utknął, 4:57 bez rafinerii.
+
+   Zamiast losować do skutku, ZDEJMUJEMY kratki żyły od jej brzegu, aż miejsce
+   się znajdzie. Żyła jest wtedy mniejsza, ale misja istnieje.                 */
+export function ensureRefinerySpot(){
+  // Ile RÓŻNYCH miejsc na rafinerię przy złożu ma zostać. Na ciasnej siatce
+  // JEDNO nie wystarcza: gracz postawi elektrownię dokładnie tam i misja 1
+  // przestaje być przechodnia — a tutorial nie może się zakleszczyć od jednego
+  // kliknięcia. Na małej siatce wymagamy trzech kotwic, na dużej wystarczy jedna.
+  const need = (COLS*ROWS) < 24 ? 3 : 1;
+  const spots = () => {
+    let n=0;
+    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
+      if (c+2>COLS || r+2>ROWS) continue;
+      let clear=true;
+      for (const [cc,rr] of [[c,r],[c+1,r],[c,r+1],[c+1,r+1]])
+        if (S.grid[rr][cc].ore>0 || S.grid[rr][cc].b){ clear=false; break; }
+      if (!clear) continue;
+      for (const [cc,rr] of ringOf('refinery',c,r)) if (S.grid[rr][cc].seam){ n++; break; }
+    }
+    return n;
+  };
+  const spotOK = () => spots() >= need;
+  let guard = 40;
+  while (!spotOK() && guard-- > 0){
+    // zdejmij kratkę żyły o najmniejszej liczbie sąsiadów-żył (brzeg złoża)
+    let best=null, bn=99;
+    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
+      if (!S.grid[r][c].seam) continue;
+      let n=0;
+      for (const [dc,dr] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const g=S.grid[r+dr] && S.grid[r+dr][c+dc];
+        if (g && g.seam) n++;
+      }
+      if (n<bn){ bn=n; best=[c,r]; }
+    }
+    if (!best) break;
+    S.grid[best[1]][best[0]].seam=false; S.grid[best[1]][best[0]].ore=0;
+  }
 }
 
 // Karta bonus (NOWE ZŁOŻE): dokłada świeżą, bogatą żyłę w wolnym miejscu siatki.

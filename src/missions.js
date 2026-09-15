@@ -40,6 +40,15 @@
                                    o kierunku. Jedna droga = brak rozwidlenia.
      roadGap int                 — odstęp między osiami dróg (domyślnie 300)
      roadW   int                 — szerokość jednej drogi (domyślnie 150)
+     slots   [{f,y}]             — STANOWISKA OGNIOWE przed bazą: gotowe pozycje
+                                   na działka, POZA siatką budowy. Działko kosztuje
+                                   kredyty, ale nie kratkę — na ciasnej siatce
+                                   pierwszych misji to jedyny sposób, żeby było
+                                   warte postawienia. f = ułamek długości pola,
+                                   y = ułamek szerokości korytarza (−1..1).
+                                   Liczba stanowisk rośnie z misjami razem
+                                   z odsunięciem frontu.
+     reqAdd  {typ:[wymagania]}   — wymaganie DOPISANE przez misję (patrz m1)
      money   int                 — kredyty na start
      unlock  [typ budynku]       — CO JEST NA PASKU. To jest drzewko techniki
                                    kampanii; `req` z tabeli B działa tylko
@@ -53,6 +62,16 @@
    ---------------------------------------------------------------------
    Liczby są DO SPRAWDZENIA W GRZE. Struktura nie.
    ========================================================================= */
+
+/* Stanowiska ogniowe: rosną z misjami. Pierwsze dwa siedzą przy samej bazie
+   po skosie, kolejne coraz dalej w przedpole — okopujesz się tym dalej, im
+   dalej sięgasz. Misja 1 nie ma żadnych: jedna misja = jedna nowa rzecz.     */
+const SLOTS = [
+  { f:0.05, y:-0.75 }, { f:0.05, y: 0.75 },
+  { f:0.10, y: 0    }, { f:0.13, y:-0.75 },
+  { f:0.13, y: 0.75 }, { f:0.17, y: 0    },
+];
+const slots = n => SLOTS.slice(0, n);
 
 // domyślne wyłączenie wszystkiego — misja włącza tylko to, czego uczy
 const OFF = { stance:0, sectors:0, cards:false, radar:0, sell:false, repair:false,
@@ -72,10 +91,23 @@ export const MISSIONS = {
     teach:'Ekonomia ma stawkę.',
     gen:'Prąd i ruda. Bez nich jesteś tu tylko celem.',
     brief:['Sztab stoi. Reszta zależy od Ciebie.',
-           'Elektrownia daje moc. Rafineria zamienia rudę w kredyty.',
+           'Najpierw prąd. Rafineria bez niego nie ruszy.',
            'Za 55 sekund zameldują się goście. Działa sztabu je przyjmą.'],
-    grid:[5,4], shape:'1', len:1300, money:400,
+    // NAJCIAŚNIEJ w całej kampanii: 18 kratek, z czego cztery bierze sztab,
+    // a złoże kolejne dwa. Siatka rośnie z każdą misją razem z odsunięciem
+    // frontu (m2 20, m3 25→35, m4 36→42) — miejsce jest NAGRODĄ ZA TEREN,
+    // nie stanem wyjściowym.
+    //   5×3 było o jedną kolumnę za ciasne: zostawało dokładnie jedno miejsce
+    //   na rafinerię i gracz mógł ZABLOKOWAĆ MISJĘ, stawiając tam elektrownię
+    //   (misja 1 nie ma rozbiórki). Tutorial nie może się zakleszczyć od
+    //   jednego kliknięcia — patrz ensureRefinerySpot w economy.js.
+    grid:[6,3], shape:'1', len:1300, money:400,
     unlock:['power','refinery'],
+    // Rafineria WYMAGA elektrowni. Bez tego misja o ekonomii przechodziła się
+    // samą rafinerią: sztab daje 4 mocy, rafineria bierze 2, więc prąd był
+    // zbędny (pomiar: wygrana w 0:59 z jednym budynkiem). Teraz oba są naprawdę
+    // wymuszone, a kolejność „najpierw prąd" jest lekcją, nie ozdobą.
+    reqAdd:{ refinery:['power'] },
     feats:feats({}),
     // Cel liczy KREDYTY ZAROBIONE, nie saldo. Liczony po saldzie karałby za budowanie,
     // czyli dokładnie za to, czego misja uczy — bot to pokazał: wygrywał dopiero
@@ -100,14 +132,22 @@ export const MISSIONS = {
     id:'m2', n:2, code:'ŚCIANA',
     teach:'Kredyty trzeba zamienić w armię.',
     gen:'Osiem fal. Nie oddasz ani kratki.',
-    brief:['Ciaśniej niż wczoraj. Każda kratka to decyzja.',
+    brief:['Przed bazą są trzy STANOWISKA OGNIOWE. Działko nie zajmuje kratki.',
            'Gniazdo strzela samo. Barak co falę wystawia żołnierza.',
-           'Fale 1–3 przyjmiesz gniazdem. Od czwartej potrzebujesz ludzi.'],
-    grid:[5,4], shape:'1', len:1300, money:450,
+           'Fale 1–3 przyjmiesz działkami. Od czwartej potrzebujesz ludzi.'],
+    // Trzy stanowiska: działko kosztuje kredyty, ale NIE miejsce w bazie —
+    // dopiero wtedy jest realną alternatywą dla baraku na tak ciasnej siatce.
+    grid:[5,4], shape:'1', len:1300, money:450, slots:slots(3),
     unlock:['power','refinery','barracks','bunker'],
     feats:feats({ sell:true, repair:true }),
+    // `enemy.waves` — szturm ma OSIEM FAL i ani jednej więcej. Bez tego cel
+    // „odeprzyj 8 fal" czekał na czyste pole, a fale leciały bez końca:
+    // pomiar pokazał falę 23 i trzynaście minut w misji liczonej na pięć.
     goal:{ kind:'waves', target:8 },
-    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.5, spawnF:0.97, bastion:0 },
+    // `assault` — to nie front, tylko szturm na bazę: idą, nie stoją. Bez tego
+    // przy porządnej obronie wróg w ogóle nie nacierał i misja nie miała końca.
+    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.5, waves:8,
+            assault:true, spawnF:0.97, bastion:0 },
     waveT:[40, 34],
     par:{ sec:330, loss:6 },
   },
@@ -127,7 +167,7 @@ export const MISSIONS = {
            'Suwak ustawia linię: pod osłoną albo na przedpolu.',
            'Radar pokaże, co nadchodzi. Kosztuje tyle, co armia.',
            'Przejęty mini-sztab płaci kredytami i otwiera nowe kratki.'],
-    grid:[5,5], gridMax:[7,5], shape:'1', len:2100, money:500,   // przejęty sztab = +1 kolumna kratek
+    grid:[5,5], gridMax:[7,5], shape:'1', len:2100, money:500, slots:slots(4),
     unlock:['power','refinery','barracks','bunker','workshop','radar'],
     feats:feats({ stance:2, sectors:1, radar:1, sell:true, repair:true, upgrade:true, terrIncome:true }),
     // Jedna droga, jeden cel — i stoi DOKŁADNIE na najdalszej linii, jaką ten
@@ -135,10 +175,13 @@ export const MISSIONS = {
     // jest misją nieprzechodnią, nie trudną.
     roads:[{ n:'TRAKT', y:0, bow:0,
              sect:[{ kind:'sztab', n:'PRZEDPOLE', f:0.25 }] }],
-    goal:{ kind:'sectors', target:1 },
+    // `after:3` — nie da się wygrać, zanim radar i suwak zdążą cokolwiek znaczyć.
+    // Bez tego misja kończyła się w 1:21 na drugiej fali, czyli zanim gracz
+    // w ogóle zobaczył, po co był wywiad.
+    goal:{ kind:'sectors', target:1, after:3 },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.7, spawnF:0.97, bastion:0 },
     waveT:[45, 32],
-    par:{ sec:420, loss:10 },
+    par:{ sec:300, loss:10 },
   },
 
   /* --- 4 — ROZWIDLENIE -----------------------------------------------------
@@ -156,7 +199,7 @@ export const MISSIONS = {
     brief:['Za gardłem korytarz rozchodzi się na trzy niezależne drogi.',
            'Każda ma co innego do wzięcia. Górna i dolna są dłuższe.',
            'Opanuj dwie. Trzeciej nie obronisz — i o to chodzi.'],
-    grid:[6,6], gridMax:[7,6], shape:'1-3-1', len:3200, money:600,   // zajęty cel = nowe kratki
+    grid:[6,6], gridMax:[7,6], shape:'1-3-1', len:3200, money:600, slots:slots(5),   // zajęty cel = nowe kratki
     // Trzy drogi, trzy RÓŻNE powody, żeby nią pójść. Górna daje moc i tnie ich
     // fale, ale jest najdłuższa; środkowa jest krótka i płaci kredytami;
     // dolna daje miejsce w bazie i wywiad. Nie da się wziąć wszystkiego —
@@ -193,7 +236,7 @@ export const MISSIONS = {
     brief:['Trzymasz środek. Oni ostrzeliwują tory po kolei.',
            'Ostrzał jest zapowiadany. Zdążysz ewakuować albo przyjąć i odbudować.',
            'Sztab przysyła rozkazy — pierwsze karty do wyboru.'],
-    grid:[7,6], shape:'1-3-1', len:3200, money:650,
+    grid:[7,6], shape:'1-3-1', len:3200, money:650, slots:slots(6),
     // Te same drogi co w misji 4 — gracz już wie, co na której jest. Nowa jest
     // tylko cena ich trzymania: ostrzał bije po drogach, z zapowiedzią.
     roadGap:300, roadW:150,
@@ -228,7 +271,7 @@ export const MISSIONS = {
     brief:['Korytarz zwęża się przed bastionem. Wejdziecie po kilku.',
            'Bastion bije w gardło, nie w całe pole.',
            'Artyleria i ciężka fabryka są Twoje. Reszta to kolejność.'],
-    grid:[7,6], shape:'1-3-1', len:3600, money:700,
+    grid:[7,6], shape:'1-3-1', len:3600, money:700, slots:slots(6),
     // W finale drogi są szersze i bez objazdów: tu treścią nie jest wybór trasy,
     // a KOLEJNOŚĆ WEJŚCIA w lej. Baterie na skrzydłach są jedyną rzeczą, która
     // ścina ich fale — bez nich gardło jest nie do przejścia.
@@ -271,7 +314,7 @@ export const SKIRMISH = {
   id:'skirmish', n:0, code:'GRA DOWOLNA',
   teach:'Wszystko naraz.', gen:'Front jak zawsze. Reszta losowa.',
   brief:['Losowa doktryna, losowe warianty pola, pełna eskalacja.'],
-  grid:[7,6], shape:'1-3-1', len:3200, money:null,
+  grid:[7,6], shape:'1-3-1', len:3200, money:null, slots:slots(6),
   roadGap:300, roadW:150,
   roads:[
     { n:'GÓRNA',    y:-1, bow:0.30, sect:[{ kind:'most',    n:'MOST',    f:0.40 },

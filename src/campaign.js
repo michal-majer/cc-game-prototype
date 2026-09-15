@@ -26,7 +26,7 @@ import {
   B, U, COLS, ROWS, BASE_X, BASE_Y, CELL, GRID_MAX_COLS, GRID_MAX_ROWS,
   LANE_Y, BAS_X, BAS_HP, FRONT_MIN, START_MONEY, DOCTRINES,
   STANCES, setGrid, setShape, setField, halfForShape, atF, fieldX1, resetTables, clamp,
-  setRoads, roadY, roadPointX, roadCount, roadName, sectKind,
+  setRoads, roadY, roadPointX, roadCount, roadName, sectKind, corridorHalf,
 } from './config.js';
 import { S, SECT, say } from './state.js';
 import { MISSIONS, WORLDS, SKIRMISH, worldOf } from './missions.js';
@@ -73,8 +73,29 @@ export function allows(t){
 }
 export function missionReq(t){
   const u = MIS().unlock;
-  const req = B[t].req || [];
+  // `reqAdd` — wymaganie DOPISANE przez misję. Misja 1 uczy, że ekonomia ma
+  // stawkę, a przechodziła się samą rafinerią: sztab daje 4 mocy, rafineria
+  // bierze 2, więc prąd był zbędny. Dopisanie `refinery: ['power']` sprawia,
+  // że oba budynki są NAPRAWDĘ wymuszone — bez ruszania globalnej tabeli B.
+  const add = (MIS().reqAdd || {})[t] || [];
+  const req = [...(B[t].req || []), ...add];
   return u ? req.filter(r => u.includes(r)) : req;
+}
+
+/* --------------------------- STANOWISKA OGNIOWE --------------------------
+   Gotowe pozycje na działka PRZED bazą — poza siatką budowy. Działko kosztuje
+   kredyty, ale NIE kratkę, więc na ciasnej siatce pierwszych misji przestaje
+   konkurować z rafinerią i barakiem. Liczba stanowisk rośnie z misjami razem
+   z odsunięciem frontu: im dalej sięgasz, tym więcej masz gdzie się okopać.
+
+   Pozycja to UŁAMEK długości pola (f) i ułamek szerokości korytarza (y),
+   więc stanowiska nie rozjeżdżają się przy zmianie rozmiaru mapy.            */
+export function applySlots(){
+  S.slots = [];
+  for (const sl of (MIS().slots || [])){
+    const x = atF(sl.f);
+    S.slots.push({ x, y: LANE_Y + (sl.y||0) * corridorHalf(x) * 0.7, b:null });
+  }
 }
 
 /* ------------------------- NAŁOŻENIE DANYCH MISJI ------------------------

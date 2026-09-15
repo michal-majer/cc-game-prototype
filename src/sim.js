@@ -107,7 +107,13 @@ export function doWave(){
     for (let i=0;i<bCount(b);i++)
       spawn(d.unit,'p', b.x+(Math.random()*10-5), b.y+(Math.random()*20-10));
   }
-  if (!S.bastion.dead){
+  // SZTURM MOŻE BYĆ SKOŃCZONY. „Odeprzyj 8 fal" z nieskończonym strumieniem
+  // nigdy się nie kończy: warunek czeka na czyste pole, a fale lecą dalej
+  // (pomiar: fala 23, 13 minut, misja wciąż trwa). Misja obronna podaje
+  // `enemy.waves` — tyle fal ma szturm i ani jednej więcej.
+  const eMax = (MIS().enemy || {}).waves;
+  if (eMax && S.wave === eMax + 1) say('▬ TO BYŁA ICH OSTATNIA FALA ▬','good');
+  if (!S.bastion.dead && (!eMax || S.wave <= eMax)){
     const comp=eComp();
     const sx = (S.espawn ? S.espawn.x : BAS_X-36);
     const n  = roadCount();

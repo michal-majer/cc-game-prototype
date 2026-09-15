@@ -144,6 +144,17 @@ Pełny projekt gry — kształt pola 1/3/1, treść każdej misji, co odrzucone 
 kolejność robót: **`FRONT.md`**. Rozkazy generała (aktywne moce; pomysł, nie kod,
 wycięte z v1): `docs/rozkazy.md`.
 
+### Stanowiska ogniowe i siatka bazy
+
+Działko **nie stoi na kratce** — przed bazą są gotowe STANOWISKA OGNIOWE i tylko tam
+można je postawić. Na ciasnej siatce pierwszych misji gniazdo konkurowało o miejsce
+z rafinerią i barakiem, więc nigdy nie było warte postawienia; na osobnym stanowisku
+kosztuje kredyty, ale nie kratkę. Stanowisk przybywa z misjami (3 → 4 → 5 → 6).
+
+Siatka bazy rośnie przez całą kampanię: **18 kratek w misji 1** (najciaśniej), 20, 25→35,
+36→42. Każdy zajęty cel na drodze daje raz nową kolumnę — **miejsce jest nagrodą za
+teren, nie stanem wyjściowym**.
+
 ### Rozmiar mapy
 
 Długość korytarza to **jedna liczba w danych misji** (`len`), a wszystko na nim —
