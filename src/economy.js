@@ -38,6 +38,60 @@ export function harvestPlan(){
   return plan;
 }
 
+/* ============================ UKŁAD ZŁÓŻ =================================
+   Misja kampanii ma STAŁY, AUTORSKI układ pól. Losowa ruda znaczy, że każdy
+   przebieg tej samej misji ma inną ekonomię — a wtedy nie da się jej zbalansować:
+   „cel 600 kredytów" raz jest za łatwy, raz niewykonalny, i żaden pomiar nie
+   mówi nic o misji, tylko o losowaniu.
+
+   Układ podaje się MAPKĄ ZNAKOWĄ w danych misji, wiersz = wiersz siatki:
+       ore:['..##..',
+            '..#...',
+            '......'],
+     #  bogata ruda      ·  o  uboga (połowa)      ·  .  puste
+
+   Mapka krótsza albo węższa od siatki po prostu nie sięga dalej — brakujące
+   kratki zostają puste, więc siatka może urosnąć (nowe kratki z terenu),
+   a mapka nie musi o tym wiedzieć.
+
+   Losowanie zostaje GRZE DOWOLNEJ, gdzie różnorodność jest sensem.           */
+export function oreFromMap(map){
+  for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){ S.grid[r][c].ore=0; S.grid[r][c].seam=false; }
+  const rich = Math.round(BAL.ORE_MAX * (ORE_YOUNG + 0.12));
+  for (let r=0;r<Math.min(ROWS, map.length);r++){
+    const row = map[r] || '';
+    for (let c=0;c<Math.min(COLS, row.length);c++){
+      const ch = row[c];
+      if (ch==='#'){ S.grid[r][c].seam=true; S.grid[r][c].ore=rich; }
+      else if (ch==='o'){ S.grid[r][c].seam=true; S.grid[r][c].ore=Math.round(rich*0.5); }
+    }
+  }
+}
+
+/* Sprawdzian układu autorskiego: czy rafineria ma GDZIE stanąć i czy pojedynczy
+   budynek 1×1 nie zablokuje misji (patrz ensureRefinerySpot). Nie poprawia
+   niczego po cichu — krzyczy w konsoli, bo to błąd w danych misji, a nie
+   sytuacja do naprawienia losowaniem.                                         */
+export function checkOreLayout(label){
+  const anchors=[];
+  for (let r=0;r+2<=ROWS;r++) for (let c=0;c+2<=COLS;c++){
+    const cells=[[c,r],[c+1,r],[c,r+1],[c+1,r+1]];
+    let clear=true;
+    for (const [cc,rr] of cells) if (S.grid[rr][cc].ore>0 || S.grid[rr][cc].b){ clear=false; break; }
+    if (!clear) continue;
+    for (const [cc,rr] of ringOf('refinery',c,r)) if (S.grid[rr][cc].ore>0){ anchors.push(cells); break; }
+  }
+  let disjoint=false;
+  for (let i=0;i<anchors.length && !disjoint;i++) for (let j=i+1;j<anchors.length;j++){
+    const set=new Set(anchors[i].map(([c,r])=>r*100+c));
+    if (!anchors[j].some(([c,r])=>set.has(r*100+c))){ disjoint=true; break; }
+  }
+  if (!anchors.length) console.error('[układ '+label+'] BRAK miejsca na rafinerię przy złożu');
+  else if (!disjoint)  console.warn('[układ '+label+'] tylko jedno miejsce na rafinerię — '
+                                    +'jeden budynek 1×1 zablokuje misję');
+  return { anchors:anchors.length, disjoint };
+}
+
 export function genOre(){
   // Dwa osobne pola rudy — strefa górna i dolna — żeby DWIE rafinerie miały
   // sens (jedno pole = jedna rafineria). Wcześniej ruda potrafiła zlać się w

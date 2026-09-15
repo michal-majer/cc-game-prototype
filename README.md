@@ -144,6 +144,21 @@ Pełny projekt gry — kształt pola 1/3/1, treść każdej misji, co odrzucone 
 kolejność robót: **`FRONT.md`**. Rozkazy generała (aktywne moce; pomysł, nie kod,
 wycięte z v1): `docs/rozkazy.md`.
 
+### Misja kampanii jest autorska, nie losowana
+
+Układ złóż (`ore`) i plan fal (`waves`) każdej misji są **zapisane z ręki** —
+inaczej nie da się jej zbalansować ani zmierzyć.
+
+```js
+ore:['....#.',                              // # ruda · o uboga · . puste
+     '......',
+     '..#...'],
+waves:[{t:45, inf:2}, {t:38, inf:3}, …],    // t = sekundy DO tej fali
+```
+
+Przy planie wróg się nie rozbudowuje, a szturm kończy się tam, gdzie kończy się
+lista. Losowanie (ruda, doktryna, warianty pola, eskalacja) zostaje **grze dowolnej**.
+
 ### Stanowiska ogniowe i siatka bazy
 
 Działko **nie stoi na kratce** — przed bazą są gotowe STANOWISKA OGNIOWE i tylko tam

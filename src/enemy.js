@@ -150,7 +150,39 @@ export function eDecide(){
 export const bEff = () => S.bastion.dead ? 0
   : !S.bastion.target ? 1
   : Math.max(0, 0.45 + 0.55*(S.bastion.hp/S.bastion.maxHp));
+/* ============================ PLAN FAL ===================================
+   Misja kampanii ma AUTORSKI plan fal: każda fala z ręki, z własnym składem
+   i własnym odstępem. Fale składane proceduralnie z bazy wroga znaczą, że
+   ta sama misja za każdym razem naciska inaczej — a wtedy nie da się jej
+   zbalansować ani zmierzyć. „Fale 1–3 przyjmiesz działkami, od czwartej
+   potrzebujesz ludzi" jest obietnicą, której procedura nie umie dotrzymać.
+
+   Format w danych misji:
+       waves:[ {t:40, inf:2}, {t:34, inf:3}, {t:30, inf:3, lazik:1}, … ]
+   `t` — sekundy DO tej fali · reszta kluczy to typy jednostek i ich liczba.
+   Po ostatniej fali szturm się KOŃCZY (misja obronna ma mieć koniec).
+
+   Bez `waves` wszystko zostaje po staremu: skład z bazy wroga, rozbudowa,
+   doktryny, eskalacja. To jest tryb gry dowolnej.                            */
+export const wavePlan = () => MIS().waves || null;
+// skład fali NUMER n (1-based), z planu albo proceduralnie
+export function eCompN(n){
+  const plan = wavePlan();
+  if (!plan) return eComp();
+  const w = plan[n-1];
+  if (!w) return {};                       // po planie nie ma już nic
+  const out = {};
+  for (const k in w) if (k !== 't' && U[k]) out[k] = w[k];
+  // BATERIE tną także fale autorskie — inaczej cel „ich fale −25%" kłamałby
+  const cut = 1 - sectWeaken();
+  if (cut < 1) for (const k in out){ out[k] = Math.round(out[k]*cut); if (!out[k]) delete out[k]; }
+  return out;
+}
 export function eComp(){
+  // Podgląd dla wywiadu: NASTĘPNA fala. Przy planie autorskim to po prostu
+  // kolejna pozycja z listy — radar pokazuje wtedy dokładnie to, co przyjdzie.
+  const plan = wavePlan();
+  if (plan) return eCompN(S.wave + 1);
   // Zajete BATERIE tna sklad fali — jedyna rzecz w grze, ktora ZMNIEJSZA nacisk
   // wroga zamiast tylko zwiekszac Twoj. Dlatego droga z bateria jest osobnym
   // planem, nie wariantem tego samego.

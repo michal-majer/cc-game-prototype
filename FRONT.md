@@ -392,12 +392,55 @@ Do rozstrzygnięcia — i to są Twoje liczby, nie moje:
 
 ---
 
+## 3b. Misja kampanii jest AUTORSKA, nie losowana
+
+Dwie rzeczy w misji kampanii muszą być **zapisane z ręki**, bo inaczej nie da się
+jej zbalansować — ani nawet zmierzyć:
+
+**Układ złóż** (`ore` w danych misji). Losowa ruda znaczy, że każdy przebieg tej
+samej misji ma inną ekonomię: „cel 600 kredytów" raz jest za łatwy, raz
+niewykonalny, a pomiar nie mówi nic o misji, tylko o losowaniu. Podaje się mapką
+znakową, wiersz = wiersz siatki:
+
+```js
+ore:['....#.',      //  #  bogata ruda
+     '......',      //  o  uboga (połowa)
+     '..#...'],     //  .  puste
+```
+
+**Plan fal** (`waves`). Każda fala z ręki: własny skład i własny odstęp.
+
+```js
+waves:[{ t:45, inf:2 }, { t:38, inf:3 }, … , { t:28, inf:8, lazik:2 }]
+```
+
+Fale składane proceduralnie z bazy wroga naciskają za każdym razem inaczej —
+a **„fale 1–3 przyjmiesz działkami, od czwartej potrzebujesz ludzi" to obietnica
+z odprawy, której procedura nie umie dotrzymać**. Przy planie wróg się nie
+rozbudowuje (skład kolejnych fal jest już zapisany), a szturm **kończy się tam,
+gdzie kończy się lista**.
+
+Krzywa misji 2 jako przykład tego, co plan pozwala powiedzieć wprost: odstępy
+schodzą z 45 do 28 s, więc nacisk rośnie **tempem, nie tylko liczbą**; fala 4
+przekracza to, co trzy działka zdążą wystrzelać; fala 6 dokłada pierwszy pojazd.
+
+Układ autorski jest **sprawdzany, nie poprawiany** (`checkOreLayout`): brak
+miejsca na rafinerię to błąd w danych misji i ma krzyczeć w konsoli, a nie
+znikać pod losowaniem. Poprawianie (`ensureRefinerySpot`) zostaje grze dowolnej.
+
+**Losowanie zostaje grze dowolnej**, gdzie różnorodność jest sensem — tam żyją
+warianty pola, eskalacja, losowa doktryna i losowa ruda.
+
+---
+
 ## 4. Zasady, bez których to się rozsypie
 
+0. **Misja kampanii jest autorska.** Układ złóż i plan fal zapisane z ręki
+   (§3b). Losowanie zostaje grze dowolnej.
 1. **Punkt kontrolny na start każdej misji.** „Powtórz" wraca do niego.
-2. **Wróg skaluje się numerem misji, nie bazą gracza.** (`enemy.base`, `enemy.grow`,
-   `waveT` w danych misji.) Plus stały przydział kredytów na start misji, żeby
-   słabsza baza mogła nadrobić.
+2. **Wróg skaluje się numerem misji, nie bazą gracza.** W kampanii wprost planem
+   fal (`waves`), w grze dowolnej rozbudową (`enemy.base`, `enemy.grow`). Plus
+   stały przydział kredytów na start misji, żeby słabsza baza mogła nadrobić.
 3. **Zdobyty sektor daje nowe kratki, nie tylko kredyty.**
 4. **Baza przechodzi między misjami w świecie, nie między światami.** Ulepszenia armii
    z kart zostają — dlatego migawka ma dwa osobne wiadra: `base` i `run`.

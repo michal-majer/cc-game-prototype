@@ -11,7 +11,7 @@ import { isMuted } from './audio.js';
 import { incomeRate, oreBreak, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { terrIncome } from './sectors.js';
 import { radarLvl, unlocked, reqText, canUp, upCost, upText, freeSlots, isSlotType } from './buildings.js';
-import { eComp, eRatio } from './enemy.js';
+import { eComp, eRatio, wavePlan } from './enemy.js';
 import { takeCard } from './cards.js';
 import { setStance, setArmyLane } from './sim.js';
 import { MIS, feat, isCampaign, goalText, goalNow, goalDone } from './campaign.js';
@@ -354,10 +354,17 @@ export function updateHUD(){
   else { note='SĄCZEK +'+ob.sipRate.toFixed(1)+'/s — BEZ KOŃCA'; ncol=CO.ok; }
   qs('ore-note').textContent=note; qs('ore-note').style.color=ncol;
   // fala
-  qs('wave').textContent=S.wave;
-  qs('timer').textContent='kontakt 0:'+String(Math.max(0,Math.ceil(S.timer))).padStart(2,'0');
-  qs('timer').style.color = S.timer<5?CO.bad:CO.dim;
-  qs('ebase').textContent='ich baza: '+S.eBase.length+' ob.';
+  // Plan fal: pokazuj, ILE ICH ZOSTAŁO, a nie ile budynków ma wróg — przy
+  // autorskim planie jego baza nic nie znaczy, a liczba fal do końca wszystko.
+  const plan = wavePlan();
+  const koniec = plan && S.wave >= plan.length;
+  qs('wave').textContent = plan ? S.wave+' / '+plan.length : S.wave;
+  qs('timer').textContent = koniec ? 'to była ostatnia'
+    : 'kontakt 0:'+String(Math.max(0,Math.ceil(S.timer))).padStart(2,'0');
+  qs('timer').style.color = koniec ? CO.ok : (S.timer<5?CO.bad:CO.dim);
+  qs('ebase').textContent = plan
+    ? (koniec ? 'ich szturm wyczerpany' : 'zostało fal: '+(plan.length-S.wave))
+    : 'ich baza: '+S.eBase.length+' ob.';
 
   // wywiad — panel istnieje tylko w misjach, które dały radar (w 1–2 byłby ikoną)
   qs('intel').classList.toggle('hidden', !feat('radar'));

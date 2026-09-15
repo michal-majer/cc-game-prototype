@@ -19,7 +19,7 @@ import { explode } from './effects.js';
 import { regrow, extract, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { updHarvesters } from './harvesters.js';
 import { updSect, terrIncome, eTerrCtrl, secE, secP, roadsHeld } from './sectors.js';
-import { eDecide, eBuild, eComp, eHoldX } from './enemy.js';
+import { eDecide, eBuild, eComp, eCompN, wavePlan, eHoldX } from './enemy.js';
 import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor, recalcPower } from './buildings.js';
 import { openDraft } from './cards.js';
 import { autoFollowFront } from './render.js';
@@ -28,6 +28,14 @@ import { autoFollowFront } from './render.js';
 // garść jednostek realnie biła się o mini-sztaby, zanim ruszy masa. Rozpędza
 // się do WAVE_TIME (fala 0: +20 s → fala 5+: 0). Trzymaj < 60 s (format HUD 0:SS).
 export function waveInterval(){
+  // PLAN FAL: każda fala ma własny odstęp. To on jest pokrętłem tempa misji —
+  // „fale 1–3 wolno, od czwartej gęsto" zapisuje się wprost, a nie wychodzi
+  // z rampy, której nie da się przewidzieć ani zmierzyć.
+  const plan = wavePlan();
+  if (plan){
+    const w = plan[S.wave];
+    return w ? w.t * (S.run ? S.run.waveMul : 1) : 9999;   // po planie: koniec fal
+  }
   // Misja może podać własny zegar [do pierwszej fali, odstęp dalszych] — wtedy
   // tempo jest DANĄ MISJI, nie globalną rampą (FRONT.md §4.2: wróg skaluje się
   // numerem misji). Bez tego wpisu zostaje dotychczasowa rampa gry dowolnej.
@@ -109,12 +117,13 @@ export function doWave(){
   }
   // SZTURM MOŻE BYĆ SKOŃCZONY. „Odeprzyj 8 fal" z nieskończonym strumieniem
   // nigdy się nie kończy: warunek czeka na czyste pole, a fale lecą dalej
-  // (pomiar: fala 23, 13 minut, misja wciąż trwa). Misja obronna podaje
-  // `enemy.waves` — tyle fal ma szturm i ani jednej więcej.
-  const eMax = (MIS().enemy || {}).waves;
+  // (pomiar: fala 23, 13 minut, misja wciąż trwa). Plan fal kończy się tam,
+  // gdzie kończy się lista; `enemy.waves` robi to samo dla misji bez planu.
+  const plan = wavePlan();
+  const eMax = plan ? plan.length : (MIS().enemy || {}).waves;
   if (eMax && S.wave === eMax + 1) say('▬ TO BYŁA ICH OSTATNIA FALA ▬','good');
   if (!S.bastion.dead && (!eMax || S.wave <= eMax)){
-    const comp=eComp();
+    const comp = eCompN(S.wave);
     const sx = (S.espawn ? S.espawn.x : BAS_X-36);
     const n  = roadCount();
     let li = 0;
@@ -147,6 +156,9 @@ export function doWave(){
   // trudno). Łagodniejsza rampa (0.4+wave*0.12) daje ~1 budynek/falę na starcie i
   // rozciąga dojście do maks. na 4–5 fal — czas na rozstawienie się. Sufit 1.0 bez
   // zmian, więc późna gra (i S.wave/5, którego już nie ma) nietknięta.
+  // Przy autorskim planie fal baza wroga NIE rośnie: skład kolejnych fal jest
+  // już zapisany, więc rozbudowa tylko psułaby to, co zaplanowane.
+  if (wavePlan()) return;
   const earlyRamp = Math.min(1, 0.4 + S.wave*0.12);  // f1:0.52 f2:0.64 f3:0.76 f4:0.88 f5:1.0
   // S.misGrow — tempo rozbudowy wroga JAKO DANA MISJI. 0 = nie rośnie wcale
   // (misja 1: przeciwnik ma być punktacją, nie kulą śniegową).

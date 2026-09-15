@@ -49,6 +49,19 @@
                                    Liczba stanowisk rośnie z misjami razem
                                    z odsunięciem frontu.
      reqAdd  {typ:[wymagania]}   — wymaganie DOPISANE przez misję (patrz m1)
+     ore     ['..##..', …]       — STAŁY UKŁAD ZŁÓŻ, wiersz = wiersz siatki:
+                                   # bogata ruda · o uboga · . puste.
+                                   Losowa ruda znaczy, że każdy przebieg tej samej
+                                   misji ma inną ekonomię — a wtedy nie da się jej
+                                   zbalansować ani zmierzyć. Losowanie zostaje
+                                   GRZE DOWOLNEJ, gdzie różnorodność jest sensem.
+     waves   [{t, typ:n, …}, …]  — AUTORSKI PLAN FAL: każda fala z ręki, z własnym
+                                   składem i odstępem (`t` = sekundy DO niej).
+                                   Po ostatniej szturm się KOŃCZY. Fale składane
+                                   proceduralnie z bazy wroga naciskają za każdym
+                                   razem inaczej — „fale 1–3 przyjmiesz działkami,
+                                   od czwartej potrzebujesz ludzi" jest obietnicą,
+                                   której procedura nie umie dotrzymać.
      money   int                 — kredyty na start
      unlock  [typ budynku]       — CO JEST NA PASKU. To jest drzewko techniki
                                    kampanii; `req` z tabeli B działa tylko
@@ -102,6 +115,14 @@ export const MISSIONS = {
     //   (misja 1 nie ma rozbiórki). Tutorial nie może się zakleszczyć od
     //   jednego kliknięcia — patrz ensureRefinerySpot w economy.js.
     grid:[6,3], shape:'1', len:1300, money:400,
+    // Sztab bierze kolumny 0–1 (wiersze 1–2). Dwa ziarna rudy rozstawione tak,
+    // żeby zostały DWA ROZŁĄCZNE miejsca na rafinerię 2×2: kolumny 2–3 u góry
+    // i 4–5 na dole. Jedna elektrownia nie zablokuje obu, więc tutorial
+    // przeżyje każde kliknięcie.
+    ore:['....#.',
+         '......',
+         '..#...'],
+    waves:[{ t:55, inf:4 }],          // jedna fala, działa sztabu ją przyjmą
     unlock:['power','refinery'],
     // Rafineria WYMAGA elektrowni. Bez tego misja o ekonomii przechodziła się
     // samą rafinerią: sztab daje 4 mocy, rafineria bierze 2, więc prąd był
@@ -116,8 +137,7 @@ export const MISSIONS = {
     // tuż PO odparciu fali, bez nich to cztery minuty i kilka fal — presja bez
     // twardego limitu czasu.
     goal:{ kind:'money', target:600, after:1 },
-    enemy:{ doc:'CZERWONA FALA', base:['barracks'], grow:0, spawnF:0.97, bastion:0 },
-    waveT:[55, 45],
+    enemy:{ doc:'CZERWONA FALA', base:['barracks'], spawnF:0.97, bastion:0 },
     par:{ sec:150, loss:0 },
   },
 
@@ -138,17 +158,34 @@ export const MISSIONS = {
     // Trzy stanowiska: działko kosztuje kredyty, ale NIE miejsce w bazie —
     // dopiero wtedy jest realną alternatywą dla baraku na tak ciasnej siatce.
     grid:[5,4], shape:'1', len:1300, money:450, slots:slots(3),
+    // Sztab w kolumnach 0–1 (wiersze 2–3). Trzy kratki rudy: para u góry pod
+    // rafinerię przy sztabie, jedna w prawym dolnym rogu pod drugą — znów dwa
+    // rozłączne miejsca, więc układ nie da się zakorkować.
+    ore:['..##.',
+         '.....',
+         '.....',
+         '....#'],
+    /* OSIEM FAL Z RĘKI. Krzywa jest obietnicą z odprawy: 1–3 przyjmiesz samymi
+       działkami, od czwartej liczba piechoty przekracza to, co trzy gniazda
+       zdążą wystrzelać, a szósta dokłada pierwszy pojazd. Odstępy skracają się
+       z 45 do 28 s — nacisk rośnie tempem, nie tylko liczbą.                  */
+    waves:[
+      { t:45, inf:2 },                    // rozpoznanie
+      { t:38, inf:3 },
+      { t:36, inf:4 },                    // granica tego, co udźwigną same działka
+      { t:34, inf:5 },
+      { t:32, inf:6 },
+      { t:30, inf:6, lazik:1 },           // pierwszy pojazd — rakiety gniazda go biorą
+      { t:30, inf:8 },
+      { t:28, inf:8, lazik:2 },           // ostatnia, najcięższa
+    ],
     unlock:['power','refinery','barracks','bunker'],
     feats:feats({ sell:true, repair:true }),
-    // `enemy.waves` — szturm ma OSIEM FAL i ani jednej więcej. Bez tego cel
-    // „odeprzyj 8 fal" czekał na czyste pole, a fale leciały bez końca:
-    // pomiar pokazał falę 23 i trzynaście minut w misji liczonej na pięć.
+    // Szturm kończy się tam, gdzie kończy się plan — misja obronna ma mieć koniec.
     goal:{ kind:'waves', target:8 },
     // `assault` — to nie front, tylko szturm na bazę: idą, nie stoją. Bez tego
     // przy porządnej obronie wróg w ogóle nie nacierał i misja nie miała końca.
-    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.5, waves:8,
-            assault:true, spawnF:0.97, bastion:0 },
-    waveT:[40, 34],
+    enemy:{ doc:'CZERWONA FALA', assault:true, spawnF:0.97, bastion:0 },
     par:{ sec:330, loss:6 },
   },
 
@@ -168,6 +205,31 @@ export const MISSIONS = {
            'Radar pokaże, co nadchodzi. Kosztuje tyle, co armia.',
            'Przejęty mini-sztab płaci kredytami i otwiera nowe kratki.'],
     grid:[5,5], gridMax:[7,5], shape:'1', len:2100, money:500, slots:slots(4),
+    // Cztery kratki rudy — misja pierwszy raz utrzymuje wojsko W POLU, więc
+    // ekonomia musi unieść więcej niż w dwójce. Mapka ma pięć kolumn, a siatka
+    // rośnie do siedmiu: kolumny 5–6 dochodzą puste, jako czysty zlew na kredyty.
+    ore:['..##.',
+         '.....',
+         '....#',
+         '.....',
+         '..#..'],
+    /* Plan z ZAPASEM: cel pada koło trzeciej fali, ale plan ma osiem. Gracz,
+       który gra wolniej, wciąż ma przeciwnika — a nie pustą mapę i darmowy cel.
+       Krzywa jest ŁAGODNIEJSZA niż w dwójce, mimo że misja jest późniejsza:
+       tam broniłeś się pod działami, tu pierwszy raz WYCHODZISZ POZA ICH ZASIĘG
+       (cel leży 20 px za zasięgiem gniazd — i to jest zamierzone). Pierwsza
+       wersja planu szła jak w dwójce i bot nie zdobył celu ani razu:
+       13 minut, 36 strat, siatka nigdy nie urosła.                            */
+    waves:[
+      { t:45, inf:2 },
+      { t:38, inf:3 },
+      { t:36, inf:3 },                    // około tej fali cel powinien już być Twój
+      { t:34, inf:4 },
+      { t:32, inf:4, lazik:1 },           // pierwszy pojazd — dopiero gdy masz teren
+      { t:30, inf:5, lazik:1 },
+      { t:30, inf:6, lazik:1 },
+      { t:28, inf:6, lazik:2 },
+    ],
     unlock:['power','refinery','barracks','bunker','workshop','radar'],
     feats:feats({ stance:2, sectors:1, radar:1, sell:true, repair:true, upgrade:true, terrIncome:true }),
     // Jedna droga, jeden cel — i stoi DOKŁADNIE na najdalszej linii, jaką ten
@@ -179,8 +241,7 @@ export const MISSIONS = {
     // Bez tego misja kończyła się w 1:21 na drugiej fali, czyli zanim gracz
     // w ogóle zobaczył, po co był wywiad.
     goal:{ kind:'sectors', target:1, after:3 },
-    enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.7, spawnF:0.97, bastion:0 },
-    waveT:[45, 32],
+    enemy:{ doc:'CZERWONA FALA', spawnF:0.97, bastion:0 },
     par:{ sec:300, loss:10 },
   },
 

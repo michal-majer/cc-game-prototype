@@ -19,7 +19,7 @@ import { resetTables, DOCTRINES, BAS_HP, BAS_X, LANE_Y, START_MONEY,
          FRONT_MIN, FRONT_MAX, COLS, ROWS, cellAt, setGrid, GRID_MAX_COLS } from './config.js';
 import { S, say, SECT } from './state.js';
 import { loadAssets } from './assets.js';
-import { genOre, oreTotal, ensureRefinerySpot } from './economy.js';
+import { genOre, oreFromMap, checkOreLayout, oreTotal, ensureRefinerySpot } from './economy.js';
 import { resetSect } from './sectors.js';
 import { mkBuilding, recalcPower, resetIds } from './buildings.js';
 import { openDraft, OPEN, DECK } from './cards.js';
@@ -46,7 +46,8 @@ function buildField(m, carry){
 
   S.grid=[];
   for (let r=0;r<ROWS;r++){ S.grid[r]=[]; for(let c=0;c<COLS;c++) S.grid[r][c]={ore:0,seam:false,pull:false,b:null,prevOre:0}; }
-  if (m.feats.ore !== false) genOre();
+  // Kampania: STAŁY układ z danych misji. Gra dowolna: losowanie (tam jest sensem).
+  if (m.feats.ore !== false){ if (m.ore) oreFromMap(m.ore); else genOre(); }
   S.oreStart=Math.max(1, oreTotal());
 
   S.buildings=[]; S.units=[]; S.fx=[]; S.corpses=[]; S.deaths=[]; S.tracers=[]; S.projs=[]; S.harv=[];
@@ -88,9 +89,12 @@ function buildField(m, carry){
     if (m.money != null) S.money = Math.max(S.money, m.money);
   }
   if (!S.hq || !S.buildings.includes(S.hq)) S.hq = mkBuilding('hq', 0, Math.min(2, ROWS-2), true);
-  // DOPIERO TERAZ, ze sztabem na siatce: gwarancja, że rafineria ma gdzie stanąć
-  // i że pojedynczy budynek 1×1 nie zablokuje misji (patrz ensureRefinerySpot).
-  if (m.feats.ore !== false) ensureRefinerySpot();
+  // DOPIERO TERAZ, ze sztabem na siatce. Układ autorski tylko SPRAWDZAMY
+  // (błąd w danych ma być widoczny, nie zamaskowany losowaniem); losowy
+  // poprawiamy, żeby nie dało się zablokować misji jednym budynkiem.
+  if (m.feats.ore !== false){
+    if (m.ore) checkOreLayout(m.id); else ensureRefinerySpot();
+  }
 
   // karty i ulepszenia armii przechodzą MIĘDZY ŚWIATAMI — osobno od bazy (§8)
   if (carry && carry.run){
