@@ -258,7 +258,13 @@ function updateObjective(){
   el.classList.remove('hidden');
   const [now, target] = goalNow(), done = goalDone();
   el.classList.toggle('done', done);
-  qs('obj-lbl').textContent = 'CEL — MISJA '+MIS().n;
+  // Zegar celu: ile fal zostało, zanim misja przepadnie. Bez tego licznika
+  // „do 6. fali" jest regułą, o której gracz dowiaduje się dopiero po porażce.
+  const before = (MIS().goal||{}).before;
+  qs('obj-lbl').textContent = (before && !done)
+    ? 'CEL — ZOSTAŁO FAL: '+Math.max(0, before - S.wave)
+    : 'CEL — MISJA '+MIS().n;
+  qs('obj-lbl').style.color = (before && !done && before - S.wave <= 1) ? CO.bad : '';
   qs('obj-txt').textContent = goalText();
   qs('obj-bar').style.width = Math.min(100, target? 100*now/target : 0)+'%';
   qs('obj-bar').style.background = done ? CO.ok : CO.warn;

@@ -420,9 +420,51 @@ z odprawy, której procedura nie umie dotrzymać**. Przy planie wróg się nie
 rozbudowuje (skład kolejnych fal jest już zapisany), a szturm **kończy się tam,
 gdzie kończy się lista**.
 
-Krzywa misji 2 jako przykład tego, co plan pozwala powiedzieć wprost: odstępy
-schodzą z 45 do 28 s, więc nacisk rośnie **tempem, nie tylko liczbą**; fala 4
-przekracza to, co trzy działka zdążą wystrzelać; fala 6 dokłada pierwszy pojazd.
+### Wyzwanie: SZPICE I ODDECHY, nie równy strumień
+
+Kalibracja misji 2 nauczyła trzech rzeczy, z których żadna nie była oczywista.
+
+**1. Masa nie robi wyzwania.** Przy POTRÓJNEJ liczbie piechoty bot wciąż wygrywał
+2/2 ze sztabem na 100%: równy strumień zawsze zdąży wyczyścić między falami.
+Ginęły budynki na obrzeżach (20 straconych), ale sztab jest ostatni w kolejce —
+jednostki biją w NAJBLIŻSZY cel, więc baza jest zjadana od zewnątrz.
+
+**2. Równy, coraz ciaśniejszy zegar daje KLIF, nie wyzwanie.** Dwie sekundy na
+falę dzieliły „wygrana 3/3, sztab 100%" od „przegrana 0/2, sztab 8%". To czysty
+próg: albo nadążasz z czyszczeniem, albo lawina cię zjada, i nie ma nic pomiędzy.
+
+**3. Działa dopiero rytm.** Fale 4, 8 i 10 uderzają ciasno i mocno (21/19/21 s),
+a 5 i 9 dają oddech (37/36 s) na odbudowę i naprawę. Gracz przeżywa **trzy
+momenty na styk** zamiast jednego progu, którego nie czuje, dopóki go nie
+przekroczy — a porażka po takiej fali jest zrozumiała, nie nagła.
+
+### Misja, której nie da się przegrać, nie jest wyzwaniem
+
+Misja 3 nie zagraża bazie (walka toczy się w polu, sztab kończył na 100% i zero
+straconych obiektów), więc jedyną „porażką" było mielenie bez końca: dziesięć
+minut i darmowy cel, gdy wrogowi skończyły się fale. Stąd **limit fal**
+(`goal.before`): nie zdążysz — przegrywasz. Czas przejęcia przestaje być czymś,
+co się przeczeka, i staje się tym, o co grasz. Licznik „ZOSTAŁO FAL: n" siedzi
+w panelu celu, bo reguła, o której gracz dowiaduje się po porażce, nie jest regułą.
+
+Uwaga na pułapkę: plan fal musi być DŁUŻSZY od limitu. Przy planie równym
+limitowi licznik fal przestaje rosnąć i przegrana nie odpala się wcale
+(pomiar: 10:41 zamiast 2:54). `goalFailed` ma na to bezpiecznik.
+
+### Zmierzone (bot, 5 przebiegów na misję)
+
+| | wygrane | czas | sztab min | stracone obiekty |
+|---|---|---|---|---|
+| M1 | 5/5 | 2:13 | 100% | 0 |
+| M2 | **4/5** | 7:35 | **70%** | **13** |
+| M3 | **2/5** | 2:53 | 100% | 0 |
+
+Bot to **dolna granica**: nie kituje, nie wycofuje się, nie rozgrywa suwaka.
+Jeśli on wygrywa 4 na 5 ze sztabem na 70%, człowiek wygra — ale zapłaci za to
+bazą. **Misja 1 jest jedynym świadomym wyjątkiem**: broni jej sam sztab
+(zasięg 330 wobec 39 piechoty), więc wróg ginie na podejściu bez względu na
+liczbę — trzynaście piechoty i sztab wciąż na 100%. Jej stawka jest z zegara
+i z tego, że fale rosną, a nie z ryzyka porażki.
 
 Układ autorski jest **sprawdzany, nie poprawiany** (`checkOreLayout`): brak
 miejsca na rafinerię to błąd w danych misji i ma krzyczeć w konsoli, a nie

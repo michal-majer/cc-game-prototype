@@ -164,6 +164,28 @@ const earned = () => {
   return (i.ruda||0)+(i.sektory||0)+(i.baza||0)+(i.lupy||0)+(i.zlom||0)+(i.karty||0);
 };
 
+/* PRZEGRANA Z ZEGARA. Misja, której nie da się PRZEGRAĆ, nie jest wyzwaniem —
+   jest młynem: misja 3 nie zagraża bazie (walka toczy się w polu), więc jedyną
+   „porażką" było mielenie bez końca. `goal.before` stawia zegar: nie zdążysz
+   do N-tej fali — przegrywasz. Czas przejęcia przestaje być czymś, co się
+   przeczeka, i staje się tym, o co grasz.                                     */
+export function goalFailed(){
+  const g = MIS().goal || {};
+  if (!g.before || goalDone()) return false;
+  if (S.wave > g.before) return true;
+  /* Bezpiecznik: plan fal wyczerpany, pole czyste i nikt niczego nie przejmuje,
+     a celu nie ma — nie ma już CZYM go osiągnąć, więc misja stoi w miejscu.
+     Bez tego limit fal nie odpalał wcale, gdy plan kończył się na tej samej
+     fali co limit: licznik przestawał rosnąć i misja mieliła się w nieskończoność
+     (pomiar: 10:41 zamiast 2:54). Warunek „nikt nie przejmuje" chroni gracza,
+     który właśnie kończy zajmowanie celu na ostatnich sekundach.               */
+  const plan = MIS().waves;
+  if (plan && S.wave >= plan.length
+      && !S.units.some(u => u.side==='e' && u.hp>0)
+      && !SECT.some(q => q.cap > 0)) return true;
+  return false;
+}
+
 export function goalDone(){
   const g = MIS().goal || {};
   // `after` — cel nie zalicza się wcześniej niż po N falach. W misji 1 to ono

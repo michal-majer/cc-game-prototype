@@ -13,7 +13,7 @@ import {
   roadY, roadHalf, roadCount, roadName
 } from './config.js';
 import { S, say, lineX } from './state.js';
-import { MIS, feat, goalDone } from './campaign.js';
+import { MIS, feat, goalDone, goalFailed } from './campaign.js';
 import { boom, siren } from './audio.js';
 import { explode } from './effects.js';
 import { regrow, extract, oreTotal, seamsAlive, seamsTapped } from './economy.js';
@@ -415,6 +415,9 @@ export function update(dt){
   if (S.state==='play' && goalDone()){
     S.state='win';
     S.endReason = (MIS().goal||{}).kind==='bastion' ? 'BASTION ZDOBYTY' : 'CEL OSIĄGNIĘTY';
+  } else if (S.state==='play' && goalFailed()){
+    S.state='over'; S.endReason='CZAS MINĄŁ — CEL NIEOSIĄGNIĘTY';
+    siren(); S.shake=Math.max(S.shake,16);
   }
   if (S.state!=='play' && S.wave>S.best) S.best=S.wave;
 

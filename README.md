@@ -159,6 +159,18 @@ waves:[{t:45, inf:2}, {t:38, inf:3}, …],    // t = sekundy DO tej fali
 Przy planie wróg się nie rozbudowuje, a szturm kończy się tam, gdzie kończy się
 lista. Losowanie (ruda, doktryna, warianty pola, eskalacja) zostaje **grze dowolnej**.
 
+Krzywe są **kalibrowane botem**, nie na wyczucie. Stan (5 przebiegów na misję):
+
+| | wygrane | czas | sztab min | stracone obiekty |
+|---|---|---|---|---|
+| M1 | 5/5 | 2:13 | 100% | 0 |
+| M2 | 4/5 | 7:35 | 70% | 13 |
+| M3 | 2/5 | 2:53 | 100% | 0 |
+
+Bot to dolna granica — nie kituje i nie rozgrywa suwaka. Wyzwanie robi **rytm
+(szpice i oddechy), nie masa**: przy potrójnej liczbie piechoty, ale równym
+strumieniu, bot wygrywał ze sztabem na 100%. Szczegóły i pomiary: `FRONT.md` §3b.
+
 ### Stanowiska ogniowe i siatka bazy
 
 Działko **nie stoi na kratce** — przed bazą są gotowe STANOWISKA OGNIOWE i tylko tam
