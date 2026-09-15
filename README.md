@@ -35,10 +35,10 @@ To wszystko. Zero zależności do instalowania.
 - **Kafel budowy** (dół) → wybierz budynek → **tap na kratkę** = postaw.
 - **✂ ROZBIÓRKA** → tap na budynek (zwrot 50%) albo na żyłę (zaoranie).
 - **Suwak linii** (nazwy OBRONA…NATARCIE) → ustawia, jak daleko wychodzą Twoi.
-- **Rozkazy generała** (panel po prawej nad suwakiem, `Q/W/E`): nalot, forsowny marsz,
-  zrzut zaopatrzenia — za punkty rozkazów. Opis i pytania otwarte: `docs/rozkazy.md`.
+- **Rozkaz torowy** (przyciski po prawej nad paskiem budowy): TOR 1/2/3 ściąga całą
+  armię na jeden tor, ROZDZIEL rozkłada ją po równo. Widoczne tylko tam, gdzie tory są.
 - **Klawiatura:** `1–5` linia, `←/→` linia, `Spacja` GOTÓW / natarcie / odwrót,
-  `+/−` prędkość, `1/2/3` wybór karty, `Q/W/E` rozkazy, `Esc` odznacz.
+  `+/−` prędkość, `1/2/3` wybór karty, `Q/W/E/R` tory, `Esc` odznacz / menu.
 
 ## Struktura
 
@@ -56,14 +56,16 @@ src/
   buildings.js    stawianie, moc, poziomy, technologia, walidacja kratek
   enemy.js        AI wroga, bastion, wywiad, kontry
   cards.js        talia (ulepszenia ze sztabu) + otwarcia
-  orders.js       rozkazy generała: aktywne moce za punkty (nalot, marsz, zrzut)
   sim.js          rdzeń: obrażenia, spawn, fala, krok update(dt), linia
   render.js       render świata na Pixi + kamera (pan/pinch)
   hud.js          HUD w DOM (paski, pasek budowy, suwak, karty, log)
   input.js        dotyk/mysz (pan/tap) + przyciski + klawiatura
   meta.js         warianty pola (modyfikatory) + eskalacja między runami
                   (localStorage) + metryki i RAPORT KOŃCOWY do analizy
-  game.js         punkt wejścia: newRun + pętla; index.html ładuje ten plik
+  missions.js     DANE misji i światów (zero logiki rozgrywki)
+  campaign.js     ramka misji: cel z danych, punkt kontrolny, migawka, ocena, postęp
+  menu.js         menu · wybór misji · odprawa · ocena sztabu (DOM)
+  game.js         punkt wejścia: budowa pola pod misję + pętla; ładowany z index.html
   audio.js        proceduralne boom/siren + rejestr własnych próbek
   assets.js       manifest tekstur (opt-in) + loader
 assets/           tu wrzucasz PNG/dźwięki (patrz assets/README.md)
@@ -99,18 +101,45 @@ sprawdzenia po zmianie balansu, czy partia ma koniec i czy da się ją wygrać.
 ```bash
 python3 -m http.server 8123 &
 npm i playwright
-RUNS=4 STYL=natarcie node tools/bot-test.js
+RUNS=4 STYL=natarcie node tools/bot-test.js       # gra dowolna
+RUNS=2 MISJA=m2 node tools/bot-test.js           # misja kampanii
 ```
 
 Bot gra słabo (nie kituje, nie naprawia) — pokazuje dolną granicę, nie grę człowieka.
 Pomiar z 13.09.2026: 8 partii, 0 zwycięstw, bastion 0–3%. Szczegóły w `tools/bot-test.js`.
 
-## Kampania (pomysł)
+## Kampania
 
-Rosnąca mapa zamiast startu od zera: obrona → przedpole → środek → natarcie na bastion,
-baza zostaje między etapami, kolejne teatry to dane, nie nowy kod. Opis, zasady
-i kolejność robót: `docs/kampania.md`. Rozkazy generała (aktywne moce: nalot, marsz,
-zrzut; pomysł, nie kod): `docs/rozkazy.md`.
+Gra startuje **menu**: KAMPANIA (Świat I — „PIERWSZY FRONT", sześć misji) albo
+GRA DOWOLNA (otwiera się po przejściu świata). Misja to jeden krok frontu: cel
+z danych, własna siatka, własny pasek budowy, własny wróg. Baza przechodzi między
+misjami; „POWTÓRZ" wraca do **punktu kontrolnego** na start misji, nie do początku
+świata.
+
+Ocena po misji to **jedno słowo i dwie–trzy liczby** (`PRZEŁAMANIE · Fala 8 ·
+Straty 12`), nie gwiazdki — i **nie bramkuje postępu, tylko odblokowuje**.
+
+To jedna ramka dla obu trybów: gra dowolna to rekord `SKIRMISH` w `src/missions.js`,
+a nie drugi silnik. **Nowa misja = wpis w tabeli, nie nowy kod** — jeśli dodanie misji
+wymaga dotknięcia `sim.js`, ramka jest zepsuta.
+
+```
+src/missions.js   DANE: sześć misji Świata I + gra dowolna (zero logiki)
+src/campaign.js   RAMKA: cel z danych, punkt kontrolny, migawka, ocena, postęp
+src/menu.js       EKRANY: menu · wybór misji · odprawa · ocena sztabu
+```
+
+Pełny projekt gry — kształt pola 1/3/1, treść każdej misji, co odrzucone i dlaczego,
+kolejność robót: **`FRONT.md`**. Rozkazy generała (aktywne moce; pomysł, nie kod,
+wycięte z v1): `docs/rozkazy.md`.
+
+### Tory (kształt pola 1/3/1)
+
+Korytarz nie ma stałej szerokości: przy bazie jeden tor, w środku trzy, przed
+bastionem lej. **Przydział jednostki do toru jest rozkazem** — zmieniasz go dowolnie
+i w każdej chwili (przyciski TOR 1/2/3 · ROZDZIEL, klawisze `Q/W/E/R`). Przerzut
+kosztuje czas przejazdu, nie kredyty. Przy kształcie `'1'` torów jest wszędzie jeden
+i cały mechanizm jest niewidoczny.
 
 ## Dodawanie grafiki i dźwięku
 

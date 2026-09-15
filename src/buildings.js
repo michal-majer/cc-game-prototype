@@ -7,6 +7,7 @@ import {
   BUILD_DIV, BUILD_MIN, BUILD_MAX, BAL, clamp, cellsOf, ringOf, fpOf, plObj
 } from './config.js';
 import { S, say } from './state.js';
+import { allows, missionReq } from './campaign.js';
 import { boom } from './audio.js';
 import { explode } from './effects.js';
 
@@ -15,8 +16,11 @@ export const hasTech  = t => S.buildings.some(b=>b.type===t && b.powered);
 // MGŁA WOJNY (wariant): S.run.fogged tnie radar do poziomu I — pełnej widoczności
 // (radar II) nie da się osiągnąć, skład fali poznasz dopiero w zwarciu.
 export const radarLvl = () => { let m=0; for (const b of S.buildings) if (b.type==='radar' && b.powered) m=Math.max(m,b.lvl); return Math.min(S.run&&S.run.fogged?1:2,m); };
-export const unlocked = t => (B[t].req||[]).every(hasTech);
-export const reqText  = t => (B[t].req||[]).map(x=>B[x].name).join(' + ');
+// Odblokowanie budynku = RAMKA MISJI + technika. Kampania rozkłada odblokowania
+// na cały świat (FRONT.md §4.5 — dziś 13 budynków i 17 kart od razu); w grze
+// dowolnej `allows` przepuszcza wszystko i zostaje samo drzewko `req`.
+export const unlocked = t => allows(t) && missionReq(t).every(hasTech);
+export const reqText  = t => missionReq(t).map(x=>B[x].name).join(' + ');
 export const maxLvl   = () => hasTech('lab') ? MAXLVL+1 : MAXLVL;
 
 export const bSup   = b => B[b.type].sup ? B[b.type].sup + (b.lvl-1)*4 : 0;
@@ -62,10 +66,15 @@ export function roomFor(t){
 }
 
 // --- stawianie / usuwanie ---
+// Licznik id budynków. Migawka (campaign.snapshot) zapisuje `id`, a kratka
+// wskazuje budynek po id, nie po referencji — inaczej po JSON.stringify
+// i wczytaniu dostajesz DWIE KOPIE tego samego budynku (FRONT.md §10, mina 1).
+let BID = 1;
+export const resetIds = () => { BID = 1; };
 export function mkBuilding(type,c,r,instant=false){
   const d=B[type], [w,h]=d.fp;
   const bt = instant ? 0 : buildSec(type);   // sztab i darowizny z kart stają natychmiast
-  const b={type,c,r,lvl:1, x:BASE_X+(c+w/2)*CELL, y:BASE_Y+(r+h/2)*CELL,
+  const b={type,c,r,lvl:1, id:BID++, x:BASE_X+(c+w/2)*CELL, y:BASE_Y+(r+h/2)*CELL,
            hp:d.hp,maxHp:d.hp, brown:false, powered:false, cd:0, side:'p', flash:0,
            build:bt, buildMax:bt};
   for (const [cc,rr] of cellsOf(type,c,r)){ S.grid[rr][cc].b=b; S.grid[rr][cc].seam=false; }

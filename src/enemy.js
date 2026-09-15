@@ -57,14 +57,21 @@ export function eRatio(){
 // nadziewać się na obronę gracza.
 //   · podłoga = linia gracza (bez szturmu nie wejdzie za jego front),
 //   · sufit   = EHOLD_X (nigdy nie zostawia bastionu bez osłony).
+// Sufit linii wroga = tuż przed JEGO przyczółkiem, a nie sztywne EHOLD_X liczone
+// od bastionu gry dowolnej. Bez tego w misji 1 (przyczółek na 800) wróg maszerował
+// na 1040 — poza pole misji, w pustkę za własnym spawnem.
+const eCap = () => Math.min(EHOLD_X, (S.espawn ? S.espawn.x : EHOLD_X) - 60);
 export function eHoldX(){
+  // Bez sektorów (misje 1–2) nie ma czego kontestować — wróg trzyma się
+  // pod własnym przyczółkiem i idzie dopiero, gdy zdecyduje o szturmie.
+  if (!SECT.length) return Math.max(eCap(), lineX());
   let x = null;
   for (let i = SECT.length-1; i >= 0; i--){  // od bazy wroga (prawa) ku frontowi (lewa)
     const q = SECT[i];
     if (q.own !== -1){ x = q.x; break; }      // pierwszy sektor od TYŁU jeszcze nie ich = cel
   }
   if (x === null) x = SECT[0].x;              // trzymają wszystkie → broń najdalej wysuniętego
-  return Math.min(EHOLD_X, Math.max(x, lineX()));
+  return Math.min(eCap(), Math.max(x, lineX()));
 }
 export function eDecide(){
   const r = eRatio(), n = S.units.filter(u=>u.side==='e').length;
@@ -111,7 +118,11 @@ export function eDecide(){
   }
 }
 // Bastion JEST ich bazą: uszkodzony trwale osłabia produkcję (podłoga 0.45).
-export const bEff = () => S.bastion.dead ? 0 : Math.max(0, 0.45 + 0.55*(S.bastion.hp/BAS_HP));
+// W misjach, w których bastion nie jest celem (S.bastion.target === false), stoi
+// jako punkt startu fal i nie da się go bić — produkcja idzie wtedy pełna.
+export const bEff = () => S.bastion.dead ? 0
+  : !S.bastion.target ? 1
+  : Math.max(0, 0.45 + 0.55*(S.bastion.hp/S.bastion.maxHp));
 export function eComp(){
   const out={}, eff=bEff();
   for (const t of S.eBase){ const d=EB[t]; out[d.unit]=(out[d.unit]||0)+d.count; }

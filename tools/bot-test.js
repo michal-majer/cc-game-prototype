@@ -21,6 +21,9 @@ const { chromium } = require('playwright');
 const RUNS = +(process.env.RUNS || 4), SPEED = +(process.env.SPEED || 10);
 const MAXREAL = +(process.env.MAXREAL || 240), STYL = process.env.STYL || 'obrona';
 const URL = process.env.URL || 'http://localhost:8123/?debug';
+// MISJA=m4 → bot gra misję kampanii (ta sama ramka co gra dowolna, inne dane).
+// Bez tej zmiennej gra jak dotąd: gra dowolna z wariantami i eskalacją.
+const MISJA = process.env.MISJA || '';
 const TRACE = !!process.env.TRACE;   // TRACE=1: skład bazy wroga w falach 1–8
 
 (async () => {
@@ -31,6 +34,12 @@ const TRACE = !!process.env.TRACE;   // TRACE=1: skład bazy wroga w falach 1–
   const errors = []; page.on('pageerror', e => errors.push(String(e)));
   await page.goto(URL, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1500);
+  // start: misja kampanii albo gra dowolna (menu startowe trzeba przeklikać)
+  await page.evaluate(m => window.__front.startMission(m || 'skirmish'), MISJA);
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { const g = document.querySelector('[data-act=\"go\"]');
+    if (g && !document.getElementById('menu').classList.contains('hidden')) g.click(); });
+  await page.waitForTimeout(200);
 
   await page.evaluate(async ({ SPEED, STYL }) => {
     const b = await import('/src/buildings.js'), e = await import('/src/economy.js');
@@ -105,7 +114,12 @@ const TRACE = !!process.env.TRACE;   // TRACE=1: skład bazy wroga w falach 1–
     const h = rep.h || {};
     console.log(`PARTIA ${run} (${STYL}): ${rep.state === 'win' ? 'ZWYCIĘSTWO' : rep.state === 'over' ? 'porażka' : 'limit czasu'} · fala ${rep.wave} · czas gry ~${Math.round(rep.gt / 60)} min · real ${Math.round((Date.now() - t0) / 1000)} s · ${h.doctrine || '?'} · ${(h.mods || []).join('+') || '—'} · bastion ${h.bastionDestroyedPct ?? '?'}% · zabici wróg/Twoi ${h.enemyKilled ?? '?'}/${h.playerKilled ?? '?'} · budynki ${h.buildingsBuiltTotal ?? '?'} · szczyt wroga ${h.peakEnemyOnField ?? '?'}` +
       (h.income ? ` · dochód ${h.incomeTotal} (ruda ${h.income.ruda} / sektory ${h.income.sektory} / baza ${h.income.baza} / łupy ${h.income.lupy} / złom ${h.income.zlom} / karty ${h.income.karty}) · wydane ${h.spent} · w kasie ${h.money}` : ''));
-    await page.evaluate(() => { window.__gt = 0; window.__lastTimer = null; window.__trace = []; window.__lastWave = -1; window.__front.newRun(); });
+    await page.evaluate(m => {
+      window.__gt = 0; window.__lastTimer = null; window.__trace = []; window.__lastWave = -1;
+      if (m) window.__front.startMission(m); else window.__front.newRun();
+      const g = document.querySelector('[data-act="go"]');
+      if (g && !document.getElementById('menu').classList.contains('hidden')) g.click();
+    }, MISJA);
     await page.waitForTimeout(300);
   }
   if (errors.length) console.log('BŁĘDY JS:', errors.slice(0, 5));

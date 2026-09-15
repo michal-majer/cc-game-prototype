@@ -13,13 +13,94 @@ export const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
 // --- wymiary / geometria ---
 export const W = 1200, H = 680;
-export const COLS = 7, ROWS = 6, CELL = 52;
+export const CELL = 52;
+// Siatka bazy to DANE MISJI (misja 1 gra na mniejszej, misja 2 na ciaśniejszej).
+// `let` + eksport = zywe wiazanie: importerzy widza zmiane bez zadnej przerobki.
+// GRID_MAX pilnuje, zeby GEOMETRIA KORYTARZA (BASE_R, linie, sektory) NIE ruszala
+// sie razem z siatka — mniejsza siatka to mniej kratek w tej samej bazie, nie inne pole.
+export const GRID_MAX_COLS = 7, GRID_MAX_ROWS = 6;
+export let COLS = GRID_MAX_COLS, ROWS = GRID_MAX_ROWS;
 export const BASE_X = 40, BASE_Y = 176;
-export const BASE_R = BASE_X + COLS*CELL;            // 404
+export const BASE_R = BASE_X + GRID_MAX_COLS*CELL;   // 404 — stale, niezalezne od COLS
 export const LANE_Y = 332, LANE_HALF = 130;
 export const BAS_X = 1150;
 export const FRONT_MIN = BASE_R, FRONT_MAX = BAS_X - 30;
 export const EHOLD_X = BAS_X - 110;
+
+export function setGrid(cols, rows){
+  COLS = clamp(cols|0, 2, GRID_MAX_COLS);
+  ROWS = clamp(rows|0, 2, GRID_MAX_ROWS);
+}
+
+/* --------------------------- KSZTALT POLA (tory) -------------------------
+   Korytarz nie ma stalej szerokosci (patrz FRONT.md §2): przy bazie 1 tor,
+   w srodku 3, przed bastionem lej z powrotem do 1.
+
+   Dwie rozlaczne rzeczy, i to jest tu cala sztuczka:
+
+   · SZEROKOSC POLA jest funkcja pozycji — lanesAt(x) mowi „ile torow JEST
+     w tym miejscu". To geometria mapy, gracz jej nie rusza.
+   · PRZYDZIAL DO TORU jest ROZKAZEM — u.lane to tor, na ktory jednostka ma
+     isc, i gracz zmienia go DOWOLNIE i W KAZDEJ CHWILI: rozdziela armie na
+     tory, sciaga wszystko na jeden, przerzuca w trakcie walki. Jednostka
+     dojezdza do srodka swojego toru (laneCY) i tam trzyma pas; przerzut to
+     zmiana u.lane, reszte robi sterowanie w sim.js.
+
+   Dzieki temu „tor" nie jest stanem globalnym ani jednorazowym losowaniem —
+   jest rozkazem na jednostce, tak samo jak linia (S.si) jest rozkazem na armii.
+
+   Przy ksztalcie '1' lanesAt zwraca wszedzie 1, kazde u.lane===0 i symulacja
+   chodzi DOKLADNIE jak dotad — ale pole juz jest, wiec misja 4 nie wymaga
+   przepisywania sim.js na gotowej, dopieszczonej misji (patrz „Odrzucone:
+   tory odblokowywane w misji 4").
+
+   Strefa opisana progiem x: pierwszy prog wiekszy od x wygrywa.                */
+// n = ile torow · h = polowa wysokosci korytarza w tej strefie (ulamek LANE_HALF).
+// h < 1 to LEJ: przewagi liczebnej nie da sie wprowadzic naraz. PRZEPUSTOWOSC LEJA
+// (h ostatniej strefy) to glowne pokretlo misji 6 — HP bastionu rusza sie OSTATNIE.
+export const SHAPES = {
+  '1':     [{ x: BAS_X + 80, n: 1, h: 1 }],                 // waski korytarz na calej dlugosci (Swiat II)
+  '1-3-1': [{ x: FRONT_MIN + 150, n: 1, h: 0.62 },          // przy bazie — waskie gardlo
+            { x: FRONT_MIN + 600, n: 3, h: 1    },          // srodek — jedyny wybor kierunku
+            { x: BAS_X + 80,      n: 1, h: 0.38 }],         // LEJ przed bastionem
+  '1-2-1': [{ x: FRONT_MIN + 150, n: 1, h: 0.62 },          // rezerwa: ksztalt drugiego swiata
+            { x: FRONT_MIN + 600, n: 2, h: 1    },
+            { x: BAS_X + 80,      n: 1, h: 0.38 }],
+};
+let SHAPE = '1';
+export const shapeId = () => SHAPE;
+export function setShape(id){ SHAPE = SHAPES[id] ? id : '1'; }
+// strefa ksztaltu obejmujaca x (pierwszy prog wiekszy od x wygrywa)
+export function zoneAt(x){
+  const zs = SHAPES[SHAPE];
+  for (const z of zs) if (x < z.x) return z;
+  return zs[zs.length-1];
+}
+// ile torow w tym miejscu pola
+export const lanesAt = x => zoneAt(x).n;
+// NAJWIECEJ torow, jakie pole w ogole ma. Jednostka rodzi sie w bazie, gdzie tor
+// jest zawsze jeden — gdyby domyslny przydzial liczyc z miejsca narodzin, cala
+// armia szlaby torem 1, dopoki gracz recznie nie wyda rozkazu. Przydzial liczymy
+// wiec z SZEROKIEJ strefy, do ktorej i tak zmierza.
+export const maxLanes = () => SHAPES[SHAPE].reduce((m,z)=>Math.max(m,z.n), 1);
+// polowa wysokosci PRZEJEZDNEGO korytarza w tym miejscu (lej = mniej)
+export const corridorHalf = x => LANE_HALF * (zoneAt(x).h == null ? 1 : zoneAt(x).h);
+// srodek toru `lane` (0..n-1) przy szerokosci n torow, w miejscu x
+export function laneCY(lane, n, x){
+  const half = x == null ? LANE_HALF : corridorHalf(x);
+  if (n <= 1) return LANE_Y;
+  const h = (half*2)/n;
+  return LANE_Y - half + h*(clamp(lane,0,n-1) + 0.5);
+}
+// polowa wysokosci JEDNEGO toru (do trzymania jednostki w swoim pasie)
+export const laneHalf = (n, x) => {
+  const half = x == null ? LANE_HALF : corridorHalf(x);
+  return n <= 1 ? half : Math.max(6, half/n - 4);
+};
+// jak szybko jednostka przechodzi MIEDZY torami po zmianie rozkazu (px/s).
+// Przerzut ma cos kosztowac — jednostka w polowie drogi nie strzela w swoim pasie
+// — ale nie ma byc karny: 90 px/s to ~1,5 s na sasiedni tor przy trzech torach.
+export const LANE_SHIFT = 90;
 
 // --- AI wroga ---
 export const EARTY_CAP = 3;

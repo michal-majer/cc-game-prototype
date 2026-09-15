@@ -13,7 +13,9 @@ import { terrIncome } from './sectors.js';
 import { radarLvl, unlocked, reqText, canUp, upCost, upText } from './buildings.js';
 import { eComp, eRatio } from './enemy.js';
 import { takeCard } from './cards.js';
-import { setStance } from './sim.js';
+import { setStance, setArmyLane } from './sim.js';
+import { MIS, feat, isCampaign, goalText, goalNow, goalDone } from './campaign.js';
+import { maxLanes } from './config.js';
 
 const qs = id => document.getElementById(id);
 const KCOL = {WOJSKO:CO.blue, RUDA:CO.ore, KRATKI:CO.ok, 'WRÓG':CO.red, WROG:CO.red};
@@ -22,23 +24,30 @@ let logShown='', compShown='';
 /* --------------------------- pasek budowy -------------------------------- */
 export function buildBar(){
   const bar=qs('buildbar'); bar.innerHTML='';
-  for (const t of BAR){
+  // Pasek pokazuje TYLKO to, co misja odblokowała. Misja 1 ma na nim dwa budynki,
+  // nie trzynaście — odblokowania rozłożone na całą kampanię (FRONT.md §4.5).
+  const list = MIS().unlock ? BAR.filter(t => MIS().unlock.includes(t)) : BAR;
+  for (const t of list){
     const el=document.createElement('div'); el.className='tile'; el.dataset.type=t;
     el.innerHTML=`<span class="ico"></span><span class="nm"></span><span class="fp"></span>`+
                  `<span class="cost"></span><span class="desc"></span>`;
     el.addEventListener('click', ()=>onBuildTile(t));
     bar.appendChild(el);
   }
+  if (feat('sell')){
   const sell=document.createElement('div'); sell.className='tile sell'; sell.dataset.type='SELL';
   sell.innerHTML=`<span class="ico">✂</span><span class="nm">ROZBIÓRKA</span>`+
                  `<span class="cost warn">zwrot ≤50%</span><span class="desc">obiekty 50% wartości (wg HP) · żyły 40%</span>`;
   sell.addEventListener('click', ()=>{ S.sel = S.sel==='SELL'?null:'SELL'; S.upSel=null; });
   bar.appendChild(sell);
+  }
+  if (feat('repair')){
   const rep=document.createElement('div'); rep.className='tile repair'; rep.dataset.type='REPAIR';
   rep.innerHTML=`<span class="ico">✚</span><span class="nm">NAPRAWA</span>`+
                 `<span class="cost warn">wg braków HP</span><span class="desc">przywraca pełne HP · drożej im większe uszkodzenie</span>`;
   rep.addEventListener('click', ()=>{ S.sel = S.sel==='REPAIR'?null:'REPAIR'; S.upSel=null; });
   bar.appendChild(rep);
+  }
 }
 function updateBar(){
   const bar=qs('buildbar');
@@ -75,7 +84,9 @@ function onBuildTile(t){
 /* --------------------------- suwak linii --------------------------------- */
 export function buildStanceSlider(){
   const s=qs('stance-slider'); s.innerHTML='';
-  STANCES.forEach((st,i)=>{
+  const n = feat('stance') || 0;
+  s.classList.toggle('hidden', n < 2);
+  STANCES.slice(0, Math.max(0,n)).forEach((st,i)=>{
     const el=document.createElement('div'); el.className='seg';
     el.innerHTML=`<span class="sn">${st.n}</span><span class="sd"></span>`;
     el.addEventListener('click', ()=>setStance(i));
@@ -84,8 +95,9 @@ export function buildStanceSlider(){
 }
 function updateStanceSlider(){
   const s=qs('stance-slider');
+  const n = s.children.length;
   [...s.children].forEach((el,i)=>{
-    const on=i===S.si, push=i===STANCES.length-1;
+    const on=i===S.si, push=i===n-1 && n===STANCES.length;
     el.classList.toggle('on', on);
     el.classList.toggle('push', push);
     el.querySelector('.sd').textContent = on ? STANCES[i].d : '';
@@ -109,11 +121,17 @@ export function renderCards(){
   });
   syncOverlays();
 }
+// elementy HUD-a, które w menu mają zniknąć razem z polem walki
+const CHROME = ['topbar','intel','log','log-toggle','stance-slider','buildbar','objective','lanes'];
 export function syncOverlays(){
+  const inMenu = S.state==='menu';
+  for (const id of CHROME){ const el=qs(id); if (el) el.classList.toggle('off', inMenu); }
   qs('cards').classList.toggle('hidden', S.state!=='draft');
   const over = (S.state==='win'||S.state==='over');
-  qs('end').classList.toggle('hidden', !over);
-  if (over){
+  // W kampanii ekran końca robi menu (OCENA SZTABU) — stary raport runu zostaje
+  // grze dowolnej, gdzie mierzy warianty i eskalację.
+  qs('end').classList.toggle('hidden', !over || isCampaign());
+  if (over && !isCampaign()){
     const win=S.state==='win';
     const t=qs('end-title'); t.textContent=win?'ZWYCIĘSTWO':'PRZEGRANA'; t.className=win?'win':'lose';
     qs('end-reason').textContent=S.endReason;
@@ -123,6 +141,33 @@ export function syncOverlays(){
     if (rep) rep.innerHTML = (S.report||[]).map(l=>`<div class="rl">${l}</div>`).join('');
   }
   qs('ready').classList.toggle('hidden', !(S.state==='play' && !S.ready));
+}
+
+/* ------------------------- cel misji + rozkaz torowy ---------------------- */
+function updateObjective(){
+  const el=qs('objective');
+  if (!isCampaign() || S.state==='menu'){ el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const [now, target] = goalNow(), done = goalDone();
+  el.classList.toggle('done', done);
+  qs('obj-lbl').textContent = 'CEL — MISJA '+MIS().n;
+  qs('obj-txt').textContent = goalText();
+  qs('obj-bar').style.width = Math.min(100, target? 100*now/target : 0)+'%';
+  qs('obj-bar').style.background = done ? CO.ok : CO.warn;
+  qs('obj-num').textContent = done ? '✔ OSIĄGNIĘTY' : now+' / '+target;
+}
+// Rozkaz torowy pokazuje się TYLKO tam, gdzie tory istnieją — przy kształcie '1'
+// przycisków nie ma, bo nie ma czego rozdzielać.
+function updateLanes(){
+  const el=qs('lanes');
+  const n = maxLanes();
+  if (n<2 || S.state!=='play'){ el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  [...el.children].forEach(b=>{
+    const l=+b.dataset.lane;
+    b.style.display = (l>=n) ? 'none' : '';
+    b.classList.toggle('on', S.laneOrder===l);
+  });
 }
 
 /* ------------------------------- toast / log ----------------------------- */
@@ -181,7 +226,8 @@ export function updateHUD(){
   qs('timer').style.color = S.timer<5?CO.bad:CO.dim;
   qs('ebase').textContent='ich baza: '+S.eBase.length+' ob.';
 
-  // wywiad
+  // wywiad — panel istnieje tylko w misjach, które dały radar (w 1–2 byłby ikoną)
+  qs('intel').classList.toggle('hidden', !feat('radar'));
   const radar=radarLvl()>=2, comp=eComp();
   qs('intel-title').textContent = radar ? '▌ WYWIAD — '+S.doc.name+' · FALA '+(S.wave+1)
     : '▌ BEZ RADARU — POZNASZ ICH W ZWARCIU · '+S.doc.name;
@@ -209,13 +255,15 @@ export function updateHUD(){
     ? '▐ TWOI — żołnierze ⚔+'+pb.atkS+' ⛊+'+pb.armS+'  ·  opancerzeni ⚔+'+pb.atkA+' ⛊+'+pb.armA : '';
 
   // kontrolki
-  const push=S.si===STANCES.length-1, sb=qs('stance-btn');
+  const stN = feat('stance')||0;
+  const push=stN>=2 && S.si===stN-1, sb=qs('stance-btn');
+  sb.classList.toggle('hidden', stN < 2);
   sb.textContent=(push?'▶▶ ':'▮▮ ')+STANCES[S.si].n;
   sb.classList.toggle('push', push);
   qs('speed-btn').textContent='» '+S.speed+'×';
   qs('speed-btn').classList.toggle('on', S.speed>1);
   const armed=S.newArm>0;
-  qs('new-btn').textContent=armed?'PEWNO?':'⟲ NOWA';
+  qs('new-btn').textContent = isCampaign() ? '☰ MENU' : (armed?'PEWNO?':'⟲ NOWA');
   qs('new-btn').classList.toggle('on', armed);
   qs('mute-btn').textContent=isMuted()?'♪ ✕':'♪ WŁ.';
 
@@ -223,6 +271,8 @@ export function updateHUD(){
   updateStanceSlider();
   updateLog();
   updateUpgradePanel();
+  updateObjective();
+  updateLanes();
 }
 
 /* ---- panel ulepszenia budynku (po tapnięciu; koszt + efekt kolejnego poziomu) ---- */

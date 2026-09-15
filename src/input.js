@@ -9,7 +9,9 @@ import { boom, resumeAudio, setMuted, isMuted } from './audio.js';
 import { explode } from './effects.js';
 import { app, cam, clampCam, screenToWorld } from './render.js';
 import { fits, unlocked, canUp, upCost, mkBuilding, recalcPower, clearCells } from './buildings.js';
-import { setStance, toggleStance } from './sim.js';
+import { setStance, toggleStance, setArmyLane } from './sim.js';
+import { isCampaign } from './campaign.js';
+import { showMenu } from './menu.js';
 import { takeCard } from './cards.js';
 import { toast, syncOverlays } from './hud.js';
 import { newRun } from './game.js';
@@ -148,7 +150,15 @@ function initButtons(){
   qs('stance-btn').addEventListener('click', ()=>{ resumeAudio(); toggleStance(); });
   qs('speed-btn').addEventListener('click', ()=>{ S.speed = S.speed>=3?1:S.speed+1; });
   qs('mute-btn').addEventListener('click', ()=>{ setMuted(!isMuted()); });
-  qs('new-btn').addEventListener('click', ()=>{ if (S.state!=='play'||S.newArm>0) newRun(); else S.newArm=3; });
+  // W kampanii ten przycisk wraca DO MENU (skąd widać postęp i można powtórzyć
+  // misję od punktu kontrolnego); w grze dowolnej zostaje „NOWA" z potwierdzeniem.
+  qs('new-btn').addEventListener('click', ()=>{
+    if (isCampaign()){ showMenu(); return; }
+    if (S.state!=='play'||S.newArm>0) newRun(); else S.newArm=3;
+  });
+  // rozkaz torowy — rozdziel siły albo ściągnij wszystko na jeden tor
+  for (const b of qs('lanes').children)
+    b.addEventListener('click', ()=>{ resumeAudio(); setArmyLane(+b.dataset.lane); });
   qs('ready').addEventListener('click', ()=>{ resumeAudio(); S.ready=true; syncOverlays(); });
   qs('end-btn').addEventListener('click', ()=>newRun());
   qs('end-copy').addEventListener('click', ()=>{
@@ -167,9 +177,13 @@ function initButtons(){
       if (i!==undefined && S.draft && S.draft[i]) takeCard(S.draft[i]);
       return;
     }
-    if (e.code==='Escape'){ S.sel=null; S.upSel=null; }
+    if (e.code==='Escape'){
+      if (!S.sel && !S.upSel && S.state==='play'){ showMenu(); return; }
+      S.sel=null; S.upSel=null;
+    }
     if (e.code==='Space'){ e.preventDefault();
-      if (S.state!=='play'){ newRun(); return; }
+      if (S.state==='menu') return;
+      if (S.state!=='play'){ if (!isCampaign()) newRun(); return; }
       if (!S.ready){ S.ready=true; syncOverlays(); return; }
       toggleStance(); return; }
     if (S.state!=='play') return;
@@ -179,6 +193,9 @@ function initButtons(){
     if (e.code==='ArrowLeft')  setStance(S.si-1);
     const n=+({Digit1:1,Digit2:2,Digit3:3,Digit4:4,Digit5:5}[e.code]||0);
     if (n) setStance(n-1);
+    // tory: Q/W/E kierują całość na tor, R rozdziela po równo
+    const L={KeyQ:0, KeyW:1, KeyE:2, KeyR:-1}[e.code];
+    if (L!==undefined) setArmyLane(L);
   });
 }
 

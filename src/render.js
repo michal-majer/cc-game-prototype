@@ -7,10 +7,12 @@
 import * as PIXI from '../vendor/pixi.min.mjs';
 import {
   CO, U, B, BASE_X, BASE_Y, CELL, COLS, ROWS, BASE_R, LANE_Y, LANE_HALF, BAS_X,
-  STANCES, CAP_R, TERR_MAX, ORE_SIP, BAL, HEX, clamp, ringOf, cellAt
+  STANCES, CAP_R, TERR_MAX, ORE_SIP, BAL, HEX, clamp, ringOf, cellAt,
+  lanesAt, laneCY, corridorHalf, shapeId
 } from './config.js';
 import { S, SECT, lineX } from './state.js';
-import { buildTex, unitTex, unitSheet, tex } from './assets.js';
+import { buildTex, unitTex, unitSheet, tex, tileTex, markTex, hasTiles } from './assets.js';
+import { shellMark } from './sim.js';
 import { radarLvl, canUp, maxLvl, fits } from './buildings.js';
 import { eTerrCtrl } from './sectors.js';
 import { bEff, eHoldX } from './enemy.js';
@@ -22,7 +24,8 @@ export const cam = { zoom:1, min:0.2, max:3, panX:0, panY:0, _init:false };
 const SREF = 12, GB = SREF*3.6;
 const TEAM_P = 0xa3c9ff, TEAM_E = 0xff6f5c;   // zabarwienie sprite'ów jednostek: gracz niebieski / wróg czerwony
 const glyphTex = {};
-let worldRoot, gWorld, worldText, buildLayer, harvG, bastionLayer, deathLayer, unitLayer, gOver, ghostG;
+let worldRoot, groundLayer, gWorld, worldText, buildLayer, harvG, bastionLayer, deathLayer, unitLayer, gOver, ghostG;
+let groundKey = '';
 let bastionView=null;
 const now = () => performance.now();
 
@@ -32,6 +35,7 @@ export async function initPixi(){
   document.getElementById('stage').appendChild(app.canvas);
 
   worldRoot = new PIXI.Container();  app.stage.addChild(worldRoot);
+  groundLayer=new PIXI.Container();  worldRoot.addChild(groundLayer);   // kafle terenu pod wszystkim
   gWorld    = new PIXI.Graphics();   worldRoot.addChild(gWorld);
   worldText = new PIXI.Container();  worldRoot.addChild(worldText);
   buildLayer= new PIXI.Container();  worldRoot.addChild(buildLayer);
@@ -86,6 +90,43 @@ function buildGlyphs(){
   }
 }
 
+/* ------------------------------ KAFLE TERENU -----------------------------
+   Budowane RAZ na misję (klucz: misja + kształt + siatka), nie co klatkę —
+   to kilkaset sprite'ów. Wariant kafla dobiera assets.tileTex po pozycji,
+   więc pole wygląda tak samo po powrocie z menu.
+
+   Bez pliku z kaflami hasTiles() jest false i wszystko zostaje po staremu:
+   płaskie wypełnienie z gWorld. Grafika NIE jest warunkiem grywalności.     */
+function buildGround(){
+  const key = (S.mission?S.mission.id:'-')+'|'+shapeId()+'|'+COLS+'x'+ROWS+'|'+fieldEnd();
+  if (key === groundKey) return;
+  groundKey = key;
+  groundLayer.removeChildren().forEach(c=>c.destroy());
+  if (!hasTiles('ziemia')) return;
+
+  const T = CELL;                                  // kafel rysowany w skali kratki bazy
+  const put = (t, x, y) => {
+    const sp = new PIXI.Sprite(t);
+    sp.width = T; sp.height = T; sp.x = x; sp.y = y;
+    groundLayer.addChild(sp);
+  };
+  // 1) korytarz — tylko tam, gdzie pole jest PRZEJEZDNE (lej naprawdę zwęża)
+  for (let x = BASE_R; x < fieldEnd(); x += T){
+    const half = corridorHalf(x + T/2);
+    for (let y = LANE_Y - LANE_HALF; y < LANE_Y + LANE_HALF; y += T){
+      const cy = y + T/2, d = Math.abs(cy - LANE_Y);
+      if (d > half) continue;
+      const gx = Math.round(x/T), gy = Math.round(y/T);
+      // przy krawędzi korytarza zieleń, w środku goła ziemia — darmowa różnorodność
+      const set = d > half - T ? 'trawa' : 'ziemia';
+      put(tileTex(set, gx, gy), x, y);
+    }
+  }
+  // 2) baza — skalny placyk pod siatką
+  for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++)
+    put(tileTex('skala', c+900, r+900), BASE_X + c*T, BASE_Y + r*T);
+}
+
 /* --------------------------------- KAMERA -------------------------------- */
 function bandRect(){
   const sw=app.screen.width, sh=app.screen.height;
@@ -93,10 +134,21 @@ function bandRect(){
   const bot = (sw<=720 ? 92 : 100) + 44;
   return { sw, sh, top, bandH: Math.max(60, sh - top - bot) };
 }
+// Widoczny wycinek świata kończy się tam, gdzie kończy się misja (S.camX).
+// Misja 1 gra na krótkim polu, misja 4 „odjeżdża kamerą" na pełną szerokość —
+// jedna liczba w danych misji, zero nowej koncepcji.
+export const viewW = () => clamp(fieldEnd() + 30 - WV.x, 300, WV.w);
+// Prawa krawędź POLA MISJI. Misja 1 gra na krótkim odcinku, misja 4 „odjeżdża
+// kamerą" na pełną szerokość — jedna liczba w danych misji (camX), zero nowej
+// koncepcji. Rysujemy i clampujemy kamerę do tej samej liczby, więc gracz nie
+// ogląda pustego pasa za przyczółkiem wroga.
+export const fieldEnd = () => (S.camX || BAS_X+50);
+// Nowa misja = nowe pole: przelicz zoom od zera, zamiast trzymać ten z poprzedniej.
+export function fitCam(){ cam._init=false; resizeCam(); }
 export function resizeCam(){
   const {sw, sh, bandH}=bandRect();
   const fillH = bandH / WV.h;
-  const fitAll= Math.min(sw / WV.w, fillH);
+  const fitAll= Math.min(sw / viewW(), fillH);
   cam.min = Math.min(fitAll, fillH);
   cam.max = Math.max(fillH*1.8, fitAll*3);
   const portraitish = sw<=900 || sw < sh*1.2;
@@ -108,7 +160,7 @@ export function resizeCam(){
 export function clampCam(){
   const {sw, top, bandH}=bandRect();
   cam.zoom = clamp(cam.zoom, cam.min, cam.max);
-  const cw=WV.w*cam.zoom, ch=WV.h*cam.zoom;
+  const cw=viewW()*cam.zoom, ch=WV.h*cam.zoom;
   if (cw<=sw) cam.panX = (sw-cw)/2 - WV.x*cam.zoom;
   else cam.panX = clamp(cam.panX, sw-cw-WV.x*cam.zoom, -WV.x*cam.zoom);
   if (ch<=bandH) cam.panY = top + (bandH-ch)/2 - WV.y*cam.zoom;
@@ -148,40 +200,50 @@ function dashV(g,x,y0,y1,color,alpha){
   for (let y=y0;y<y1;y+=12){ g.moveTo(x,y).lineTo(x,Math.min(y1,y+6)); }
   g.stroke({width:2,color,alpha});
 }
+// środek i połowa wysokości pola sektora (torowy siedzi w swoim torze)
+const secY = q => q.lane>=0 ? laneCY(q.lane, Math.max(1,lanesAt(q.x)), q.x) : LANE_Y;
+const secH = q => q.lane>=0 ? corridorHalf(q.x)/Math.max(1,lanesAt(q.x)) : LANE_HALF;
 function drawWorld(){
   const g=gWorld; g.clear();
   wtBegin();
   const ly=LANE_Y-LANE_HALF, lh=LANE_HALF*2;
 
-  g.rect(BASE_R,ly,BAS_X+40-BASE_R,lh).fill(CO.dirt);
-  g.rect(BASE_R+0.5,ly+0.5,BAS_X+40-BASE_R-1,lh-1).stroke({width:1,color:CO.laneEdge});
+  drawCorridor(g, ly, lh);
 
+  // Sektor torowy siedzi w SWOIM torze — jego pole i marker liczą się tylko tam.
   for (const q of SECT){
+    const cy = secY(q), hh = secH(q);
     const col = q.own===1 ? CO.warn : q.own===-1 ? CO.red : null;
-    if (col){ g.rect(q.x-CAP_R, ly, CAP_R*2, lh).fill({color:col, alpha:0.13}); }
-    else { g.rect(q.x-CAP_R, ly+0.5, CAP_R*2, lh-1).stroke({width:1,color:CO.gridHi, alpha:0.5}); }
+    if (col){ g.rect(q.x-CAP_R, cy-hh, CAP_R*2, hh*2).fill({color:col, alpha:0.13}); }
+    else { g.rect(q.x-CAP_R, cy-hh+0.5, CAP_R*2, hh*2-1).stroke({width:1,color:CO.gridHi, alpha:0.5}); }
   }
-  if (!S.bastion.dead) g.rect(BAS_X-40,ly,80,lh).fill({color:CO.red, alpha:0.17});
-  if (!S.bastion.dead) g.rect(S.frontX-1,ly,2,lh).fill({color:'#ffffff', alpha:0.5});
+  if (!S.bastion.dead && S.bastion.target) g.rect(BAS_X-40,ly,80,lh).fill({color:CO.red, alpha:0.17});
+  if (!S.bastion.dead) g.rect(S.frontX-1,LANE_Y-corridorHalf(S.frontX),2,corridorHalf(S.frontX)*2).fill({color:'#ffffff', alpha:0.5});
 
   const MS_W=30, MS_H=34;
   for (const q of SECT){
     const known = radarLvl()>=1 || q.own===1;
     const col = !known ? '#5c6a70' : q.own===1 ? CO.warn : q.own===-1 ? CO.red : '#5c6a70';
-    const mx=q.x-MS_W/2, my=LANE_Y-MS_H/2;
+    // Etykiety sektora trzymają się JEGO toru — przy trzech torach opisy sąsiadów
+    // nachodziłyby na siebie, gdyby liczyć je od góry korytarza.
+    const qy = secY(q), lane = q.lane>=0;
+    const mx=q.x-MS_W/2, my=qy-MS_H/2;
+    const yName = lane ? qy-MS_H/2-16 : qy-secH(q)-16;
+    const yBar  = lane ? qy-MS_H/2-11 : qy-secH(q)-12;
+    const yInfo = lane ? qy+MS_H/2+9  : qy-secH(q)-26;
     g.roundRect(mx,my,MS_W,MS_H,3).fill('#11171a');
     g.roundRect(mx,my,MS_W,MS_H,3).fill({color:col, alpha:q.own?0.30:0.10});
     g.roundRect(mx+0.5,my+0.5,MS_W-1,MS_H-1,3).stroke({width:q.own?2:1,color:col});
     g.rect(mx+3,my+3,MS_W-6,3).fill(col);
-    wt(q.own?'★':'□', q.x, LANE_Y, 13, q.own?col:'#7c8a90', {bold:true});
-    wt(q.n, q.x, ly-16, 9, q.own?col:CO.dim, {bold:true});
-    const bw=64, bx=q.x-bw/2, by=ly-12;
+    wt(q.own?'★':'□', q.x, qy, 13, q.own?col:'#7c8a90', {bold:true});
+    wt(q.n, q.x, yName, 9, q.own?col:CO.dim, {bold:true});
+    const bw=64, bx=q.x-bw/2, by=yBar;
     g.rect(bx,by,bw,5).fill('#0b0f10');
     const f=Math.abs(q.cap)/100*(bw/2);
     if (q.cap>=0) g.rect(q.x,by,f,5).fill(CO.warn); else g.rect(q.x-f,by,f,5).fill(CO.red);
     g.rect(q.x,by,1,5).fill(CO.gridHi);
-    if (q.own===1) wt('+'+Math.round(TERR_MAX/SECT.length)+' kr./s', q.x, ly-26, 8, CO.warn, {bold:true});
-    else if (q.own===0 && q.cap===0) wt('NICZYJ', q.x, ly-26, 8, CO.dim);
+    if (q.own===1) wt('+'+Math.round(TERR_MAX/SECT.length)+' kr./s', q.x, yInfo, 8, CO.warn, {bold:true});
+    else if (q.own===0 && q.cap===0) wt('NICZYJ', q.x, yInfo, 8, CO.dim);
   }
 
   const ec=eTerrCtrl();
@@ -199,7 +261,8 @@ function drawWorld(){
     dashV(g, hx, ly, ly+lh, CO.red, 0.4);
     wt('TRZYMAJĄ TEREN — '+massed, hx, ly-4, 8, CO.red);
   }
-  if (S.si < STANCES.length-1){
+  const stN = (S.mission && S.mission.feats) ? (S.mission.feats.stance||0) : STANCES.length;
+  if (stN >= 2 && S.si < stN-1){
     const LX=lineX();
     dashV(g, LX, ly, ly+lh, CO.ok, 0.45);
     wt('LINIA — '+STANCES[S.si].n, LX, ly-4, 8, CO.ok);
@@ -209,6 +272,38 @@ function drawWorld(){
 
   drawBaseGrid(g);
   wtEnd();
+}
+/* Korytarz rysowany Z KSZTAŁTU: górna krawędź w prawo, dolna w lewo. Dzięki
+   temu lej i wąskie gardło są WIDAĆ — gracz czyta przepustowość z pola, a nie
+   z komunikatu. Separatory torów rysują się tylko tam, gdzie tory są.        */
+function corridorPoly(step){
+  const top=[], bot=[], END=fieldEnd();
+  for (let x=BASE_R; x<=END; x+=step){
+    const h=corridorHalf(x);
+    top.push(x, LANE_Y-h); bot.push(x, LANE_Y+h);
+  }
+  const hE=corridorHalf(END);
+  top.push(END, LANE_Y-hE); bot.push(END, LANE_Y+hE);
+  const out=top.slice();
+  for (let i=bot.length-2;i>=0;i-=2) out.push(bot[i], bot[i+1]);
+  return out;
+}
+function drawCorridor(g, ly, lh){
+  g.rect(BASE_R,ly,fieldEnd()-BASE_R,lh).fill({color:'#0c1012', alpha:0.55});   // pobocze
+  const poly=corridorPoly(26);
+  g.poly(poly).fill(CO.dirt);
+  g.poly(poly).stroke({width:1.5, color:CO.laneEdge});
+  // separatory torów — w strefie szerokiej, przerywane, żeby nie udawały ściany
+  for (let x=BASE_R; x<fieldEnd(); x+=26){
+    const n=lanesAt(x+13);
+    if (n<2) continue;
+    const h=corridorHalf(x+13);
+    for (let k=1;k<n;k++){
+      const y=LANE_Y-h+(2*h/n)*k;
+      g.moveTo(x+4,y).lineTo(x+18,y);
+    }
+  }
+  g.stroke({width:1, color:CO.gridHi, alpha:0.45});
 }
 function drawBaseGrid(g){
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
@@ -329,11 +424,25 @@ function drawBastion(){
     bastionView.eff.text='ZDOBYTY'; bastionView.eff.style.fill=CO.ok; bastionView.eff.x=b.x; bastionView.eff.y=b.y;
     return;
   }
+  // Misje 1–5: to nie bastion, tylko MINI-BAZA — punkt, z którego startują fale.
+  // Rysujemy ją mniejszą i bez paska HP, żeby gracz nie szukał celu, którego nie ma.
+  if (!b.target){
+    const h=corridorHalf(b.x);
+    if (bastionView.spr) bastionView.spr.visible=false;
+    g.rect(b.x-16,b.y-h*0.55,32,h*1.1).fill(CO.redD);
+    g.rect(b.x-11,b.y-h*0.5,22,h).fill(CO.red);
+    g.rect(b.x-16,b.y-h*0.55-9,32,6).fill(CO.redD);
+    bastionView.hp.visible=false;
+    bastionView.eff.text='ICH PRZYCZÓŁEK'; bastionView.eff.style.fill=CO.red;
+    bastionView.eff.x=b.x-52; bastionView.eff.y=b.y-h*0.55-20;
+    return;
+  }
   if (bastionView.spr){
     bastionView.spr.visible=true; bastionView.spr.tint=0xffffff;
   } else {
-    g.rect(b.x-30,b.y-100,60,200).fill(CO.redD);
-    g.rect(b.x-24,b.y-94,48,188).fill(b.flash>0?'#ffffff':CO.red);
+    const bh=Math.max(60, corridorHalf(b.x));     // bastion wypełnia LEJ, nie wystaje poza pole
+    g.rect(b.x-30,b.y-bh,60,bh*2).fill(CO.redD);
+    g.rect(b.x-24,b.y-bh+6,48,bh*2-12).fill(b.flash>0?'#ffffff':CO.red);
     drawEmblem(g, b.x, b.y);
   }
   g.rect(b.x-30,b.y-112,60,7).fill('#000000');
@@ -482,6 +591,17 @@ function drawDeaths(dt){
 /* ----------------------------- tracery + fx + ghost ---------------------- */
 function drawOver(){
   const g=gOver; g.clear();
+  // ZAPOWIEDŹ OSTRZAŁU — bez niej to podatek losowy, z nią decyzja:
+  // ewakuować tor (przerzut rozkazem) czy przyjąć i odbudować.
+  const sm=shellMark();
+  if (sm){
+    const pulse=0.35+0.35*Math.sin(now()/90);
+    g.circle(sm.x, sm.y, sm.r).fill({color:CO.red, alpha:0.10});
+    g.circle(sm.x, sm.y, sm.r).stroke({width:2, color:CO.red, alpha:pulse});
+    g.circle(sm.x, sm.y, sm.r*(1-Math.min(1,sm.t/3))).stroke({width:1, color:CO.warn, alpha:0.8});
+    g.moveTo(sm.x-sm.r,sm.y).lineTo(sm.x+sm.r,sm.y)
+     .moveTo(sm.x,sm.y-sm.r).lineTo(sm.x,sm.y+sm.r).stroke({width:1,color:CO.red,alpha:pulse});
+  }
   for (const t of S.tracers){
     g.moveTo(t.x1,t.y1).lineTo(t.x2,t.y2).stroke({width:t.w||1, color:t.c, alpha:Math.min(1,t.t/0.07)});
   }
@@ -547,6 +667,7 @@ let _animLast = now();
 export function renderFrame(){
   const t=now(), adt=Math.min(0.05,(t-_animLast)/1000); _animLast=t;  // dt do animacji sprite'ów (czas realny)
   applyCam();
+  buildGround();
   drawWorld();
   drawBuildings();
   drawHarvesters();

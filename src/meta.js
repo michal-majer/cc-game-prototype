@@ -114,6 +114,22 @@ function weightedPick(pool, esc){
   return pool[pool.length-1];
 }
 
+// Metryki runu/misji (zbierane hookami w sim/buildings/cards przez S.stat.*).
+// Osobna funkcja, bo kampania nie przechodzi przez rollRun — misje są autorskie,
+// nie losowane, ale raport i OCENĘ SZTABU liczy się z tych samych liczników.
+export function newStat(){
+  S.stat = {
+    t0: (typeof performance!=='undefined' ? performance.now() : 0),
+    built:{}, builtTotal:0, lost:0, cards:[],
+    eKill:0, pKill:0, peakE:0, basDmg:0,
+    // dochód wg źródła (do balansu ekonomii): ruda = harvestery, sektory = teren,
+    // baza = darmowy trickle, łupy = zapłata za obrażenia bastionu, złom = rozbiórka
+    // i zaoranie żył, karty = otwarcia/karty/warianty (może być ujemne: GARNIZON zeruje kasę)
+    inc:{ ruda:0, sektory:0, baza:0, lupy:0, zlom:0, karty:0 },
+  };
+  return S.stat;
+}
+
 /* --------------------------- START RUNU ----------------------------------
    Woła newRun PO resecie S.* (i po ustawieniu S.doc / S.eBase / S.grid).
    Ustawia skalary S.run i S.stat, nakłada eskalację i losuje warianty.       */
@@ -136,16 +152,7 @@ export function rollRun(){
     S.run.mods.push({ id:m.id, name:m.name, desc:m.desc, tag:m.tag });
   }
 
-  // metryki runu (zbierane hookami w sim/buildings/cards przez S.stat.*)
-  S.stat = {
-    t0: (typeof performance!=='undefined' ? performance.now() : 0),
-    built:{}, builtTotal:0, lost:0, cards:[],
-    eKill:0, pKill:0, peakE:0, basDmg:0,
-    // dochód wg źródła (do balansu ekonomii): ruda = harvestery, sektory = teren,
-    // baza = darmowy trickle, łupy = zapłata za obrażenia bastionu, złom = rozbiórka
-    // i zaoranie żył, karty = otwarcia/karty/warianty (może być ujemne: GARNIZON zeruje kasę)
-    inc:{ ruda:0, sektory:0, baza:0, lupy:0, zlom:0, karty:0 },
-  };
+  newStat();
   return S.run;
 }
 

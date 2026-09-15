@@ -8,14 +8,16 @@ import {
   U, B, CO, BASE_R, LANE_Y, LANE_HALF, BAS_X, FRONT_MIN, FRONT_MAX,
   BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC, ETERR_ATK,
   COUNTER, HUNT_LEASH, ENGAGE_BAND, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
-  isHeavy, isSoldier, isArmored, BAL, BASE_INCOME
+  isHeavy, isSoldier, isArmored, BAL, BASE_INCOME,
+  lanesAt, laneCY, laneHalf, corridorHalf, LANE_SHIFT, maxLanes
 } from './config.js';
 import { S, say, lineX } from './state.js';
+import { MIS, feat, goalDone } from './campaign.js';
 import { boom, siren } from './audio.js';
 import { explode } from './effects.js';
 import { regrow, extract, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { updHarvesters } from './harvesters.js';
-import { updSect, terrIncome, eTerrCtrl, secE } from './sectors.js';
+import { updSect, terrIncome, eTerrCtrl, secE, secP } from './sectors.js';
 import { eDecide, eBuild, eComp, eHoldX } from './enemy.js';
 import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor, recalcPower } from './buildings.js';
 import { openDraft } from './cards.js';
@@ -24,8 +26,36 @@ import { openDraft } from './cards.js';
 // garść jednostek realnie biła się o mini-sztaby, zanim ruszy masa. Rozpędza
 // się do WAVE_TIME (fala 0: +20 s → fala 5+: 0). Trzymaj < 60 s (format HUD 0:SS).
 export function waveInterval(){
+  // Misja może podać własny zegar [do pierwszej fali, odstęp dalszych] — wtedy
+  // tempo jest DANĄ MISJI, nie globalną rampą (FRONT.md §4.2: wróg skaluje się
+  // numerem misji). Bez tego wpisu zostaje dotychczasowa rampa gry dowolnej.
+  const t = S.misWaveT;
+  if (t) return (S.wave === 0 ? t[0] : t[1]) * (S.run ? S.run.waveMul : 1);
   // S.run.waveMul < 1 = szybsze fale (wariant BŁYSKAWICZNY FRONT / eskalacja)
   return (WAVE_TIME + Math.max(0, 5 - S.wave) * 4) * (S.run ? S.run.waveMul : 1);
+}
+
+/* ------------------------------ TORY (rozkaz) ----------------------------
+   u.lane to ROZKAZ, nie stan pola: gracz przydziela armię do torów i zmienia
+   to dowolnie, w każdej chwili. Sterowanie (w update) dowozi jednostkę do
+   środka jej toru; sam przerzut kosztuje czas (LANE_SHIFT), nie kredyty.
+   Przy kształcie '1' torów jest wszędzie jeden i to wszystko jest no-opem.   */
+export const laneCount = () => lanesAt(S.frontX);
+// n = numer toru (0..2) albo -1 = ROZDZIEL po równo
+export function setArmyLane(n){
+  const pU = S.units.filter(u=>u.side==='p');
+  const lanes = maxLanes();
+  if (lanes <= 1) return;
+  if (n < 0){
+    pU.forEach((u,i)=> u.lane = i % lanes);
+    S.laneOrder = -1;
+    say('ROZDZIELIĆ SIŁY — '+lanes+' TORY','warn');
+  } else {
+    const l = Math.min(n, lanes-1);
+    for (const u of pU) u.lane = l;
+    S.laneOrder = l;
+    say('CAŁOŚĆ NA TOR '+(l+1),'warn');
+  }
 }
 
 // bonusy TYLKO gracza (karty) — atak/pancerz osobno dla klas
@@ -49,13 +79,22 @@ export function dmgTo(t, amount, srcType, ap){
   return m;
 }
 
-export function spawn(type,side,x,y){
+export function spawn(type,side,x,y,lane){
   const d=U[type];
   // Sztab NIE mnoży już HP polowej armii — przetrwałość Twoich jednostek idzie z
   // kart (pArm) i z Lab (poziomy). Sztab skaluje tylko obronę bazy (patrz dmgFrom
   // budynków niżej), więc jego upgrade przestał być globalnym snowballem armii.
   const hp = d.hp;
-  S.units.push({type,side,x,y,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0,fireT:0,moveT:0,muzT:0});
+  // `lane` — tor, na który jednostka ma iść. Liczony z NAJSZERSZEJ strefy pola,
+  // nie z miejsca narodzin: barak stoi w bazie, gdzie tor jest jeden, więc inaczej
+  // cała armia szłaby torem 1 do pierwszego ręcznego rozkazu.
+  // Gracz: bieżący rozkaz (S.laneOrder; −1 = ROZDZIEL po równo). Wróg: rozkład AI.
+  const n = maxLanes();
+  const ln = lane != null ? Math.min(lane, n-1)
+           : side==='p' ? (S.laneOrder >= 0 ? Math.min(S.laneOrder, n-1)
+                                            : (S.pLaneRR = ((S.pLaneRR||0)+1) % n))
+           : (Math.random()*n)|0;
+  S.units.push({type,side,x,y,lane:ln,shift:0,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0,fireT:0,moveT:0,muzT:0});
 }
 
 export function doWave(){
@@ -68,15 +107,24 @@ export function doWave(){
   }
   if (!S.bastion.dead){
     const comp=eComp();
-    for (const k in comp) for (let i=0;i<comp[k];i++)
-      spawn(k,'e', BAS_X-36-Math.random()*36, LANE_Y+(Math.random()*200-100));
+    const sx = (S.espawn ? S.espawn.x : BAS_X-36);
+    const n  = lanesAt(sx);
+    let li = 0;
+    for (const k in comp) for (let i=0;i<comp[k];i++){
+      const lane = n>1 ? (li++ % n) : 0;                       // wróg rozkłada falę po torach
+      const x = sx - Math.random()*36;
+      spawn(k,'e', x, laneCY(lane, n, x)+(Math.random()*40-20), lane);
+    }
   }
+  // cel „utrzymaj": liczy się fala PRZETRWANA z terenem w ręku; utrata zeruje licznik
+  const g = MIS().goal || {};
+  if (g.kind==='hold') S.holdT = secP() >= g.target ? (S.holdT||0)+1 : 0;
   siren(); S.shake=Math.max(S.shake,4);
   say('FALA '+S.wave, 'warn');
   // Rozkaz co 3 fale (było 5): przy krótkiej grze karty — jedyny tor skalowania
   // armii — musiały pojawiać się częściej, inaczej run kończył się, nim tor dmg/pancerz
   // realnie urósł. openDraft dodatkowo GWARANTUJE kartę armii w każdym drafcie.
-  if (S.wave%3===0) openDraft(S.deck, 'ROZKAZ ZE SZTABU');
+  if (feat('cards') && S.wave%3===0) openDraft(S.deck, 'ROZKAZ ZE SZTABU');
   S.eIntel.push({
     tanks:  S.buildings.filter(b=>(b.type==='factory'||b.type==='heavy') && b.powered).length,
     wheels: S.buildings.filter(b=>b.type==='workshop' && b.powered).length,
@@ -91,7 +139,9 @@ export function doWave(){
   // rozciąga dojście do maks. na 4–5 fal — czas na rozstawienie się. Sufit 1.0 bez
   // zmian, więc późna gra (i S.wave/5, którego już nie ma) nietknięta.
   const earlyRamp = Math.min(1, 0.4 + S.wave*0.12);  // f1:0.52 f2:0.64 f3:0.76 f4:0.88 f5:1.0
-  S.eBuildDebt += earlyRamp/BAL.EBUILD_EVERY;
+  // S.misGrow — tempo rozbudowy wroga JAKO DANA MISJI. 0 = nie rośnie wcale
+  // (misja 1: przeciwnik ma być punktacją, nie kulą śniegową).
+  S.eBuildDebt += earlyRamp/BAL.EBUILD_EVERY * (S.misGrow==null?1:S.misGrow);
   while (S.eBuildDebt >= 1){ S.eBuildDebt -= 1; eBuild(); }
 }
 
@@ -161,7 +211,7 @@ export function update(dt){
     // upgrade sztabu podbija ogień obrony bazy, nie polowej armii.
     if (tgt){ dmgTo(tgt,bDmg(b)*pBuff(),null,d.atk.ap); S.tracers.push({x1:b.x,y1:b.y,x2:tgt.x,y2:tgt.y,t:0.09,c:d.atk.ap?CO.warn:CO.blue}); b.cd=d.atk.rate; }
   }
-  if (!S.bastion.dead){
+  if (!S.bastion.dead && S.bastion.target){
     S.bastion.cd -= dt;
     if (S.bastion.cd<=0){
       let tgt=null, bd=BAS_RANGE;
@@ -185,7 +235,9 @@ export function update(dt){
     const d=U[u.type];
     u._sx=u.x; u._sy=u.y;                 // pozycja przed ruchem — do oceny REALNEGO postępu (patrz niżej)
     let list;
-    if (u.side==='p'){ list = eU.slice(); if (!S.bastion.dead) list.push(S.bastion); }
+    // Bastion jest celem tylko tam, gdzie misja o niego gra. W misjach 1–5 stoi
+    // jako punkt startu fal (mini-baza), nie jako worek HP do bicia.
+    if (u.side==='p'){ list = eU.slice(); if (!S.bastion.dead && S.bastion.target) list.push(S.bastion); }
     else { list = pU.slice(); if (u.x < BASE_R+40) list = list.concat(S.buildings); }
     let t=null, bd=340;
     // najbliższy DOWOLNY wróg w polu widzenia — cel bazowy i „kto mnie okłada"
@@ -264,10 +316,18 @@ export function update(dt){
       if (u.fireT>0){ vx=0; vy=0; }        // przy strzale żołnierz staje (nie strzela w marszu)
       u.x += vx*d.spd*sMul*dt; u.y += vy*d.spd*sMul*dt;
     }
+    // TOR jako rozkaz: jednostka dojeżdża do środka SWOJEGO toru i tam trzyma pas.
+    // Zmiana u.lane (rozkaz gracza) natychmiast przestawia cel — przerzut kosztuje
+    // tylko czas przejazdu. W strefie wąskiej (gardło, LEJ) torów jest jeden, więc
+    // wszyscy zbiegają się do korytarza, który w leju jest wyraźnie węższy.
     if (u.x > BASE_R){
-      const lo=LANE_Y-LANE_HALF, hi=LANE_Y+LANE_HALF;
-      if (u.y<lo) u.y += Math.min(40*dt, lo-u.y);
-      if (u.y>hi) u.y -= Math.min(40*dt, u.y-hi);
+      const n = lanesAt(u.x);
+      const cy = laneCY(u.lane|0, n, u.x), half = laneHalf(n, u.x);
+      const dy = cy - u.y, ady = Math.abs(dy);
+      if (ady > half){
+        u.y += Math.sign(dy) * Math.min(LANE_SHIFT*dt, ady - half*0.5);
+        u.shift = ady > half*1.6 ? 0.25 : 0;      // w przerzucie — render to pokazuje
+      } else if (u.shift>0) u.shift -= dt;
     }
     if (u.flash>0) u.flash-=dt*6;
     if (u.fireT>0) u.fireT-=dt;
@@ -322,12 +382,20 @@ export function update(dt){
   if (S.bastion.hp<=0 && !S.bastion.dead){
     S.bastion.dead=true;
     explode(S.bastion.x,S.bastion.y,90,CO.red); S.shake=26; boom(0.9);
-    S.state='win'; S.endReason='BASTION ZDOBYTY';
+  }
+  // JEDEN warunek wygranej, czytany z danych misji (campaign.goalDone). Dodanie
+  // nowego rodzaju celu nie wymaga dotykania sim.js — patrz campaign.js.
+  if (S.state==='play' && goalDone()){
+    S.state='win';
+    S.endReason = (MIS().goal||{}).kind==='bastion' ? 'BASTION ZDOBYTY' : 'CEL OSIĄGNIĘTY';
   }
   if (S.state!=='play' && S.wave>S.best) S.best=S.wave;
 
+  // Front porusza się w obrębie POLA MISJI — misja 1 gra na krótkim odcinku,
+  // więc FRONT_MAX (liczony od bastionu gry dowolnej) trzeba do niej przyciąć.
+  const fMax = Math.min(FRONT_MAX, (S.camX || FRONT_MAX) - 40);
   let target;
-  if (S.bastion.dead) target=FRONT_MAX;
+  if (S.bastion.dead) target=fMax;
   else {
     let maxP=null, minE=null;
     for (const u of pU) if (maxP===null||u.x>maxP) maxP=u.x;
@@ -337,8 +405,9 @@ export function update(dt){
     else if (maxP!==null) target=maxP;
     else if (minE!==null) target=minE;
   }
-  S.frontX += (Math.max(FRONT_MIN,Math.min(FRONT_MAX,target))-S.frontX) * Math.min(1,dt*2.5);
+  S.frontX += (Math.max(FRONT_MIN,Math.min(fMax,target))-S.frontX) * Math.min(1,dt*2.5);
 
+  updShell(dt);
   updProj(dt);
 
   for (let i=S.fx.length-1;i>=0;i--){
@@ -347,6 +416,48 @@ export function update(dt){
   }
   for (let i=S.tracers.length-1;i>=0;i--){ S.tracers[i].t-=dt; if (S.tracers[i].t<=0) S.tracers.splice(i,1); }
   if (S.shake>0) S.shake=Math.max(0, S.shake-dt*30);
+}
+
+/* ---------------------------- OSTRZAŁ TORÓW ------------------------------
+   Bastion bije w tory cyklicznie, W LOSOWEJ KOLEJNOŚCI, ale ZAWSZE Z ZAPOWIEDZIĄ.
+   Bez zapowiedzi to podatek losowy; z zapowiedzią to decyzja: ewakuować tor
+   (przerzucić armię rozkazem) czy przyjąć i odbudować. Ta sama mechanika bije
+   w misji 6 po wąskim gardle, więc gracz wchodzi do finału, już ją znając.     */
+function updShell(dt){
+  const sh = S.shell;
+  if (!sh || S.bastion.dead) return;
+  if (sh.warnT > 0){
+    sh.warnT -= dt;
+    if (sh.warnT > 0) return;
+    const n = Math.max(1, lanesAt(S.frontX));
+    const cy = laneCY(sh.lane, n, S.frontX);
+    for (const u of S.units){
+      if (u.side!=='p') continue;
+      if (Math.hypot(u.x-S.frontX, u.y-cy) > sh.r) continue;
+      dmgTo(u, sh.dmg, null, true);
+    }
+    for (let k=0;k<10;k++){
+      const a=Math.random()*6.283, d=Math.random()*sh.r;
+      explode(S.frontX+Math.cos(a)*d, cy+Math.sin(a)*d, 14, CO.warn);
+    }
+    boom(0.7); S.shake=Math.max(S.shake,14);
+    say('▬ OSTRZAŁ — TOR '+(sh.lane+1),'bad');
+    return;
+  }
+  sh.t -= dt;
+  if (sh.t > 0) return;
+  sh.t = sh.every;
+  sh.lane = (Math.random()*Math.max(1, lanesAt(S.frontX)))|0;
+  sh.warnT = sh.warn;
+  say('◄ NAMIERZAJĄ TOR '+(sh.lane+1)+' — '+sh.warn+' s','warn');
+  siren();
+}
+// gdzie i kiedy spadnie — do rysowania zapowiedzi (render.js)
+export function shellMark(){
+  const sh=S.shell;
+  if (!sh || sh.warnT<=0) return null;
+  const n=Math.max(1, lanesAt(S.frontX));
+  return { x:S.frontX, y:laneCY(sh.lane, n, S.frontX), r:sh.r, t:sh.warnT, lane:sh.lane };
 }
 
 /* -------------------------- pociski (lot + trafienie) --------------------

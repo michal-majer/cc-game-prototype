@@ -8,3 +8,6 @@ package-lock.json
 !assets/
 !assets/**
 !assets/**/*.png
+
+# katalog roboczy testów (zrzuty ekranu, skrypty playwright)
+.tmp/
