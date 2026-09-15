@@ -140,7 +140,7 @@ export const MISSIONS = {
   m2: {
     id:'m2', n:2, code:'ŚCIANA',
     teach:'Kredyty trzeba zamienić w armię.',
-    gen:'Osiem fal. Nie oddasz ani kratki.',
+    gen:'Dziesięć fal. Nie oddasz ani kratki.',
     brief:['GNIAZDO zajmuje kratkę tak samo jak barak. Wybierasz, nie dokładasz.',
            'Gniazdo strzela samo. Barak co falę wystawia żołnierza.',
            'Postawione źle? PRZESUŃ przenosi budynek za ćwierć kosztu.',
@@ -167,18 +167,25 @@ export const MISSIONS = {
        Rozwiązaniem są SZPICE i ODDECHY. Fale 4, 8 i 10 uderzają ciasno i mocno;
        5 i 9 dają czas na odbudowę. Gracz przeżywa trzy momenty na styk zamiast
        jednego progu, którego nie czuje, dopóki go nie przekroczy.
-       Pomiar końcowy pod komentarzem z liczbami w README.                     */
+
+       PRZELICZONE po powrocie działek na kratki (+2 s na każdą falę). Gniazdo
+       zajmuje teraz kratkę, więc ta sama krzywa po zmianie dawała 0/3 ze
+       sztabem na 7% — plan, który wcześniej wychodził, przestał się mieścić
+       w bazie. Klif jest OSTRY i to jest tu najważniejsza liczba: +1 s na falę
+       to wciąż 0/3, +2 s to 3/3, ale ze sztabem na 41% i 13 straconymi
+       obiektami. Dokładnie „na styk": przeżywasz, ale wychodzisz w strzępach.
+       Pomiar końcowy z liczbami w README.                                     */
     waves:[
-      { t:38, inf:4 },                    // rozpoznanie
-      { t:32, inf:6 },
-      { t:28, inf:9,  lazik:1 },          // pierwszy pojazd
-      { t:21, inf:14, lazik:2 },          // ▲ SZPIC — tu zwykle pada pierwszy budynek
-      { t:37, inf:6  },                   // ▼ oddech: odbuduj, napraw, dostaw barak
-      { t:25, inf:13, lazik:2 },
-      { t:23, inf:16, lazik:3 },
-      { t:19, inf:24, lazik:4 },          // ▲ SZPIC — najcięższy punkt misji
-      { t:36, inf:8,  lazik:1 },          // ▼ ostatni oddech
-      { t:21, inf:30, lazik:7 },          // ▲ szturm końcowy
+      { t:40, inf:4 },                    // rozpoznanie
+      { t:34, inf:6 },
+      { t:30, inf:9,  lazik:1 },          // pierwszy pojazd
+      { t:23, inf:14, lazik:2 },          // ▲ SZPIC — tu zwykle pada pierwszy budynek
+      { t:39, inf:6  },                   // ▼ oddech: odbuduj, napraw, dostaw barak
+      { t:27, inf:13, lazik:2 },
+      { t:25, inf:16, lazik:3 },
+      { t:21, inf:24, lazik:4 },          // ▲ SZPIC — najcięższy punkt misji
+      { t:38, inf:8,  lazik:1 },          // ▼ ostatni oddech
+      { t:23, inf:30, lazik:7 },          // ▲ szturm końcowy
     ],
     unlock:['power','refinery','barracks','bunker'],
     feats:feats({ sell:true, repair:true, move:true }),
@@ -222,16 +229,24 @@ export const MISSIONS = {
        Wyzwaniem jest tu ZEGAR, nie przetrwanie. Misja 3 nie zagraża bazie —
        walka toczy się w polu — więc bez limitu nie dało się jej ani wygrać, ani
        przegrać: mieliła się po dziesięć minut i kończyła darmowym celem, gdy
-       wrogowi skończyły się fale. `before:6` zamienia „czas przejęcia" z rzeczy,
+       wrogowi skończyły się fale. `before:7` zamienia „czas przejęcia" z rzeczy,
        którą się przeczekuje, w to, o co się gra. Plan ma OSIEM fal przy limicie
-       siedmiu — ósma musi mieć czym odpalić przegraną.                        */
+       siedmiu — ósma musi mieć czym odpalić przegraną.
+
+       Szósta fala jest ODDECHEM, nie szpicem, i to nie jest łagodzenie: pomiar
+       po powrocie działek na kratki pokazał bota na 87% przejęcia w piątej fali
+       i zmiecionego w szóstej — wyścig rozstrzygał się, zanim gracz zdążył
+       cokolwiek z nim zrobić. Piąta i szósta to teraz OKNO NA SZTURM (2/3
+       zamiast 0/3). Uwaga: samo rozciągnięcie zegara nie działa — +4 s na
+       każdą falę dało 0/3, bo baraki wystawiają żołnierza CO FALĘ, więc
+       dłuższe fale to wolniejsza armia przy tym samym limicie fal.            */
     waves:[
       { t:40, inf:3 },
       { t:32, inf:5 },
       { t:27, inf:6 },
       { t:22, inf:9,  lazik:1 },          // ▲ szpic — przez niego trzeba się przebić
-      { t:32, inf:6 },                    // ▼ oddech
-      { t:22, inf:11, lazik:2 },
+      { t:32, inf:6 },                    // ▼ OKNO NA SZTURM — piąta i szósta
+      { t:32, inf:8 },                    // ▼ …to jedyny moment, żeby wejść na cel
       { t:26, inf:13, lazik:2 },          // ostatnia fala PRZED upływem czasu
       { t:22, inf:16, lazik:3 },          // ta leci już tylko wtedy, gdy nie zdążyłeś
     ],

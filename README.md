@@ -159,17 +159,20 @@ waves:[{t:45, inf:2}, {t:38, inf:3}, …],    // t = sekundy DO tej fali
 Przy planie wróg się nie rozbudowuje, a szturm kończy się tam, gdzie kończy się
 lista. Losowanie (ruda, doktryna, warianty pola, eskalacja) zostaje **grze dowolnej**.
 
-Krzywe są **kalibrowane botem**, nie na wyczucie. Stan (5 przebiegów na misję):
+Krzywe są **kalibrowane botem**, nie na wyczucie. Stan (3 przebiegi na misję):
 
 | | wygrane | czas | sztab min | stracone obiekty |
 |---|---|---|---|---|
-| M1 | 5/5 | 2:13 | 100% | 0 |
-| M2 | 4/5 | 7:35 | 70% | 13 |
-| M3 | 2/5 | 2:53 | 100% | 0 |
+| M1 | 3/3 | 2:14 | 100% | 0 |
+| M2 | 3/3 | 5:57 | 55% | 13 |
+| M3 | 1–2/3 | 3:03 | 100% | 0 |
 
-Bot to dolna granica — nie kituje i nie rozgrywa suwaka. Wyzwanie robi **rytm
-(szpice i oddechy), nie masa**: przy potrójnej liczbie piechoty, ale równym
-strumieniu, bot wygrywał ze sztabem na 100%. Szczegóły i pomiary: `FRONT.md` §3b.
+Bot to dolna granica — nie kituje, nie rozgrywa suwaka, nie przesuwa budynków.
+Wyzwanie robi **rytm (szpice i oddechy), nie masa**: przy potrójnej liczbie
+piechoty, ale równym strumieniu, bot wygrywał ze sztabem na 100%. Krzywa jest
+też związana z **kosztem kratki** — powrót działek na siatkę zabrał misji 2 cały
+stopień trudności (ta sama krzywa: 0/3 zamiast 3/3), a klif jest ostry: +1 s na
+falę to wciąż 0/3, +2 s to 3/3. Szczegóły i pomiary: `FRONT.md` §3b.
 
 ### Siatka bazy, działka i PRZESUŃ
 

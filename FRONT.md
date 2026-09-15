@@ -451,10 +451,27 @@ jednostki biją w NAJBLIŻSZY cel, więc baza jest zjadana od zewnątrz.
 falę dzieliły „wygrana 3/3, sztab 100%" od „przegrana 0/2, sztab 8%". To czysty
 próg: albo nadążasz z czyszczeniem, albo lawina cię zjada, i nie ma nic pomiędzy.
 
-**3. Działa dopiero rytm.** Fale 4, 8 i 10 uderzają ciasno i mocno (21/19/21 s),
-a 5 i 9 dają oddech (37/36 s) na odbudowę i naprawę. Gracz przeżywa **trzy
+**3. Działa dopiero rytm.** Fale 4, 8 i 10 uderzają ciasno i mocno (23/21/23 s),
+a 5 i 9 dają oddech (39/38 s) na odbudowę i naprawę. Gracz przeżywa **trzy
 momenty na styk** zamiast jednego progu, którego nie czuje, dopóki go nie
 przekroczy — a porażka po takiej fali jest zrozumiała, nie nagła.
+
+**4. Krzywa jest związana z kosztem kratki, nie tylko z siłą wroga.** Powrót
+działek na siatkę przesunął całą misję 2 o jeden stopień: ta sama krzywa dawała
+nagle 0/3 ze sztabem na 7%, bo plan, który wcześniej wychodził, przestał się
+mieścić w bazie. Klif jest ostry — **+1 s na falę to wciąż 0/3, +2 s to 3/3** —
+więc kalibracja idzie sekundami, nie „trochę luźniej".
+
+**5. Misja ma dziś dwie różne trudne drogi, nie jedną łatwą.** Ten sam plan fal,
+dwa style zabudowy bota:
+
+| plan bota | wygrane | sztab min | stracone obiekty |
+|---|---|---|---|
+| działka wcześnie (3 gniazda przed 4. barakiem) | 3/3 | **55 %** | 13 |
+| sama armia (6 baraków, gniazda na końcu) | **2/3** | 100 % | 6 |
+
+Pierwszy przeżywa w gruzach, drugi bywa zmieciony razem z armią. Żaden nie
+przechodzi tego spokojnie — a to jest dokładnie to „na styk", o które chodziło.
 
 ### Misja, której nie da się przegrać, nie jest wyzwaniem
 
@@ -469,20 +486,26 @@ Uwaga na pułapkę: plan fal musi być DŁUŻSZY od limitu. Przy planie równym
 limitowi licznik fal przestaje rosnąć i przegrana nie odpala się wcale
 (pomiar: 10:41 zamiast 2:54). `goalFailed` ma na to bezpiecznik.
 
-### Zmierzone (bot, 5 przebiegów na misję)
+### Zmierzone (bot, 3 przebiegi na misję, stan 15.09.2026)
 
 | | wygrane | czas | sztab min | stracone obiekty |
 |---|---|---|---|---|
-| M1 | 5/5 | 2:13 | 100% | 0 |
-| M2 | **4/5** | 7:35 | **70%** | **13** |
-| M3 | **2/5** | 2:53 | 100% | 0 |
+| M1 | 3/3 | 2:14 | 100% | 0 |
+| M2 | **3/3** | 5:57 | **55%** | **13** |
+| M3 | **1–2/3** | 3:03 | 100% | 0 |
 
-Bot to **dolna granica**: nie kituje, nie wycofuje się, nie rozgrywa suwaka.
-Jeśli on wygrywa 4 na 5 ze sztabem na 70%, człowiek wygra — ale zapłaci za to
-bazą. **Misja 1 jest jedynym świadomym wyjątkiem**: broni jej sam sztab
+Bot to **dolna granica**: nie kituje, nie wycofuje się, nie rozgrywa suwaka,
+nie przesuwa budynków. Jeśli on przechodzi dwójkę ze sztabem na 55% i trzynastoma
+straconymi obiektami, człowiek przejdzie — ale wyjdzie z misji w gruzach.
+**Misja 1 jest jedynym świadomym wyjątkiem**: broni jej sam sztab
 (zasięg 330 wobec 39 piechoty), więc wróg ginie na podejściu bez względu na
 liczbę — trzynaście piechoty i sztab wciąż na 100%. Jej stawka jest z zegara
 i z tego, że fale rosną, a nie z ryzyka porażki.
+
+M3 waha się między 1/3 a 2/3 między seriami i to jest **spodziewane**: misja jest
+wyścigiem z zegarem, a nie progiem siły, więc rozstrzyga się o kilkanaście
+procent przejęcia. Pomiar pokazał bota na 87% w piątej fali i zmiecionego
+w szóstej — stąd szósta fala jest dziś oddechem, a nie drugim szpicem.
 
 Układ autorski jest **sprawdzany, nie poprawiany** (`checkOreLayout`): brak
 miejsca na rafinerię to błąd w danych misji i ma krzyczeć w konsoli, a nie

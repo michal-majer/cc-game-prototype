@@ -112,10 +112,13 @@ export function investedIn(b){
    sama ze sobą), a to jest najczęstsza korekta, jaką się w ogóle robi.        */
 export function fitsMoved(b, c, r){
   if (!b) return false;
-  clearCells(b);
-  const ok = fits(b.type, c, r);
-  for (const [cc,rr] of cellsOf(b.type,b.c,b.r)) S.grid[rr][cc].b=b;   // cofnij próbę
-  return ok;
+  const [w,h]=fpOf(b.type);
+  if (c<0||r<0||c+w>COLS||r+h>ROWS) return false;
+  for (const [cc,rr] of cellsOf(b.type,c,r)){
+    const g=S.grid[rr][cc];
+    if (g.ore>0 || (g.b && g.b!==b)) return false;   // własne kratki wolno nadpisać
+  }
+  return true;
 }
 export function moveBuilding(b, c, r){
   if (!canMove(b) || !fitsMoved(b, c, r)) return false;
