@@ -40,8 +40,9 @@ To wszystko. Zero zależności do instalowania.
 - **Kafel budowy** (dół) → wybierz budynek → **tap na kratkę** = postaw.
 - **✂ ROZBIÓRKA** → tap na budynek (zwrot 50%) albo na żyłę (zaoranie).
 - **Suwak linii** (nazwy OBRONA…NATARCIE) → ustawia, jak daleko wychodzą Twoi.
-- **Rozkaz torowy** (przyciski po prawej nad paskiem budowy): TOR 1/2/3 ściąga całą
-  armię na jeden tor, ROZDZIEL rozkłada ją po równo. Widoczne tylko tam, gdzie tory są.
+- **Rozkaz drogowy** (przyciski po prawej nad paskiem budowy): nazwa drogi ściąga na
+  nią całą armię, ROZDZIEL rozkłada ją po równo. Każdy przycisk pokazuje cele swojej
+  drogi i ile z nich trzymasz. Widoczne tylko tam, gdzie dróg jest więcej niż jedna.
 - **Kamera:** `⌖ FRONT` jedzie za linią styku, `⌂ BAZA` wraca na siatkę, przeciągnięcie
   pola zwalnia prowadzenie. **Minimapa** nad suwakiem linii: klik = przewiń tam.
 - **Klawiatura:** `1–5` linia, `←/→` linia, `Spacja` GOTÓW / natarcie / odwrót,
@@ -59,7 +60,7 @@ src/
   state.js        S — jeden współdzielony obiekt stanu + say() + SECT
   effects.js      wybuchy (cząsteczki)
   economy.js      ruda: żyły, wydobycie, odrost
-  sectors.js      trzy mini-sztaby (przejmowanie terenu)
+  sectors.js      cele na drogach: przejmowanie i zysk każdego rodzaju
   buildings.js    stawianie, moc, poziomy, technologia, walidacja kratek
   enemy.js        AI wroga, bastion, wywiad, kontry
   cards.js        talia (ulepszenia ze sztabu) + otwarcia
@@ -154,13 +155,30 @@ tej długości. Skaluje się z mapą także promień przejmowania i prędkość 
 kontry; przeskalowanie ich rozjechałoby wszystkie luki między jednostkami. Warstwa
 taktyczna zostaje identyczna — zmienia się tylko, ile jej mieści się na mapie.
 
-### Tory (kształt pola 1/3/1)
+### Drogi (kształt pola 1/3/1)
 
-Korytarz nie ma stałej szerokości: przy bazie jeden tor, w środku trzy, przed
-bastionem lej. **Przydział jednostki do toru jest rozkazem** — zmieniasz go dowolnie
-i w każdej chwili (przyciski TOR 1/2/3 · ROZDZIEL, klawisze `Q/W/E/R`). Przerzut
-kosztuje czas przejazdu, nie kredyty. Przy kształcie `'1'` torów jest wszędzie jeden
-i cały mechanizm jest niewidoczny.
+Za wąskim gardłem przy bazie korytarz rozchodzi się na **niezależne drogi** i zbiega
+dopiero w leju przed bastionem:
+
+```
+        /-- DROGA GÓRNA ---- [MOST] --------- [BATERIA] --\
+ BAZA -|--- DROGA ŚRODKOWA ------- [WĘZEŁ] ---------------|-- LEJ -- BASTION
+        \-- DROGA DOLNA -- [SKŁAD] ------ [WIEŻA] -------/
+```
+
+**Każda droga ma swoje cele, a każdy rodzaj daje co innego:** MINI-SZTAB kredyty,
+MOST moc, SKŁAD kratki, WIEŻA radar, BATERIA ścina fale wroga o 25%. Do tego każdy
+zajęty cel daje raz nowe kratki. Dlatego „którą drogą" jest decyzją o zysku, nie
+o kierunku — a `ROZDZIEL` i `CAŁOŚĆ NA GÓRNĄ` to realnie różne plany.
+
+Drogi są **od siebie oddalone** (300 px między osiami) i mogą być **różnej długości**
+— łuk zewnętrznych dróg w misji 4 daje 2 343 px traktu wobec 2 040 środkowej, czyli
+15% dłuższy przemarsz za lepszy cel.
+
+**Przydział do drogi jest rozkazem** — zmieniasz go dowolnie i w każdej chwili
+(przyciski dróg, klawisze `Q/W/E/R`). Przerzut kosztuje czas przeprawy, nie kredyty.
+Skupienie armii na jednej drodze przestawia też kamerę na tę drogę. Przy kształcie
+`'1'` droga jest jedna i cały mechanizm jest niewidoczny.
 
 ## Dodawanie grafiki i dźwięku
 

@@ -89,9 +89,65 @@ Wysokości paneli HUD-a są **mierzone z DOM** (`--top-h`), nie zgadywane — pa
 górny zawija się inaczej na każdej szerokości i każda sztywna liczba była tam
 kiedyś błędna.
 
+### Drogi — niezależne trakty z własnymi celami
+
+Korytarz **nie jest jedną rurą z pasami**. Za wąskim gardłem przy bazie rozchodzi
+się na osobne drogi i zbiega dopiero w leju przed bastionem:
+
+```
+        /-- DROGA GÓRNA ---- [MOST] --------- [BATERIA] --\
+ BAZA -|--- DROGA ŚRODKOWA ------- [WĘZEŁ] ---------------|-- LEJ -- BASTION
+        \-- DROGA DOLNA -- [SKŁAD] ------ [WIEŻA] -------/
+```
+
+Trzy rzeczy, które to musi spełniać — i one wymuszają cały ten model:
+
+1. **Każda droga ma SWOJE cele, i każdy daje CO INNEGO.** Bez tego wybór drogi
+   jest wyborem geometrii, a nie decyzją.
+2. **Drogi są od siebie oddalone.** Nie trzy cienkie pasy w jednym pasie, a
+   osobne trakty z pustką między nimi (`roadGap`, domyślnie 300 px = 30–75
+   szerokości jednostki). Walka na górnej nie przelewa się na dolną — inaczej
+   „rozdziel siły" nic nie znaczy.
+3. **Drogi mogą być różnej długości.** Łuk (`bow`) wybrzusza drogę na zewnątrz,
+   więc przemarsz nią jest realnie dłuższy. Pomiar misji 4: górna i dolna mają
+   2 343 px traktu, środkowa 2 040 — **15% dłuższa droga za lepszy cel** to
+   koszt alternatywny, a nie inny kolor.
+
+**Przydział do drogi jest ROZKAZEM.** `u.lane` to numer drogi i gracz zmienia go
+dowolnie, w każdej chwili: rozdziela armię po równo (`ROZDZIEL`), ściąga wszystko
+na jedną (`GÓRNA` / `ŚRODKOWA` / `DOLNA`, klawisze `Q/W/E/R`), przerzuca w trakcie
+walki. Przerzut kosztuje czas przeprawy w poprzek, nie kredyty. Skupienie armii na
+jednej drodze **przestawia też kamerę na tę drogę** — jeden rozkaz, nie rozkaz plus
+szukanie jej wzrokiem.
+
+#### Rodzaje celów (`SECT_KINDS` w config)
+
+| Cel | Daje, dopóki trzymasz | Po co go brać |
+|---|---|---|
+| **MINI-SZTAB** ★ | +5 kr./s | najprostszy zysk, skaluje wszystko |
+| **MOST** ╬ | +10 mocy | wpina się do sieci jak elektrownia — budynki, które inaczej się nie zmieszczą |
+| **SKŁAD** ▣ | +2 kolumny kratek | jedyny sposób na więcej miejsca w bazie; zlew na nadwyżkę |
+| **WIEŻA** ◉ | +1 poziom radaru | realna alternatywa dla radaru za 350 kr. |
+| **BATERIA** A | ich fale −25% | **jedyna rzecz w grze, która ZMNIEJSZA nacisk wroga** |
+
+Do tego **każdy** zajęty cel daje raz nowe kratki (§4.3), a **cel jest zawsze
+rozpoznany**: radar ukrywa skład fal wroga, nie ukształtowanie terenu. Wybór drogi
+ma być decyzją podjętą z wiedzą, co na której jest — ukrycie tego za radarem
+zamieniłoby „którą drogą" w rzut monetą.
+
+Dzięki temu „rozdziel siły" i „skup się na jednej" to realnie **różne plany**:
+dwie drogi po kredyty to inna partia niż jedna po radar i osłabienie.
+
+**Barierka na dane:** cel nie może leżeć dalej, niż sięga najdalsza stanica, jaką
+misja daje. Misja 3 miała suwak z dwiema pozycjami i cel w połowie pola — bot grał
+ją do 6. fali bez szans. Cel, do którego misja nie pozwala dojść, jest misją
+nieprzechodnią, nie trudną, więc `applyRoadObjectives` przycina go i krzyczy
+w konsoli.
+
 ### Kształt korytarza
 
-Korytarz nie ma stałej szerokości:
+Gardło przy bazie i lej przed bastionem to **wspólny** korytarz; drogi żyją między
+nimi. Korytarz nie ma stałej szerokości:
 
 ```
    BAZA │ 1 tor  │      3 tory      │ lej │ BASTION
@@ -121,9 +177,9 @@ drugiego świata** (`'1-2-1'` w `SHAPES`): darmowa różnorodność bez nowego k
    walki (`setArmyLane`, przyciski TOR 1/2/3 · ROZDZIEL, klawisze Q/W/E/R).
    Przerzut kosztuje czas przejazdu (`LANE_SHIFT`), nie kredyty.
 4. **Wróg liczy siły per tor** — tylko w strefie szerokiej. W wąskiej jak dziś.
-5. **Sektory idą za kształtem:** PRZEDPOLE 1, ŚRODEK **3 (po jednym na tor)**,
-   NACISK 1. „Przejmij środek" znaczy „wygraj na dwóch z trzech torów",
-   a `terrIncome()` płaci proporcjonalnie — za darmo, z kształtu.
+5. **Cele należą do DRÓG, nie do pola:** każda droga wnosi swoje, a cel liczy
+   tylko jednostki ze swojej drogi. „Opanuj 2 z 3 dróg" (`goal.kind:'roads'`)
+   znaczy „trzymaj cel na dwóch różnych drogach" — czyli: którą odpuszczasz.
 6. **Przepustowość leja to jedna liczba** (`h` ostatniej strefy w `SHAPES`) —
    główne pokrętło misji 6. HP bastionu rusza się OSTATNIE.
 7. **Zwężenie jest stopniowe, nie skokowe.** Liczba torów jest dyskretna (nie ma
@@ -143,7 +199,7 @@ Zasada nadrzędna: **jedna misja = jedna nowa rzecz dla gracza i jedna dla wroga
 | 1 | PIERWSZY DZIEŃ | Zbierz X kredytów → jedna fala | elektrownia, rafineria | piechota | 1 tor |
 | 2 | ŚCIANA | Odeprzyj 8 fal | baraki, działko | tempo i masa | 1 tor |
 | 3 | PUNKT | Przejmij sektor | łazik **albo** rakietowiec, radar, suwak (2 poz.) | mini-baza jako punkt startu fal | 1 tor |
-| 4 | ROZWIDLENIE | Przejmij 2 z 3 sektorów środka | czołg, mini-baza wysunięta | pojazdy, kontry | **3 tory** |
+| 4 | ROZWIDLENIE | Opanuj 2 z 3 **dróg** | czołg, mini-baza wysunięta | pojazdy, kontry | **3 drogi** |
 | 5 | POD OSTRZAŁEM | Utrzymaj środek / dojdź do leja | budynki torowe, karty | ostrzał po torach | 3 tory → lej |
 | 6 | LEJ | Zniszcz bastion | pełny suwak, artyleria, ciężkie | bastion bije w gardło | lej |
 
@@ -198,9 +254,11 @@ pełna, 1 700 kredytów bez zastosowania".
 **Uczy:** nie możesz być wszędzie naraz.
 
 Front dochodzi do rozszerzenia, **kamera odjeżdża** (`camX` w danych misji), gracz
-pierwszy raz widzi skalę pola. Trzy tory, trzy mini-sztaby. Cel: **dwa z trzech** —
+pierwszy raz widzi skalę pola. Trzy tory, trzy mini-sztaby. Cel: **dwie z trzech dróg** —
 gdyby wymagał trzech, misja byłaby powtórką trójki razy trzy; przy dwóch gracz
-**wybiera, który tor odpuszcza**, i to jest pierwsza prawdziwa decyzja strategiczna.
+**wybiera, którą drogę odpuszcza**, i to jest pierwsza prawdziwa decyzja
+strategiczna. Górna daje moc i osłabia ich fale, ale jest najdłuższa; środkowa
+jest krótka i płaci kredytami; dolna daje miejsce w bazie i wywiad.
 
 *Odchudzona świadomie:* pierwotnie miała czołg, radar, tory, budynki torowe, kartę
 i mini-bazę — sześć nowych rzeczy naraz, nie do przetestowania.

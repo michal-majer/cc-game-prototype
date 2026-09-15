@@ -26,11 +26,12 @@ import {
   B, U, COLS, ROWS, BASE_X, BASE_Y, CELL, GRID_MAX_COLS, GRID_MAX_ROWS,
   LANE_Y, BAS_X, BAS_HP, FRONT_MIN, START_MONEY, DOCTRINES,
   STANCES, setGrid, setShape, setField, halfForShape, atF, fieldX1, resetTables, clamp,
+  setRoads, roadY, roadPointX, roadCount, roadName, sectKind,
 } from './config.js';
 import { S, SECT, say } from './state.js';
 import { MISSIONS, WORLDS, SKIRMISH, worldOf } from './missions.js';
 import { DECK, OPEN } from './cards.js';
-import { secP } from './sectors.js';
+import { secP, roadsHeld } from './sectors.js';
 
 const LS_KEY = 'front.camp';
 const CAMP_V = 1;
@@ -87,7 +88,10 @@ export function applyMission(m){
   // korytarza), potem długość pola — setField przelicza z niej stanice, progi
   // kształtu, promień sektorów, smycz i mnożnik marszu.
   setShape(m.shape || '1');
-  setField(m.len || 760, m.halfH || halfForShape(m.shape || '1'));
+  // KOLEJNOŚĆ: kształt → DROGI → długość pola. Wysokość świata liczy się z drog
+  // (ich odstępu i łuków), a stanice i promień celów z długości pola.
+  setRoads(m.roads, m.roadGap, m.roadW);
+  setField(m.len || 760, m.halfH || halfForShape());
   S.gridMax = m.gridMax || [gc, gr];            // dokąd może urosnąć siatka (nowe kratki z sektorów)
   S.misWaveT = m.waveT || null;
   S.misGrow = m.enemy && m.enemy.grow != null ? m.enemy.grow : 1;
@@ -98,25 +102,31 @@ export function applyMission(m){
   S.goalT = 0; S.holdT = 0;                     // liczniki celów „utrzymaj"
 }
 
-// Sektory (mini-sztaby) to też dane misji: ile ich jest i gdzie.
-// SECT jest importowany jako const w kilku modułach — mutujemy W MIEJSCU.
-export function applySectors(n){
-  // Pozycje sektorów UŁAMKAMI korytarza — te same miejsca co stanice
-  // PRZEDPOLE / ŚRODEK / NACISK, więc suwak linii i teren mówią o tym samym.
-  const POS = [
-    { n:'PRZEDPOLE', x:atF(0.25) },
-    { n:'ŚRODEK',    x:atF(0.50) },
-    { n:'NACISK',    x:atF(0.77) },
-  ];
+/* Cele z DANYCH DROG. Każda droga wnosi swoje — górna może mieć most i baterię,
+   dolna skład i wieżę. SECT jest importowany jako const w kilku modułach, więc
+   mutujemy W MIEJSCU; pozycja celu liczy się z ułamka DŁUGOŚCI DROGI, więc
+   zmiana rozmiaru mapy nie zostawia celów w pustce.                           */
+export function applyRoadObjectives(){
   SECT.length = 0;
-  // Sektory idą za kształtem: przy trzech torach ŚRODEK dostaje po jednym na tor
-  // (FRONT.md §2.5 — „przejmij środek" znaczy „wygraj na dwóch z trzech torów").
-  if (n >= 3 && (MIS().shape||'1') !== '1'){
-    SECT.push({ n:'TOR GÓRNY',  x:POS[1].x, lane:0, cap:0, own:0 });
-    SECT.push({ n:'TOR ŚRODEK', x:POS[1].x, lane:1, cap:0, own:0 });
-    SECT.push({ n:'TOR DOLNY',  x:POS[1].x, lane:2, cap:0, own:0 });
-  } else {
-    for (let i=0;i<n;i++) SECT.push({ ...POS[i], lane:-1, cap:0, own:0 });
+  // BARIERKA NA DANE: cel nie może leżeć dalej, niż sięga NAJDALSZA STANICA,
+  // jaką ta misja daje. Inaczej misja jest po prostu nieprzechodnia — armia
+  // zatrzymuje się na linii i nie ma jak dojść do celu (misja 3 miała suwak
+  // z dwiema pozycjami i cel w połowie pola; bot grał ją do 6. fali bez szans).
+  const nSt = Math.max(1, Math.min(STANCES.length, feat('stance') || STANCES.length));
+  const xMax = STANCES[nSt-1].x;
+  for (let i=0;i<roadCount();i++){
+    const r = (MIS().roads || [])[i];
+    for (const o of (r && r.sect) || []){
+      let x = roadPointX(o.f);
+      if (x > xMax){
+        console.warn('[misja '+MIS().id+'] cel '+(o.n||o.kind)+' za najdalszą linią ('
+                     +Math.round(x)+' > '+Math.round(xMax)+') — przycięty');
+        x = xMax;
+      }
+      SECT.push({ n:o.n || sectKind(o.kind).name, kind:o.kind || 'sztab',
+                  road: roadCount()>1 ? i : -1, f:o.f,
+                  x, y:roadY(i, x), cap:0, own:0, paid:false });
+    }
   }
 }
 
@@ -146,6 +156,9 @@ export function goalDone(){
     // cel zalicza się dopiero, gdy pole jest czyste z ich jednostek.
     case 'waves':   return S.wave >= g.target && !S.units.some(u=>u.side==='e' && u.hp>0);
     case 'sectors': return secP() >= g.target;
+    // „n z 3 DRÓG" — liczy się liczba RÓŻNYCH dróg, na których trzymasz cel,
+    // nie liczba celów. To jest ta decyzja z misji 4: którą drogę odpuszczasz.
+    case 'roads':   return roadsHeld() >= g.target;
     case 'hold':    return S.holdT >= (g.waves||1);
     case 'bastion': return !!(S.bastion && S.bastion.dead);
     default:        return false;
@@ -156,9 +169,9 @@ export function goalText(){
   switch (g.kind){
     case 'money':   return 'ZAROBIĆ '+g.target+' KREDYTÓW';
     case 'waves':   return 'ODEPRZYJ '+g.target+' FAL';
-    case 'sectors': return g.target>1 ? 'PRZEJMIJ '+g.target+' Z '+SECT.length+' MINI-SZTABÓW'
-                                      : 'PRZEJMIJ MINI-SZTAB';
-    case 'hold':    return 'UTRZYMAJ '+g.target+' SEKTORY PRZEZ '+(g.waves||1)+' FAL';
+    case 'sectors': return g.target>1 ? 'ZAJMIJ '+g.target+' CELE NA DROGACH' : 'ZAJMIJ CEL';
+    case 'roads':   return 'OPANUJ '+g.target+' Z '+roadCount()+' DRÓG';
+    case 'hold':    return 'UTRZYMAJ '+g.target+' DRÓG PRZEZ '+(g.waves||1)+' FAL';
     case 'bastion': return 'ZNISZCZ BASTION';
     default:        return '—';
   }
@@ -170,6 +183,7 @@ export function goalNow(){
     case 'money':   return [Math.floor(earned()), g.target];
     case 'waves':   return [S.wave, g.target];
     case 'sectors': return [secP(), g.target];
+    case 'roads':   return [roadsHeld(), g.target];
     case 'hold':    return [Math.floor(S.holdT), g.waves||1];
     case 'bastion': return [Math.round(100*(1 - (S.bastion?S.bastion.hp/S.bastion.maxHp:0))), 100];
     default:        return [0, 1];

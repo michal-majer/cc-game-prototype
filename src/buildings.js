@@ -8,6 +8,7 @@ import {
 } from './config.js';
 import { S, say } from './state.js';
 import { allows, missionReq } from './campaign.js';
+import { sectSupply, sectRadar } from './sectors.js';
 import { boom } from './audio.js';
 import { explode } from './effects.js';
 
@@ -15,7 +16,14 @@ import { explode } from './effects.js';
 export const hasTech  = t => S.buildings.some(b=>b.type===t && b.powered);
 // MGŁA WOJNY (wariant): S.run.fogged tnie radar do poziomu I — pełnej widoczności
 // (radar II) nie da się osiągnąć, skład fali poznasz dopiero w zwarciu.
-export const radarLvl = () => { let m=0; for (const b of S.buildings) if (b.type==='radar' && b.powered) m=Math.max(m,b.lvl); return Math.min(S.run&&S.run.fogged?1:2,m); };
+// Radar: najwyzszy poziom z wlasnych radarow PLUS poziomy z zajetych WIEZ na
+// drogach — dlatego „wieza na gornej drodze" jest realna alternatywa dla radaru
+// za 350 kr., a nie ozdoba.
+export const radarLvl = () => {
+  let m=0; for (const b of S.buildings) if (b.type==='radar' && b.powered) m=Math.max(m,b.lvl);
+  m += sectRadar();
+  return Math.min(S.run&&S.run.fogged?1:2, m);
+};
 // Odblokowanie budynku = RAMKA MISJI + technika. Kampania rozkłada odblokowania
 // na cały świat (FRONT.md §4.5 — dziś 13 budynków i 17 kart od razu); w grze
 // dowolnej `allows` przepuszcza wszystko i zostaje samo drzewko `req`.
@@ -105,7 +113,7 @@ export function killBuilding(b){
 // Moc = czysty budżet. Brak → gasną obiekty najdalsze od sztabu.
 export function recalcPower(){
   // budynki w budowie są poza siecią: nie dają mocy, nie ciągną, nie zapalają się
-  S.supply=0;
+  S.supply=sectSupply();          // MOSTY na drogach wpinaja sie do sieci jak elektrownie
   for (const b of S.buildings) if (bReady(b)) S.supply += bSup(b);
   const cand = S.buildings.filter(b=>bReady(b) && bDrn(b)>0);
   const dHQ = b => Math.abs(b.c-S.hq.c)+Math.abs(b.r-S.hq.r);

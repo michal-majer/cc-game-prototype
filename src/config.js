@@ -77,6 +77,11 @@ export const fieldX1 = () => BASE_R + FIELD_LEN;
    To jest pokrętło tempa: podnieś do 1.0 = krótsze marsze, zejdź do 0.3 = dłuższe. */
 const SPD_EXP = 0.6;
 
+// Wysokosc WSPOLNEGO korytarza. Nie zalezy juz od liczby drog: drogi maja
+// wlasna szerokosc (ROAD_W) i wlasne osie (ROAD_GAP), a gardlo i lej sa ciasne
+// z definicji — to one bramkuja wejscie.
+export const halfForShape = () => 150;
+
 export function setField(len, halfH){
   FIELD_LEN = clamp(len|0, 400, 20000);
   LANE_HALF = clamp(halfH|0 || HALF_REF, 80, 900);
@@ -90,7 +95,7 @@ export function setField(len, halfH){
   // sektory zachodziłyby na siebie i „stanie w sektorze" przestałoby być miejscem.
   CAP_R      = Math.round(clamp(118 * Math.pow(kLen, 0.6), 90, 240));
   HUNT_LEASH = Math.round(150 * Math.pow(kLen, 0.6));
-  LANE_SHIFT = Math.round(90 * kHalf);
+  LANE_SHIFT = Math.round(110 * Math.max(1, ROAD_GAP/300));
   SPD_MUL    = +Math.pow(kLen, SPD_EXP).toFixed(3);
   // progi kształtu liczą się z ułamków — jedno miejsce, jeden raz
   for (const zs of Object.values(SHAPES)) for (const z of zs) z.x = atF(z.f);
@@ -132,64 +137,92 @@ export const STANCES = [
   {n:'NATARCIE',  fromEnd:0, x:0, d:'wszystko na bastion'},
 ];
 
-/* --------------------------- KSZTALT POLA (tory) -------------------------
-   Korytarz nie ma stalej szerokosci (patrz FRONT.md §2): przy bazie 1 tor,
-   w srodku 3, przed bastionem lej z powrotem do 1.
+/* ============================ DROGI (tory) ===============================
+   Korytarz nie jest jedna rura z pasami. To KILKA NIEZALEZNYCH DROG, ktore
+   rozchodza sie za waskim gardlem przy bazie i zbiegaja w leju przed bastionem:
 
-   Dwie rozlaczne rzeczy, i to jest tu cala sztuczka:
+          /-- DROGA GORNA ---- [MOST] --------- [BATERIA] --\
+   BAZA -|--- DROGA SRODKOWA ------- [SKLAD] ---------------|-- LEJ -- BASTION
+          \-- DROGA DOLNA -- [RAFINERIA] -- [WIEZA] -------/
 
-   · SZEROKOSC POLA jest funkcja pozycji — lanesAt(x) mowi „ile torow JEST
-     w tym miejscu". To geometria mapy, gracz jej nie rusza.
-   · PRZYDZIAL DO TORU jest ROZKAZEM — u.lane to tor, na ktory jednostka ma
-     isc, i gracz zmienia go DOWOLNIE i W KAZDEJ CHWILI: rozdziela armie na
-     tory, sciaga wszystko na jeden, przerzuca w trakcie walki. Jednostka
-     dojezdza do srodka swojego toru (laneCY) i tam trzyma pas; przerzut to
-     zmiana u.lane, reszte robi sterowanie w sim.js.
+   Trzy rzeczy, ktore to musi spelniac — i one wymuszaja caly ten model:
 
-   Dzieki temu „tor" nie jest stanem globalnym ani jednorazowym losowaniem —
-   jest rozkazem na jednostce, tak samo jak linia (S.si) jest rozkazem na armii.
+   1. KAZDA DROGA MA SWOJE CELE. Gorna i dolna maja INNE budynki do zajecia,
+      z innym zyskiem (kredyty / moc / kratki / radar / oslabienie bastionu).
+      Bez tego wybor drogi jest wyborem geometrii, a nie decyzja.
+   2. DROGI SA OD SIEBIE ODDALONE. Nie trzy cienkie pasy w jednym pasie, a
+      osobne trakty z pustka miedzy nimi (ROAD_GAP). Walka na gornej NIE
+      przelewa sie na dolna — inaczej „rozdziel sily" nic nie znaczy.
+   3. DROGI MOGA BYC ROZNEJ DLUGOSCI. Luk (`bow`) wybrzusza droge na zewnatrz,
+      wiec przemarsz nia jest realnie dluzszy: dluzsza droga za lepszy cel to
+      koszt alternatywny, a nie tylko inny kolor.
 
-   Przy ksztalcie '1' lanesAt zwraca wszedzie 1, kazde u.lane===0 i symulacja
-   chodzi DOKLADNIE jak dotad — ale pole juz jest, wiec misja 4 nie wymaga
-   przepisywania sim.js na gotowej, dopieszczonej misji (patrz „Odrzucone:
-   tory odblokowywane w misji 4").
+   PRZYDZIAL DO DROGI JEST ROZKAZEM. u.lane to numer drogi i gracz zmienia go
+   dowolnie, w kazdej chwili: rozdziela armie po rowno, sciaga wszystko na
+   jedna, przerzuca w trakcie walki. To jest ta sama klasa decyzji co suwak
+   linii — tyle ze w poprzek, nie w glab.
 
-   Strefa opisana progiem x: pierwszy prog wiekszy od x wygrywa.                */
-// n = ile torow · h = polowa wysokosci korytarza w tej strefie (ulamek LANE_HALF).
-// h < 1 to LEJ: przewagi liczebnej nie da sie wprowadzic naraz. PRZEPUSTOWOSC LEJA
-// (h ostatniej strefy) to glowne pokretlo misji 6 — HP bastionu rusza sie OSTATNIE.
-// f = prog strefy jako UŁAMEK długości korytarza · n = ile torow
-// h = polowa wysokosci korytarza w tej strefie (ulamek LANE_HALF).
-// h < 1 to LEJ: przewagi liczebnej nie da sie wprowadzic naraz. PRZEPUSTOWOSC LEJA
-// (h ostatniej strefy) to glowne pokretlo misji 6 — HP bastionu rusza sie OSTATNIE.
+   Przy jednej drodze wszystko to jest no-opem i symulacja chodzi jak dotad.  */
+
+// f = prog strefy jako ULAMEK dlugosci korytarza · n = ile drog
+// h = polowa wysokosci WSPOLNEGO korytarza (gardlo/lej) jako ulamek LANE_HALF.
+// h < 1 to LEJ: przewagi liczebnej nie da sie wprowadzic naraz. PRZEPUSTOWOSC
+// LEJA to glowne pokretlo misji 6 — HP bastionu rusza sie OSTATNIE.
 export const SHAPES = {
-  '1':     [{ f: 1.1,  n: 1, h: 1,    x:0 }],               // waski korytarz na calej dlugosci (Swiat II)
-  '1-3-1': [{ f: 0.20, n: 1, h: 0.62, x:0 },                // przy bazie — waskie gardlo
-            { f: 0.80, n: 3, h: 1,    x:0 },                // srodek — jedyny wybor kierunku
+  '1':     [{ f: 1.1,  n: 1, h: 1,    x:0 }],               // jedna droga na calej dlugosci (Swiat II)
+  '1-3-1': [{ f: 0.18, n: 1, h: 0.62, x:0 },                // przy bazie — waskie gardlo
+            { f: 0.82, n: 3, h: 1,    x:0 },                // rozwidlenie — trzy osobne drogi
             { f: 1.1,  n: 1, h: 0.38, x:0 }],               // LEJ przed bastionem
-  '1-2-1': [{ f: 0.20, n: 1, h: 0.62, x:0 },                // rezerwa: ksztalt drugiego swiata
-            { f: 0.80, n: 2, h: 1,    x:0 },
+  '1-2-1': [{ f: 0.18, n: 1, h: 0.62, x:0 },                // rezerwa: ksztalt drugiego swiata
+            { f: 0.82, n: 2, h: 1,    x:0 },
             { f: 1.1,  n: 1, h: 0.38, x:0 }],
 };
 let SHAPE = '1';
 export const shapeId = () => SHAPE;
 export function setShape(id){ SHAPE = SHAPES[id] ? id : '1'; }
-// domyślna wysokość korytarza z KSZTAŁTU: trzy tory potrzebują realnego pasa
-// na tor, jeden tor ma być ciasny. Jedna dana mniej w tabeli misji.
-export const halfForShape = id => (SHAPES[id]||SHAPES['1']).some(z=>z.n>1) ? 240 : 150;
+
+/* Opis drog bieżącej misji. Ustawia campaign.applyRoads z danych misji.
+     n    — nazwa (trafia na przyciski rozkazu i minimape)
+     y    — przesuniecie od osi w jednostkach ROAD_GAP (-1 / 0 / +1)
+     bow  — luk na zewnatrz w ulamku ROAD_GAP (0 = prosto, 0.4 = spory objazd)
+     sect — cele NA TEJ DRODZE: {kind, f} gdzie f to ulamek DLUGOSCI DROGI     */
+export let ROADS = [{ n:'KORYTARZ', y:0, bow:0, sect:[] }];
+export let ROAD_GAP = 300;      // odstep miedzy osiami drog (px)
+export let ROAD_W   = 150;      // szerokosc jednej drogi (px)
+export function setRoads(list, gap, w){
+  ROADS = (list && list.length) ? list : [{ n:'KORYTARZ', y:0, bow:0, sect:[] }];
+  ROAD_GAP = clamp(gap|0 || 300, 120, 900);
+  ROAD_W   = clamp(w|0   || 150, 60,  500);
+}
+export const roadCount = () => ROADS.length;
+export const roadName  = i => (ROADS[i] ? ROADS[i].n : 'KORYTARZ');
+
 // strefa ksztaltu obejmujaca x (pierwszy prog wiekszy od x wygrywa)
 export function zoneAt(x){
   const zs = SHAPES[SHAPE];
   for (const z of zs) if (x < z.x) return z;
   return zs[zs.length-1];
 }
-// ile torow w tym miejscu pola
 export const lanesAt = x => zoneAt(x).n;
+export const maxLanes = () => Math.max(roadCount(), SHAPES[SHAPE].reduce((m,z)=>Math.max(m,z.n), 1));
+
+/* ROZWIDLENIE i ZBIEG — gdzie drogi sie rozchodza i gdzie wracaja do jednego
+   korytarza. To progi ksztaltu, wiec „gdzie sie rozdziela" i „gdzie jest lej"
+   to jedna dana, nie dwie, ktore moglyby sie rozjechac.                       */
+export function splitX(){
+  const zs = SHAPES[SHAPE];
+  for (let i=0;i<zs.length;i++) if (zs[i].n > 1) return i>0 ? zs[i-1].x : BASE_R;
+  return Infinity;                       // jedna droga — nie ma rozwidlenia
+}
+export function mergeX(){
+  const zs = SHAPES[SHAPE];
+  for (let i=0;i<zs.length;i++) if (zs[i].n > 1) return zs[i].x;
+  return Infinity;
+}
 /* Gdzie zaczyna sie LEJ — prog pierwszej strefy WEZSZEJ od poprzedniej.
-   Uzywa tego AI wroga: bez tego wrog masowal sie w samym gardle (182 px
-   wysokosci przy 150 jednostkach) i robil KOREK, ktorego nie da sie przebic.
-   Lej ma bramkowac wejscie GRACZA i dawac bastionowi cel w zwezeniu — nie byc
-   pozycja obronna wroga. Brak leja (ksztalt '1') = Infinity, czyli bez ograniczen. */
+   Uzywa tego AI wroga: bez tego wrog masowal sie w samym gardle i robil KOREK,
+   ktorego nie da sie przebic (pomiar: fala 46, bastion 0%). Lej ma bramkowac
+   wejscie GRACZA, a nie byc darmowa twierdza wroga.                           */
 export function narrowStart(){
   const zs = SHAPES[SHAPE];
   for (let i=1;i<zs.length;i++){
@@ -198,19 +231,13 @@ export function narrowStart(){
   }
   return Infinity;
 }
-// NAJWIECEJ torow, jakie pole w ogole ma. Jednostka rodzi sie w bazie, gdzie tor
-// jest zawsze jeden — gdyby domyslny przydzial liczyc z miejsca narodzin, cala
-// armia szlaby torem 1, dopoki gracz recznie nie wyda rozkazu. Przydzial liczymy
-// wiec z SZEROKIEJ strefy, do ktorej i tak zmierza.
-export const maxLanes = () => SHAPES[SHAPE].reduce((m,z)=>Math.max(m,z.n), 1);
-/* Polowa wysokosci PRZEJEZDNEGO korytarza w tym miejscu.
 
-   ZWEZENIE JEST STOPNIOWE, nie skokowe. Progi stref sa dyskretne (liczba torow
-   nie moze byc ulamkiem), ale SZEROKOSC przechodzi lagodnie przez pas TAPER:
-   lej ma sciskac coraz mocniej w miare podchodzenia, a nie ciac pole pionowa
-   sciana. Gracz czyta z pola, ile jeszcze ma miejsca — i to jest cala mechanika
-   misji 6 („przepustowosc leja"), wiec musi byc widoczna, a nie nagla.          */
-const TAPER_F = 0.07;                     // szerokosc pasa przejscia (ulamek pola)
+/* Polowa wysokosci WSPOLNEGO korytarza (gardlo przy bazie i lej przed
+   bastionem). ZWEZENIE JEST STOPNIOWE, nie skokowe: liczba drog jest
+   dyskretna, ale szerokosc przechodzi lagodnie przez pas TAPER — lej ma
+   sciskac coraz mocniej w miare podchodzenia, a nie ciac pole pionowa sciana.
+   Gracz czyta z pola, ile jeszcze ma miejsca, i to JEST mechanika misji 6.    */
+const TAPER_F = 0.07;
 export function corridorHalf(x){
   const zs = SHAPES[SHAPE];
   let i = zs.length - 1;
@@ -223,20 +250,82 @@ export function corridorHalf(x){
   const t = clamp((x - start) / band, 0, 1);
   return LANE_HALF * (hPrev + (h - hPrev) * t);
 }
-// srodek toru `lane` (0..n-1) przy szerokosci n torow, w miejscu x
-export function laneCY(lane, n, x){
-  const half = x == null ? LANE_HALF : corridorHalf(x);
-  if (n <= 1) return LANE_Y;
-  const h = (half*2)/n;
-  return LANE_Y - half + h*(clamp(lane,0,n-1) + 0.5);
+
+/* Os drogi `i` w miejscu x.
+
+   W gardle i w leju wszystkie drogi sa TA SAMA osia (LANE_Y) — tam jest jeden
+   korytarz. Miedzy rozwidleniem a zbiegiem rozchodza sie na swoje wysokosci,
+   a luk (`bow`) wypycha je jeszcze dalej w polowie drogi. Rozejscie i zbieg
+   sa WYGLADZONE (sinus), zeby droga byla traktem, a nie zlamana kreska —
+   jednostka ma nia jechac, a nie skakac na progach.                           */
+export function roadY(i, x){
+  const r = ROADS[i] || ROADS[0];
+  if (!r || !r.y && !r.bow) return LANE_Y;
+  const x0 = splitX(), x1 = mergeX();
+  if (!isFinite(x0) || x <= x0 || x >= x1) return LANE_Y;
+  const t = clamp((x - x0) / Math.max(1, x1 - x0), 0, 1);
+  const open = Math.sin(t * Math.PI);            // 0 na koncach, 1 w srodku
+  const ramp = Math.min(1, open * 2.2);          // szybkie rozejscie, potem plaskowyz
+  const dir  = r.y === 0 ? (r.bow >= 0 ? 1 : -1) : Math.sign(r.y);
+  return LANE_Y + (r.y * ROAD_GAP) * ramp + dir * (r.bow || 0) * ROAD_GAP * open;
 }
-// polowa wysokosci JEDNEGO toru (do trzymania jednostki w swoim pasie)
-export const laneHalf = (n, x) => {
-  const half = x == null ? LANE_HALF : corridorHalf(x);
-  return n <= 1 ? half : Math.max(6, half/n - 4);
+// Polowa szerokosci PRZEJEZDNEJ drogi w miejscu x. Poza rozwidleniem to
+// wspolny korytarz (gardlo/lej), wiec liczy sie corridorHalf.
+export function roadHalf(x){
+  const x0 = splitX(), x1 = mergeX();
+  if (!isFinite(x0) || x <= x0 || x >= x1) return corridorHalf(x);
+  // Wygladzone wejscie i wyjscie: droga rozszerza sie z gardla i zwiera w lej,
+  // zeby trakt nie zaczynal sie pionowym progiem.
+  const band = Math.max(40, (x1-x0)*0.10);
+  const t = Math.min(1, Math.min(x-x0, x1-x)/band);
+  return corridorHalf(x) + (ROAD_W/2 - corridorHalf(x)) * t;
+}
+// Calkowity pionowy zasieg pola (do kamery, renderu i minimapy).
+export function fieldHalf(){
+  let m = LANE_HALF;
+  for (let i=0;i<ROADS.length;i++){
+    const r = ROADS[i];
+    const reach = Math.abs(r.y||0)*ROAD_GAP + Math.abs(r.bow||0)*ROAD_GAP + ROAD_W/2;
+    if (reach > m) m = reach;
+  }
+  return m + 20;
+}
+// Punkt na DRODZE z ulamka jej dlugosci (0 = rozwidlenie, 1 = zbieg w leju).
+export function roadPointX(f){
+  const x0 = splitX(), x1 = mergeX();
+  if (!isFinite(x0)) return atF(clamp(f,0,1));
+  return x0 + (x1 - x0) * clamp(f, 0, 1);
+}
+
+// --- zgodność: dawne nazwy używane przez render/sim ---
+export const laneCY   = (lane, n, x) => roadY(lane, x);
+export const laneHalf = (n, x) => roadHalf(x);
+
+// Przerzut MIEDZY drogami (LANE_SHIFT) skaluje sie z odstepem drog — dalsza
+// droga to dluzsza przeprawa w poprzek, ale ten sam koszt w sekundach.
+
+/* ======================== CELE NA DROGACH ================================
+   „Gorna i dolna droga maja INNE budynki do zajecia" — wiec cel nie jest jednym
+   rodzajem punktu, ktory zawsze placi kredytami. Kazdy rodzaj daje CO INNEGO,
+   i to dopiero czyni wybor drogi decyzja, a nie wyborem koloru:
+
+     kredyty  — najprostszy zysk, skaluje wszystko
+     moc      — odblokowuje budynki, ktore inaczej nie zmieszcza sie w sieci
+     kratki   — jedyny sposob na wiecej miejsca w bazie (zlew na kredyty)
+     radar    — widzisz sklad fal, czyli mozesz kontrowac zamiast reagowac
+     oslabia  — tnie produkcje wroga; jedyna rzecz, ktora zmniejsza nacisk
+
+   Dzieki temu „rozdziel sily" i „skup sie na jednej drodze" sa realnymi,
+   roznymi planami: dwie drogi po kredyty to inna partia niz jedna po radar
+   i oslabienie. Nowy rodzaj celu to wpis tutaj + jedna gałąź w sectors.js.  */
+export const SECT_KINDS = {
+  sztab:   { name:'MINI-SZTAB', ico:'★', col:'#e8b23a', give:'kredyty', val:5,    desc:'+5 kr./s' },
+  most:    { name:'MOST',       ico:'╬', col:'#4dd0d0', give:'moc',     val:10,   desc:'+10 mocy' },
+  sklad:   { name:'SKŁAD',      ico:'▣', col:'#5fd18a', give:'kratki',  val:1,    desc:'+2 kolumny kratek' },
+  wieza:   { name:'WIEŻA',      ico:'◉', col:'#c9a2e8', give:'radar',   val:1,    desc:'+1 poziom radaru' },
+  bateria: { name:'BATERIA',    ico:'A', col:'#d98a4d', give:'oslabia', val:0.25, desc:'ich fale −25%' },
 };
-// Przerzut MIĘDZY torami (LANE_SHIFT) skaluje się z wysokością korytarza —
-// szerszy pas to dłuższa droga w poprzek, ale ten sam koszt w sekundach.
+export const sectKind = k => SECT_KINDS[k] || SECT_KINDS.sztab;
 
 // --- AI wroga ---
 export const EARTY_CAP = 3;

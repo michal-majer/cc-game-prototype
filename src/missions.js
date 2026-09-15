@@ -26,6 +26,20 @@
      halfH   int                 — połowa wysokości korytarza; domyślnie z kształtu
                                    (1 tor → ciasno, 3 tory → pas na tor)
      spawnF  0..1                — gdzie na korytarzu stoi przyczółek wroga
+     roads   [{n,y,bow,sect}]     — DROGI. Za wąskim gardłem korytarz rozchodzi
+                                   się na niezależne trakty i zbiega w leju:
+                                     n    nazwa (trafia na przycisk rozkazu)
+                                     y    −1/0/+1 — przesunięcie o roadGap
+                                     bow  łuk na zewnątrz (0.3 = spory objazd,
+                                          czyli droga REALNIE dłuższa)
+                                     sect cele NA TEJ DRODZE: {kind, n, f},
+                                          f = ułamek długości drogi
+                                   Każdy rodzaj celu daje CO INNEGO (config
+                                   SECT_KINDS: kredyty/moc/kratki/radar/osłabia),
+                                   więc „którą drogą" jest decyzją o zysku, nie
+                                   o kierunku. Jedna droga = brak rozwidlenia.
+     roadGap int                 — odstęp między osiami dróg (domyślnie 300)
+     roadW   int                 — szerokość jednej drogi (domyślnie 150)
      money   int                 — kredyty na start
      unlock  [typ budynku]       — CO JEST NA PASKU. To jest drzewko techniki
                                    kampanii; `req` z tabeli B działa tylko
@@ -116,6 +130,11 @@ export const MISSIONS = {
     grid:[5,5], gridMax:[7,5], shape:'1', len:2100, money:500,   // przejęty sztab = +1 kolumna kratek
     unlock:['power','refinery','barracks','bunker','workshop','radar'],
     feats:feats({ stance:2, sectors:1, radar:1, sell:true, repair:true, upgrade:true, terrIncome:true }),
+    // Jedna droga, jeden cel — i stoi DOKŁADNIE na najdalszej linii, jaką ten
+    // suwak daje (PRZEDPOLE, 1/4 pola). Cel, do którego misja nie pozwala dojść,
+    // jest misją nieprzechodnią, nie trudną.
+    roads:[{ n:'TRAKT', y:0, bow:0,
+             sect:[{ kind:'sztab', n:'PRZEDPOLE', f:0.25 }] }],
     goal:{ kind:'sectors', target:1 },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks'], grow:0.7, spawnF:0.97, bastion:0 },
     waveT:[45, 32],
@@ -133,14 +152,26 @@ export const MISSIONS = {
   m4: {
     id:'m4', n:4, code:'ROZWIDLENIE',
     teach:'Nie możesz być wszędzie naraz.',
-    gen:'Trzy tory. Wybierz, który oddajesz.',
-    brief:['Korytarz się rozszerza. Trzy tory, trzy mini-sztaby.',
-           'Weź dwa. Trzeciego nie obronisz — i o to chodzi.',
-           'Fabryka daje czołgi. Oni odpowiedzą rakietami.'],
-    grid:[7,6], shape:'1-3-1', len:3200, money:600,
+    gen:'Trzy drogi. Wybierz, którą oddajesz.',
+    brief:['Za gardłem korytarz rozchodzi się na trzy niezależne drogi.',
+           'Każda ma co innego do wzięcia. Górna i dolna są dłuższe.',
+           'Opanuj dwie. Trzeciej nie obronisz — i o to chodzi.'],
+    grid:[6,6], gridMax:[7,6], shape:'1-3-1', len:3200, money:600,   // zajęty cel = nowe kratki
+    // Trzy drogi, trzy RÓŻNE powody, żeby nią pójść. Górna daje moc i tnie ich
+    // fale, ale jest najdłuższa; środkowa jest krótka i płaci kredytami;
+    // dolna daje miejsce w bazie i wywiad. Nie da się wziąć wszystkiego —
+    // i to jest cała misja.
+    roadGap:300, roadW:150,
+    roads:[
+      { n:'GÓRNA',    y:-1, bow:0.30, sect:[{ kind:'most',    n:'MOST',      f:0.40 },
+                                            { kind:'bateria', n:'BATERIA',   f:0.76 }] },
+      { n:'ŚRODKOWA', y: 0, bow:0,    sect:[{ kind:'sztab',   n:'WĘZEŁ',     f:0.52 }] },
+      { n:'DOLNA',    y: 1, bow:0.30, sect:[{ kind:'sklad',   n:'SKŁAD',     f:0.38 },
+                                            { kind:'wieza',   n:'WIEŻA',     f:0.72 }] },
+    ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory'],
     feats:feats({ stance:4, sectors:3, radar:2, sell:true, repair:true, upgrade:true, terrIncome:true }),
-    goal:{ kind:'sectors', target:2 },
+    goal:{ kind:'roads', target:2 },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks'], grow:0.85, spawnF:0.97, bastion:0 },
     waveT:[45, 30],
     par:{ sec:540, loss:16 },
@@ -163,6 +194,16 @@ export const MISSIONS = {
            'Ostrzał jest zapowiadany. Zdążysz ewakuować albo przyjąć i odbudować.',
            'Sztab przysyła rozkazy — pierwsze karty do wyboru.'],
     grid:[7,6], shape:'1-3-1', len:3200, money:650,
+    // Te same drogi co w misji 4 — gracz już wie, co na której jest. Nowa jest
+    // tylko cena ich trzymania: ostrzał bije po drogach, z zapowiedzią.
+    roadGap:300, roadW:150,
+    roads:[
+      { n:'GÓRNA',    y:-1, bow:0.30, sect:[{ kind:'most',    n:'MOST',    f:0.40 },
+                                            { kind:'bateria', n:'BATERIA', f:0.76 }] },
+      { n:'ŚRODKOWA', y: 0, bow:0,    sect:[{ kind:'sztab',   n:'WĘZEŁ',   f:0.52 }] },
+      { n:'DOLNA',    y: 1, bow:0.30, sect:[{ kind:'sklad',   n:'SKŁAD',   f:0.38 },
+                                            { kind:'wieza',   n:'WIEŻA',   f:0.72 }] },
+    ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory','reactor'],
     feats:feats({ stance:4, sectors:3, radar:2, cards:true, sell:true, repair:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'hold', target:2, waves:4 },
@@ -188,6 +229,15 @@ export const MISSIONS = {
            'Bastion bije w gardło, nie w całe pole.',
            'Artyleria i ciężka fabryka są Twoje. Reszta to kolejność.'],
     grid:[7,6], shape:'1-3-1', len:3600, money:700,
+    // W finale drogi są szersze i bez objazdów: tu treścią nie jest wybór trasy,
+    // a KOLEJNOŚĆ WEJŚCIA w lej. Baterie na skrzydłach są jedyną rzeczą, która
+    // ścina ich fale — bez nich gardło jest nie do przejścia.
+    roadGap:280, roadW:180,
+    roads:[
+      { n:'GÓRNA',    y:-1, bow:0, sect:[{ kind:'bateria', n:'BATERIA PN.', f:0.62 }] },
+      { n:'ŚRODKOWA', y: 0, bow:0, sect:[{ kind:'sztab',   n:'WĘZEŁ',      f:0.55 }] },
+      { n:'DOLNA',    y: 1, bow:0, sect:[{ kind:'bateria', n:'BATERIA PD.', f:0.62 }] },
+    ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory',
             'reactor','lab','arty','heavy'],
     feats:feats({ stance:5, sectors:3, radar:2, cards:true, sell:true, repair:true, upgrade:true, terrIncome:true }),
@@ -222,6 +272,14 @@ export const SKIRMISH = {
   teach:'Wszystko naraz.', gen:'Front jak zawsze. Reszta losowa.',
   brief:['Losowa doktryna, losowe warianty pola, pełna eskalacja.'],
   grid:[7,6], shape:'1-3-1', len:3200, money:null,
+  roadGap:300, roadW:150,
+  roads:[
+    { n:'GÓRNA',    y:-1, bow:0.30, sect:[{ kind:'most',    n:'MOST',    f:0.40 },
+                                          { kind:'bateria', n:'BATERIA', f:0.76 }] },
+    { n:'ŚRODKOWA', y: 0, bow:0,    sect:[{ kind:'sztab',   n:'WĘZEŁ',   f:0.52 }] },
+    { n:'DOLNA',    y: 1, bow:0.30, sect:[{ kind:'sklad',   n:'SKŁAD',   f:0.38 },
+                                          { kind:'wieza',   n:'WIEŻA',   f:0.72 }] },
+  ],
   unlock:null,                       // null = pełne drzewko z tabeli B (req jak dotąd)
   feats:feats({ stance:5, sectors:3, radar:2, cards:true, sell:true, repair:true,
                 upgrade:true, terrIncome:true }),

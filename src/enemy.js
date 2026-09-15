@@ -10,7 +10,7 @@ import {
 import { S, SECT, say, lineX } from './state.js';
 import { boom, siren } from './audio.js';
 import { bDmg, radarLvl } from './buildings.js';
-import { terrCtrl } from './sectors.js';
+import { terrCtrl, sectWeaken } from './sectors.js';
 
 // siła = Σ (HP + DPS×10), liczona tym samym wzorem po obu stronach
 export function force(side){
@@ -137,7 +137,10 @@ export const bEff = () => S.bastion.dead ? 0
   : !S.bastion.target ? 1
   : Math.max(0, 0.45 + 0.55*(S.bastion.hp/S.bastion.maxHp));
 export function eComp(){
-  const out={}, eff=bEff();
+  // Zajete BATERIE tna sklad fali — jedyna rzecz w grze, ktora ZMNIEJSZA nacisk
+  // wroga zamiast tylko zwiekszac Twoj. Dlatego droga z bateria jest osobnym
+  // planem, nie wariantem tego samego.
+  const out={}, eff=bEff()*(1-sectWeaken());
   for (const t of S.eBase){ const d=EB[t]; out[d.unit]=(out[d.unit]||0)+d.count; }
   for (const k of Object.keys(out)){
     out[k]=Math.round(out[k]*eff);

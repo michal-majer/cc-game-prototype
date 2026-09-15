@@ -29,7 +29,7 @@ import { initPixi, app, cam, WV, screenToWorld, clearViews, renderFrame, fitCam 
 import { buildBar, buildStanceSlider, syncOverlays, updateHUD, initMinimap } from './hud.js';
 import { initInput, worldTap } from './input.js';
 import { MISSIONS, WORLDS, SKIRMISH, worldOf } from './missions.js';
-import { applyMission, applySectors, snapshot, restoreBase, replayCards,
+import { applyMission, applyRoadObjectives, snapshot, restoreBase, replayCards,
          finishMission, isCampaign, MIS, loadProgress } from './campaign.js';
 import { initMenu, showMenu, showBrief, showMissionEnd, hideMenu } from './menu.js';
 
@@ -41,7 +41,7 @@ function buildField(m, carry){
   resetTables();
   resetIds();
   resetSect();
-  applySectors(m.feats.sectors || 0);
+  applyRoadObjectives();          // cele biorą się z DANYCH DRÓG misji
 
   S.grid=[];
   for (let r=0;r<ROWS;r++){ S.grid[r]=[]; for(let c=0;c<COLS;c++) S.grid[r][c]={ore:0,seam:false,pull:false,b:null,prevOre:0}; }

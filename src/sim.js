@@ -9,7 +9,8 @@ import {
   BAS_HP, BAS_DMG, BAS_RANGE, BAS_RATE, BAS_SPL_R, BAS_SPL_N, WAVE_TIME, ETERR_SEC, ETERR_ATK,
   COUNTER, HUNT_LEASH, ENGAGE_BAND, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
   isHeavy, isSoldier, isArmored, BAL, BASE_INCOME,
-  lanesAt, laneCY, laneHalf, corridorHalf, LANE_SHIFT, maxLanes, SPD_MUL
+  lanesAt, laneCY, laneHalf, corridorHalf, LANE_SHIFT, maxLanes, SPD_MUL,
+  roadY, roadHalf, roadCount, roadName
 } from './config.js';
 import { S, say, lineX } from './state.js';
 import { MIS, feat, goalDone } from './campaign.js';
@@ -17,7 +18,7 @@ import { boom, siren } from './audio.js';
 import { explode } from './effects.js';
 import { regrow, extract, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { updHarvesters } from './harvesters.js';
-import { updSect, terrIncome, eTerrCtrl, secE, secP } from './sectors.js';
+import { updSect, terrIncome, eTerrCtrl, secE, secP, roadsHeld } from './sectors.js';
 import { eDecide, eBuild, eComp, eHoldX } from './enemy.js';
 import { bDmg, bCount, pBuff, radarLvl, killBuilding, roomFor, recalcPower } from './buildings.js';
 import { openDraft } from './cards.js';
@@ -45,17 +46,17 @@ export const laneCount = () => lanesAt(S.frontX);
 // n = numer toru (0..2) albo -1 = ROZDZIEL po równo
 export function setArmyLane(n){
   const pU = S.units.filter(u=>u.side==='p');
-  const lanes = maxLanes();
-  if (lanes <= 1) return;
+  const roads = roadCount();
+  if (roads <= 1) return;
   if (n < 0){
-    pU.forEach((u,i)=> u.lane = i % lanes);
+    pU.forEach((u,i)=> u.lane = i % roads);
     S.laneOrder = -1;
-    say('ROZDZIELIĆ SIŁY — '+lanes+' TORY','warn');
+    say('ROZDZIELIĆ SIŁY — '+roads+' DROGI','warn');
   } else {
-    const l = Math.min(n, lanes-1);
+    const l = Math.min(n, roads-1);
     for (const u of pU) u.lane = l;
     S.laneOrder = l;
-    say('CAŁOŚĆ NA TOR '+(l+1),'warn');
+    say('CAŁOŚĆ NA '+roadName(l),'warn');
   }
 }
 
@@ -86,11 +87,11 @@ export function spawn(type,side,x,y,lane){
   // kart (pArm) i z Lab (poziomy). Sztab skaluje tylko obronę bazy (patrz dmgFrom
   // budynków niżej), więc jego upgrade przestał być globalnym snowballem armii.
   const hp = d.hp;
-  // `lane` — tor, na który jednostka ma iść. Liczony z NAJSZERSZEJ strefy pola,
-  // nie z miejsca narodzin: barak stoi w bazie, gdzie tor jest jeden, więc inaczej
-  // cała armia szłaby torem 1 do pierwszego ręcznego rozkazu.
+  // `lane` — DROGA, na którą jednostka ma iść. Liczona z liczby DRÓG, nie
+  // z miejsca narodzin: barak stoi w bazie, gdzie jest jeden wspólny korytarz,
+  // więc inaczej cała armia szłaby pierwszą drogą do ręcznego rozkazu.
   // Gracz: bieżący rozkaz (S.laneOrder; −1 = ROZDZIEL po równo). Wróg: rozkład AI.
-  const n = maxLanes();
+  const n = roadCount();
   const ln = lane != null ? Math.min(lane, n-1)
            : side==='p' ? (S.laneOrder >= 0 ? Math.min(S.laneOrder, n-1)
                                             : (S.pLaneRR = ((S.pLaneRR||0)+1) % n))
@@ -109,17 +110,17 @@ export function doWave(){
   if (!S.bastion.dead){
     const comp=eComp();
     const sx = (S.espawn ? S.espawn.x : BAS_X-36);
-    const n  = lanesAt(sx);
+    const n  = roadCount();
     let li = 0;
     for (const k in comp) for (let i=0;i<comp[k];i++){
-      const lane = n>1 ? (li++ % n) : 0;                       // wróg rozkłada falę po torach
+      const road = n>1 ? (li++ % n) : 0;                       // wróg rozkłada falę po DROGACH
       const x = sx - Math.random()*36;
-      spawn(k,'e', x, laneCY(lane, n, x)+(Math.random()*40-20), lane);
+      spawn(k,'e', x, roadY(road, x)+(Math.random()*30-15), road);
     }
   }
   // cel „utrzymaj": liczy się fala PRZETRWANA z terenem w ręku; utrata zeruje licznik
   const g = MIS().goal || {};
-  if (g.kind==='hold') S.holdT = secP() >= g.target ? (S.holdT||0)+1 : 0;
+  if (g.kind==='hold') S.holdT = roadsHeld() >= g.target ? (S.holdT||0)+1 : 0;
   siren(); S.shake=Math.max(S.shake,4);
   if (S.wave===1) autoFollowFront();     // koniec budowania w spokoju — patrz na front
   say('FALA '+S.wave, 'warn');
@@ -325,9 +326,12 @@ export function update(dt){
     // Zmiana u.lane (rozkaz gracza) natychmiast przestawia cel — przerzut kosztuje
     // tylko czas przejazdu. W strefie wąskiej (gardło, LEJ) torów jest jeden, więc
     // wszyscy zbiegają się do korytarza, który w leju jest wyraźnie węższy.
+    // DROGA jako rozkaz: jednostka trzyma się osi SWOJEJ drogi. Zmiana u.lane
+    // (rozkaz gracza) natychmiast przestawia cel — przerzut kosztuje tylko czas
+    // przeprawy w poprzek. W gardle i w leju wszystkie drogi są jedną osią,
+    // więc tam wszyscy zbiegają się do wspólnego korytarza.
     if (u.x > BASE_R){
-      const n = lanesAt(u.x);
-      const cy = laneCY(u.lane|0, n, u.x), half = laneHalf(n, u.x);
+      const cy = roadY(u.lane|0, u.x), half = roadHalf(u.x);
       const dy = cy - u.y, ady = Math.abs(dy);
       if (ady > half){
         u.y += Math.sign(dy) * Math.min(LANE_SHIFT*dt, ady - half*0.5);

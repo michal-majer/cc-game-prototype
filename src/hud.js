@@ -16,7 +16,8 @@ import { takeCard } from './cards.js';
 import { setStance, setArmyLane } from './sim.js';
 import { MIS, feat, isCampaign, goalText, goalNow, goalDone } from './campaign.js';
 import { maxLanes, BASE_X, BASE_Y, BASE_R, CELL, COLS, ROWS, LANE_Y, LANE_HALF,
-         fieldX1, CAP_R } from './config.js';
+         fieldX1, CAP_R, roadCount, roadName, roadY, roadHalf, fieldHalf,
+         sectKind, splitX, mergeX } from './config.js';
 import { cam, viewport, panTo, fieldEnd } from './render.js';
 
 const qs = id => document.getElementById(id);
@@ -189,26 +190,39 @@ function drawMinimap(){
   const x0=mmX0(), x1=mmX1(), sx = wCss/(x1-x0);
   const X = wx => (wx-x0)*sx;
   const midY = hCss/2;
-  const hy = v => midY + v*(hCss*0.42)/Math.max(1,LANE_HALF);   // pion: korytarz na całą wysokość paska
+  // pion skaluje się CAŁYM zasięgiem pola, żeby wszystkie drogi weszły na pasek
+  const hy = v => midY + v*(hCss*0.44)/Math.max(1,fieldHalf());
 
   g.fillStyle='#070b0c'; g.fillRect(0,0,wCss,hCss);
   // korytarz — jaśniejszy od tła, inaczej pasek jest czarnym prostokątem
+  // Każda DROGA to osobny trakt na pasku — minimapa musi pokazywać, że są trzy
+  // niezależne kierunki, bo to jest cała treść decyzji „rozdziel czy skup".
   g.fillStyle='#33423f';
-  g.fillRect(X(BASE_R), hy(-LANE_HALF), X(fieldX1())-X(BASE_R), hy(LANE_HALF)-hy(-LANE_HALF));
-  g.strokeStyle='#4b5f5c'; g.lineWidth=1;
-  g.strokeRect(X(BASE_R)+0.5, hy(-LANE_HALF)+0.5, X(fieldX1())-X(BASE_R)-1, hy(LANE_HALF)-hy(-LANE_HALF)-1);
+  const sxs=splitX(), mxs=Math.min(mergeX(), fieldX1());
+  const seg = (xa,xb,yFn,hFn) => {
+    const step=Math.max(8,(xb-xa)/60);
+    for (let x=xa; x<xb; x+=step){
+      const cy=yFn(x), h=Math.max(1.5, (hy(hFn(x))-hy(0)));
+      g.fillRect(X(x), hy(cy-LANE_Y)-h, Math.max(1.5,step*sx+0.6), h*2);
+    }
+  };
+  if (!isFinite(sxs) || roadCount()<2) seg(BASE_R, fieldX1(), ()=>LANE_Y, x=>roadHalf(x));
+  else {
+    seg(BASE_R, sxs, ()=>LANE_Y, x=>roadHalf(x));
+    for (let i=0;i<roadCount();i++) seg(sxs, mxs, x=>roadY(i,x), x=>roadHalf(x));
+    seg(mxs, fieldX1(), ()=>LANE_Y, x=>roadHalf(x));
+  }
   // baza
   g.fillStyle='#3c5566';
   g.fillRect(X(BASE_X), hy(-LANE_HALF*0.7), Math.max(3, COLS*CELL*sx), hy(LANE_HALF*0.7)-hy(-LANE_HALF*0.7));
   // mini-sztaby: kolor = kto trzyma. Sektor TOROWY rysuje się w swoim torze,
   // inaczej trzy sektory środka zlewają się w jedną plamę.
-  const nLanes = Math.max(1, maxLanes());
   for (const q of SECT){
-    const lane = q.lane>=0;
-    const cy = lane ? (-LANE_HALF + (2*LANE_HALF/nLanes)*(q.lane+0.5)) : 0;
-    const hh = lane ? (LANE_HALF/nLanes)*0.8 : LANE_HALF*0.8;
-    g.fillStyle = q.own===1 ? CO.warn : q.own===-1 ? CO.red : '#4a5a5e';
+    const cy=(q.y!=null?q.y:LANE_Y)-LANE_Y, hh=Math.max(60, roadHalf(q.x)*1.5);
+    g.fillStyle = q.own===1 ? CO.warn : q.own===-1 ? CO.red : sectKind(q.kind).col;
+    g.globalAlpha = q.own ? 1 : 0.55;
     g.fillRect(X(q.x)-Math.max(1.5,CAP_R*sx/2), hy(cy-hh), Math.max(3,CAP_R*sx), hy(cy+hh)-hy(cy-hh));
+    g.globalAlpha = 1;
   }
   // przyczółek / bastion wroga
   if (S.bastion && !S.bastion.dead){
@@ -219,7 +233,7 @@ function drawMinimap(){
   for (const u of S.units){
     if (u.hp<=0) continue;
     g.fillStyle = u.side==='p' ? '#7dc0ff' : '#ff8a7a';
-    g.fillRect(X(u.x)-1.2, hy(u.y-LANE_Y)-1.2, 2.8, 2.8);
+    g.fillRect(X(u.x)-1.2, hy(u.y-LANE_Y)-1.2, 2.6, 2.6);
   }
   // linia frontu
   g.fillStyle='#ffffff'; g.fillRect(X(S.frontX)-0.5, 0, 1.4, hCss);
@@ -243,17 +257,25 @@ function updateObjective(){
   qs('obj-bar').style.background = done ? CO.ok : CO.warn;
   qs('obj-num').textContent = done ? '✔ OSIĄGNIĘTY' : now+' / '+target;
 }
-// Rozkaz torowy pokazuje się TYLKO tam, gdzie tory istnieją — przy kształcie '1'
-// przycisków nie ma, bo nie ma czego rozdzielać.
+/* Rozkaz DROGOWY. Pokazuje się tylko tam, gdzie dróg jest więcej niż jedna.
+   Każdy przycisk nosi NAZWĘ drogi i jej cele — bo decyzja „którą drogą" jest
+   decyzją o zysku (moc? kratki? radar? osłabienie?), a nie o kierunku.        */
 function updateLanes(){
   const el=qs('lanes');
-  const n = maxLanes();
+  const n = roadCount();
   if (n<2 || S.state!=='play'){ el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
   [...el.children].forEach(b=>{
     const l=+b.dataset.lane;
-    b.style.display = (l>=n) ? 'none' : '';
+    b.style.display = (l>=n && l>=0) ? 'none' : '';
+    if (l<0) return;
     b.classList.toggle('on', S.laneOrder===l);
+    const own = SECT.filter(q=>q.road===l);
+    const mine = own.filter(q=>q.own===1).length;
+    b.querySelector('.ln-n').textContent = roadName(l);
+    b.querySelector('.ln-s').textContent = own.length
+      ? own.map(q=>sectKind(q.kind).ico).join(' ')+'  '+mine+'/'+own.length : '—';
+    b.classList.toggle('done', own.length>0 && mine===own.length);
   });
 }
 
@@ -297,8 +319,11 @@ export function updateHUD(){
   const ir=incomeRate(), ti=terrIncome();
   qs('cr').textContent=Math.floor(S.money);
   qs('cr-rate').textContent='+'+Math.round(ir+ti)+'/s';
-  const lost=TERR_MAX-ti;
-  qs('cr-break').textContent='ruda '+Math.round(ir)+' · teren '+Math.round(ti)+(lost>2?' ▼'+Math.round(lost):'');
+  // Potencjał terenu liczy się z CELÓW NA DROGACH (ile kredytów dają te, których
+  // nie trzymasz), nie ze stałej — bo każda misja ma inny zestaw celów.
+  const pot = SECT.reduce((v,q)=> v + (sectKind(q.kind).give==='kredyty' ? sectKind(q.kind).val : 0), 0);
+  const lost = Math.max(0, pot - ti);
+  qs('cr-break').textContent='ruda '+Math.round(ir)+' · teren '+Math.round(ti)+(lost>0?' ▼'+Math.round(lost):'');
   // moc
   const over=S.offBrown>0;
   qs('pw').textContent=S.drain+' / '+S.supply;

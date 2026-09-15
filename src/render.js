@@ -8,7 +8,8 @@ import * as PIXI from '../vendor/pixi.min.mjs';
 import {
   CO, U, B, BASE_X, BASE_Y, CELL, COLS, ROWS, BASE_R, LANE_Y, LANE_HALF, BAS_X,
   STANCES, CAP_R, TERR_MAX, ORE_SIP, BAL, HEX, clamp, ringOf, cellAt,
-  lanesAt, laneCY, corridorHalf, shapeId, fieldX1, LANE_HALF as LH
+  lanesAt, laneCY, corridorHalf, shapeId, fieldX1, LANE_HALF as LH,
+  roadY, roadHalf, roadCount, roadName, splitX, mergeX, fieldHalf, sectKind, ROAD_GAP, ROAD_W
 } from './config.js';
 import { S, SECT, lineX } from './state.js';
 import { buildTex, unitTex, unitSheet, tex, tileTex, markTex, hasTiles } from './assets.js';
@@ -115,17 +116,25 @@ function buildGround(){
     sp.width = T; sp.height = T; sp.x = x; sp.y = y;
     groundLayer.addChild(sp);
   };
-  // 1) korytarz — tylko tam, gdzie pole jest PRZEJEZDNE (lej naprawdę zwęża)
-  for (let x = BASE_R; x < fieldEnd(); x += T){
-    const half = corridorHalf(x + T/2);
-    for (let y = LANE_Y - LANE_HALF; y < LANE_Y + LANE_HALF; y += T){
-      const cy = y + T/2, d = Math.abs(cy - LANE_Y);
-      if (d > half) continue;
-      const gx = Math.round(x/T), gy = Math.round(y/T);
-      // przy krawędzi korytarza zieleń, w środku goła ziemia — darmowa różnorodność
-      const set = d > half - T ? 'trawa' : 'ziemia';
-      put(tileTex(set, gx, gy), x, y);
+  // 1) trakty — kafle idą TYLKO tam, gdzie pole jest przejezdne: gardło, każda
+  //    droga osobno, lej. Pustka między drogami zostaje pustką (to ona je rozdziela).
+  const END=fieldEnd(), x0=splitX(), x1=Math.min(mergeX(), END);
+  const strip = (xa, xb, yFn, hFn) => {
+    for (let x = xa; x < xb; x += T){
+      const cx = x + T/2, cy0 = yFn(cx), half = hFn(cx);
+      for (let y = cy0 - half; y < cy0 + half; y += T){
+        const cy = y + T/2, d = Math.abs(cy - cy0);
+        if (d > half) continue;
+        const gx = Math.round(x/T), gy = Math.round(y/T);
+        put(tileTex(d > half - T ? 'trawa' : 'ziemia', gx, gy), x, y - T/2);
+      }
     }
+  };
+  if (!isFinite(x0) || roadCount()<2) strip(BASE_R, END, AXIS, corridorHalf);
+  else {
+    strip(BASE_R, x0, AXIS, corridorHalf);
+    for (let i=0;i<roadCount();i++) strip(x0, x1, x=>roadY(i,x), roadHalf);
+    if (x1 < END) strip(x1, END, AXIS, corridorHalf);
   }
   // 2) baza — skalny placyk pod siatką
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++)
@@ -167,8 +176,9 @@ export const fieldEnd = () => fieldX1() + 60;
 // Korytarz bywa wyższy niż siatka bazy (trzy tory) albo niższy (jeden tor),
 // więc bierzemy obwiednię obu.
 function measureWorld(){
-  const top = Math.min(BASE_Y - 28, LANE_Y - LH - 44);
-  const bot = Math.max(BASE_Y + ROWS*CELL + 28, LANE_Y + LH + 44);
+  const fh = fieldHalf();
+  const top = Math.min(BASE_Y - 28, LANE_Y - fh - 44);
+  const bot = Math.max(BASE_Y + ROWS*CELL + 28, LANE_Y + fh + 44);
   WV.x = BASE_X - 28;
   WV.y = top;
   WV.w = Math.max(400, fieldEnd() - WV.x);
@@ -183,11 +193,15 @@ const TAC_W = 1150;
 export function resizeCam(){
   measureWorld();
   const {sw, bandH}=bandRect();
-  const zFill = bandH / WV.h;                  // cały korytarz w pionie — zoom taktyczny
+  const zFill = bandH / WV.h;                  // cały świat w pionie
   const zAll  = Math.min(sw / WV.w, zFill);    // całe pole na ekranie (na dużej mapie: mało)
+  // Zoom domyślny: Twoja droga i ZAPOWIEDŹ sąsiednich. Pokazywanie wszystkich
+  // trzech naraz (zFill) robi z jednostek piksele, a pokazywanie jednej odcina
+  // informację, że obok toczy się druga walka.
+  const zRoad = roadCount()>1 ? bandH / (ROAD_GAP*1.8 + ROAD_W) : zFill;
   cam.min = Math.min(zAll * 0.85, zFill);
-  cam.max = Math.max(zFill * 2.4, 2.2);
-  if (!cam._init){ cam.zoom = Math.min(zFill, sw / TAC_W); cam._init=true; }
+  cam.max = Math.max(zFill * 2.8, 2.2);
+  if (!cam._init){ cam.zoom = Math.min(zRoad, sw / TAC_W); cam._init=true; }
   cam.zoom = clamp(cam.zoom, cam.min, cam.max);
   clampCam();
 }
@@ -204,7 +218,10 @@ export function clampCam(){
 // Punkt, na którym kamera ma się trzymać w trybie prowadzonym.
 function followPoint(){
   if (cam.follow==='base') return { x: BASE_X + COLS*CELL/2, y: BASE_Y + ROWS*CELL/2 };
-  return { x: S.frontX, y: LANE_Y };
+  // Gdy gracz skupił armię na JEDNEJ drodze, kamera jedzie TĄ drogą. „Całość na
+  // górną" jest wtedy jednym rozkazem, a nie rozkazem plus szukaniem jej wzrokiem.
+  const r = (S.laneOrder != null && S.laneOrder >= 0) ? S.laneOrder : -1;
+  return { x: S.frontX, y: r >= 0 ? roadY(r, S.frontX) : LANE_Y };
 }
 // Prowadzenie kamery — wygładzone, żeby front „niósł" widok, a nie szarpał nim.
 function updateCam(dt){
@@ -286,33 +303,37 @@ function dashV(g,x,y0,y1,color,alpha){
   for (let y=y0;y<y1;y+=12){ g.moveTo(x,y).lineTo(x,Math.min(y1,y+6)); }
   g.stroke({width:2,color,alpha});
 }
-// środek i połowa wysokości pola sektora (torowy siedzi w swoim torze)
-const secY = q => q.lane>=0 ? laneCY(q.lane, Math.max(1,lanesAt(q.x)), q.x) : LANE_Y;
-const secH = q => q.lane>=0 ? corridorHalf(q.x)/Math.max(1,lanesAt(q.x)) : LANE_HALF;
+// Cel siedzi NA SWOJEJ DRODZE — pozycja policzona raz w campaign.applyRoadObjectives.
+const secY = q => (q.y != null ? q.y : LANE_Y);
+const secH = q => roadHalf(q.x);
 function drawWorld(){
   const g=gWorld; g.clear();
   wtBegin();
-  const ly=LANE_Y-LANE_HALF, lh=LANE_HALF*2;
+  const fh=fieldHalf(), ly=LANE_Y-fh, lh=fh*2;
 
-  drawCorridor(g, ly, lh);
+  drawCorridor(g);
 
   // Sektor torowy siedzi w SWOIM torze — jego pole i marker liczą się tylko tam.
   for (const q of SECT){
     const cy = secY(q), hh = secH(q);
+    const K = sectKind(q.kind);
     const col = q.own===1 ? CO.warn : q.own===-1 ? CO.red : null;
     if (col){ g.rect(q.x-CAP_R, cy-hh, CAP_R*2, hh*2).fill({color:col, alpha:0.13}); }
-    else { g.rect(q.x-CAP_R, cy-hh+0.5, CAP_R*2, hh*2-1).stroke({width:1,color:CO.gridHi, alpha:0.5}); }
+    else { g.rect(q.x-CAP_R, cy-hh+0.5, CAP_R*2, hh*2-1).stroke({width:1,color:K.col, alpha:0.35}); }
   }
   if (!S.bastion.dead && S.bastion.target) g.rect(BAS_X-40,ly,80,lh).fill({color:CO.red, alpha:0.17});
   if (!S.bastion.dead) g.rect(S.frontX-1,LANE_Y-corridorHalf(S.frontX),2,corridorHalf(S.frontX)*2).fill({color:'#ffffff', alpha:0.5});
 
   const MS_W=30, MS_H=34;
   for (const q of SECT){
-    const known = radarLvl()>=1 || q.own===1;
-    const col = !known ? '#5c6a70' : q.own===1 ? CO.warn : q.own===-1 ? CO.red : '#5c6a70';
-    // Etykiety sektora trzymają się JEGO toru — przy trzech torach opisy sąsiadów
-    // nachodziłyby na siebie, gdyby liczyć je od góry korytarza.
-    const qy = secY(q), lane = q.lane>=0;
+    // CEL JEST ZAWSZE ROZPOZNANY. Radar ukrywa SKŁAD FAL wroga, nie ukształtowanie
+    // terenu — a wybór drogi ma być decyzją podjętą Z WIEDZĄ, co na której jest.
+    // Ukrycie tego za radarem zamieniłoby „którą drogą" w rzut monetą.
+    const K = sectKind(q.kind);
+    const col = q.own===1 ? CO.warn : q.own===-1 ? CO.red : K.col;
+    // Etykiety celu trzymają się JEGO drogi — drogi są oddalone, więc opisy
+    // sąsiadów nie mają jak na siebie nachodzić.
+    const qy = secY(q), lane = q.road>=0;
     const mx=q.x-MS_W/2, my=qy-MS_H/2;
     const yName = lane ? qy-MS_H/2-16 : qy-secH(q)-16;
     const yBar  = lane ? qy-MS_H/2-11 : qy-secH(q)-12;
@@ -321,15 +342,15 @@ function drawWorld(){
     g.roundRect(mx,my,MS_W,MS_H,3).fill({color:col, alpha:q.own?0.30:0.10});
     g.roundRect(mx+0.5,my+0.5,MS_W-1,MS_H-1,3).stroke({width:q.own?2:1,color:col});
     g.rect(mx+3,my+3,MS_W-6,3).fill(col);
-    wt(q.own?'★':'□', q.x, qy, 13, q.own?col:'#7c8a90', {bold:true});
+    wt(K.ico, q.x, qy, 14, q.own?col:K.col, {bold:true});
     wt(q.n, q.x, yName, 9, q.own?col:CO.dim, {bold:true});
     const bw=64, bx=q.x-bw/2, by=yBar;
     g.rect(bx,by,bw,5).fill('#0b0f10');
     const f=Math.abs(q.cap)/100*(bw/2);
     if (q.cap>=0) g.rect(q.x,by,f,5).fill(CO.warn); else g.rect(q.x-f,by,f,5).fill(CO.red);
     g.rect(q.x,by,1,5).fill(CO.gridHi);
-    if (q.own===1) wt('+'+Math.round(TERR_MAX/SECT.length)+' kr./s', q.x, yInfo, 8, CO.warn, {bold:true});
-    else if (q.own===0 && q.cap===0) wt('NICZYJ', q.x, yInfo, 8, CO.dim);
+    // ZYSK tego celu widać zawsze — to on jest powodem, żeby wybrać tę drogę
+    wt(K.desc, q.x, yInfo, 8, q.own===1?CO.warn:K.col, {bold:q.own===1, alpha:q.own===1?1:0.8});
   }
 
   const ec=eTerrCtrl();
@@ -359,37 +380,45 @@ function drawWorld(){
   drawBaseGrid(g);
   wtEnd();
 }
-/* Korytarz rysowany Z KSZTAŁTU: górna krawędź w prawo, dolna w lewo. Dzięki
-   temu lej i wąskie gardło są WIDAĆ — gracz czyta przepustowość z pola, a nie
-   z komunikatu. Separatory torów rysują się tylko tam, gdzie tory są.        */
-function corridorPoly(step){
-  const top=[], bot=[], END=fieldEnd();
-  for (let x=BASE_R; x<=END; x+=step){
-    const h=corridorHalf(x);
-    top.push(x, LANE_Y-h); bot.push(x, LANE_Y+h);
-  }
-  const hE=corridorHalf(END);
-  top.push(END, LANE_Y-hE); bot.push(END, LANE_Y+hE);
+/* Pasmo wzdłuż DOWOLNEJ osi: górna krawędź w prawo, dolna w lewo. Jeden helper
+   obsługuje gardło, każdą drogę osobno i lej — dzięki temu kształt pola jest
+   WIDAĆ (gracz czyta przepustowość z terenu, nie z komunikatu), a rozwidlenie
+   i zbieg biorą się same z tego, że roadY na końcach wraca do wspólnej osi.  */
+function bandPoly(x0, x1, step, yFn, hFn){
+  const top=[], bot=[];
+  const put=x=>{ const y=yFn(x), h=hFn(x); top.push(x,y-h); bot.push(x,y+h); };
+  for (let x=x0; x<x1; x+=step) put(x);
+  put(x1);
   const out=top.slice();
   for (let i=bot.length-2;i>=0;i-=2) out.push(bot[i], bot[i+1]);
   return out;
 }
-function drawCorridor(g, ly, lh){
-  g.rect(BASE_R,ly,fieldEnd()-BASE_R,lh).fill({color:'#0c1012', alpha:0.7});   // pobocze
-  const poly=corridorPoly(26);
-  g.poly(poly).fill('#212a2c');
+const AXIS = () => LANE_Y;
+function drawBand(g, poly, fill){
+  g.poly(poly).fill(fill);
   g.poly(poly).stroke({width:2, color:CO.laneEdge});
-  // separatory torów — w strefie szerokiej, przerywane, żeby nie udawały ściany
-  for (let x=BASE_R; x<fieldEnd(); x+=26){
-    const n=lanesAt(x+13);
-    if (n<2) continue;
-    const h=corridorHalf(x+13);
-    for (let k=1;k<n;k++){
-      const y=LANE_Y-h+(2*h/n)*k;
-      g.moveTo(x+4,y).lineTo(x+18,y);
-    }
+}
+/* Pole to GARDŁO → osobne DROGI → LEJ. Drogi rysują się jako niezależne trakty
+   z pustką między nimi, bo takie mają być: walka na górnej nie ma przelewać się
+   na dolną, inaczej „rozdziel siły" nic nie znaczy.                           */
+function drawCorridor(g){
+  const END=fieldEnd(), x0=splitX(), x1=Math.min(mergeX(), END);
+  const fh=fieldHalf();
+  g.rect(BASE_R, LANE_Y-fh, END-BASE_R, fh*2).fill({color:'#0b0f11', alpha:0.55});  // pobocze
+  if (!isFinite(x0) || roadCount()<2){
+    drawBand(g, bandPoly(BASE_R, END, 26, AXIS, corridorHalf), '#212a2c');
+    return;
   }
-  g.stroke({width:1, color:CO.gridHi, alpha:0.45});
+  drawBand(g, bandPoly(BASE_R, x0, 22, AXIS, corridorHalf), '#212a2c');            // gardło
+  for (let i=0;i<roadCount();i++)                                                  // drogi
+    drawBand(g, bandPoly(x0, x1, 18, x=>roadY(i,x), roadHalf), '#212a2c');
+  if (x1 < END)
+    drawBand(g, bandPoly(x1, END, 22, AXIS, corridorHalf), '#212a2c');             // lej
+  // nazwa drogi u jej wlotu — rozkaz „całość na GÓRNĄ" musi mieć odpowiednik w polu
+  for (let i=0;i<roadCount();i++){
+    const lx = x0 + (x1-x0)*0.10;
+    wt(roadName(i), lx, roadY(i, lx) - roadHalf(lx) - 12, 11, '#6e8085', {bold:true});
+  }
 }
 function drawBaseGrid(g){
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
