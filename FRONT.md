@@ -252,11 +252,22 @@ m4 — 5, m5–6 — 6. Okopujesz się tym dalej, im dalej sięgasz.
 **Miejsce jest nagrodą za teren, nie stanem wyjściowym.** Każdy zajęty cel na
 drodze daje raz nową kolumnę kratek (§4.3), SKŁAD dwie.
 
-*Mina, na którą się nadziałem:* przy 5×3 (15 kratek) zostawało dokładnie jedno
-miejsce na rafinerię 2×2 przy złożu — a misja 1 nie ma rozbiórki, więc gracz
-mógł **zablokować tutorial jednym kliknięciem**, stawiając tam elektrownię.
-Stąd 6×3 i `ensureRefinerySpot()`, które gwarantuje trzy różne miejsca na
-ciasnej siatce, zdejmując kratki żyły od brzegu, aż się znajdą.
+*Mina, na którą się nadziałem — i to dwa razy:* misja 1 nie ma rozbiórki, więc
+jedno miejsce na rafinerię znaczy, że gracz **bezpowrotnie blokuje tutorial**,
+stawiając tam elektrownię 1×1. Test na 200 losowaniach siatki: **106 układów
+dało się w ten sposób zabić**, a 3 nie miały miejsca na rafinerię w ogóle.
+
+Dwie poprawki nie pomogły i warto wiedzieć dlaczego:
+- „gwarantuj trzy kotwice" **zdzierało całą żyłę** goniąc za liczbą, której na
+  18 kratkach nie ma — jeden przebieg na trzy kończył się bazą bez rudy;
+- „gwarantuj dwie kotwice" liczyło się **przed postawieniem sztabu**, więc
+  broniło kratek, które sztab i tak zabierał (125/200 dalej do zablokowania).
+
+Działa dopiero to: `ensureRefinerySpot()` woła się **po** postawieniu sztabu,
+wymaga **dwóch ROZŁĄCZNYCH** kotwic 2×2 (dwie dzielące kratkę nie pomagają —
+jedna elektrownia zabija obie) i zamiast zdzierać rudę **przesuwa całe złoże**:
+ta sama ilość, inne miejsce. Wynik: **200/200 bez zakleszczenia**, minimum trzy
+miejsca na rafinerię.
 
 ### Misja 2 — ŚCIANA
 

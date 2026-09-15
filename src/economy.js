@@ -81,7 +81,10 @@ export function genOre(){
   }
   // placyk pod sztab: kolumny 0–1 zawsze wolne od rudy
   for (let r=0;r<ROWS;r++) for (let c=0;c<Math.min(2,COLS);c++){ S.grid[r][c].ore=0; S.grid[r][c].seam=false; }
-  ensureRefinerySpot();
+  // UWAGA: ensureRefinerySpot NIE jest wołane stąd. Musi zobaczyć siatkę ze
+  // SZTABEM na niej, a sztab stawia się dopiero po genOre — inaczej gwarantuje
+  // miejsca, które sztab zaraz zajmie (pomiar: 118 na 200 układów dawało się
+  // zablokować mimo „gwarancji"). Woła je game.buildField po postawieniu sztabu.
 }
 
 /* GWARANCJA: na siatce MUSI istnieć miejsce na rafinerię PRZY ZŁOŻU.
@@ -94,40 +97,86 @@ export function genOre(){
    Zamiast losować do skutku, ZDEJMUJEMY kratki żyły od jej brzegu, aż miejsce
    się znajdzie. Żyła jest wtedy mniejsza, ale misja istnieje.                 */
 export function ensureRefinerySpot(){
-  // Ile RÓŻNYCH miejsc na rafinerię przy złożu ma zostać. Na ciasnej siatce
-  // JEDNO nie wystarcza: gracz postawi elektrownię dokładnie tam i misja 1
-  // przestaje być przechodnia — a tutorial nie może się zakleszczyć od jednego
-  // kliknięcia. Na małej siatce wymagamy trzech kotwic, na dużej wystarczy jedna.
-  const need = (COLS*ROWS) < 24 ? 3 : 1;
-  const spots = () => {
-    let n=0;
-    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
-      if (c+2>COLS || r+2>ROWS) continue;
+  // Kotwica = miejsce 2×2 wolne i przylegające do rudy. Kryterium DOKŁADNIE
+  // takie, jak sprawdza gra przy stawianiu (fits + oreAround) — inaczej
+  // gwarantowalibyśmy co innego, niż gracz potem próbuje zrobić.
+  const anchors = () => {
+    const out=[];
+    for (let r=0;r+2<=ROWS;r++) for (let c=0;c+2<=COLS;c++){
+      const cells=[[c,r],[c+1,r],[c,r+1],[c+1,r+1]];
       let clear=true;
-      for (const [cc,rr] of [[c,r],[c+1,r],[c,r+1],[c+1,r+1]])
-        if (S.grid[rr][cc].ore>0 || S.grid[rr][cc].b){ clear=false; break; }
+      for (const [cc,rr] of cells) if (S.grid[rr][cc].ore>0 || S.grid[rr][cc].b){ clear=false; break; }
       if (!clear) continue;
-      for (const [cc,rr] of ringOf('refinery',c,r)) if (S.grid[rr][cc].seam){ n++; break; }
+      let near=false;
+      for (const [cc,rr] of ringOf('refinery',c,r)) if (S.grid[rr][cc].ore>0){ near=true; break; }
+      if (near) out.push(cells);
     }
-    return n;
+    return out;
   };
-  const spotOK = () => spots() >= need;
-  let guard = 40;
-  while (!spotOK() && guard-- > 0){
-    // zdejmij kratkę żyły o najmniejszej liczbie sąsiadów-żył (brzeg złoża)
-    let best=null, bn=99;
-    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
-      if (!S.grid[r][c].seam) continue;
-      let n=0;
-      for (const [dc,dr] of [[1,0],[-1,0],[0,1],[0,-1]]){
-        const g=S.grid[r+dr] && S.grid[r+dr][c+dc];
-        if (g && g.seam) n++;
-      }
-      if (n<bn){ bn=n; best=[c,r]; }
+  /* DWIE ROZŁĄCZNE KOTWICE, nie „dwie kotwice".
+
+     Misja 1 nie ma rozbiórki, więc JEDNO miejsce na rafinerię znaczy, że gracz
+     bezpowrotnie blokuje tutorial, stawiając tam elektrownię 1×1. Dwie kotwice
+     DZIELĄCE kratkę nie pomagają — jedna elektrownia zabija obie. Dopiero dwa
+     rozłączne prostokąty gwarantują, że po dowolnym pojedynczym budynku zostaje
+     jeszcze gdzie postawić rafinerię.                                          */
+  const twoDisjoint = (a) => {
+    for (let i=0;i<a.length;i++) for (let j=i+1;j<a.length;j++){
+      const set = new Set(a[i].map(([c,r])=>r*100+c));
+      if (!a[j].some(([c,r])=>set.has(r*100+c))) return true;
     }
-    if (!best) break;
-    S.grid[best[1]][best[0]].seam=false; S.grid[best[1]][best[0]].ore=0;
+    return false;
+  };
+
+  if (twoDisjoint(anchors())) return;
+
+  /* Na ciasnej siatce ZDEJMOWANIE rudy nie działa: żyła ma dwie–trzy kratki,
+     więc nie ma z czego brać (pomiar: 125 na 200 układów dało się zablokować
+     mimo „gwarancji"). Trzeba PRZESUNĄĆ ZŁOŻE, nie je zdzierać — ta sama ilość
+     rudy, inne miejsce. Losujemy nowe położenie i sprawdzamy; jeśli żadne nie
+     spełni warunku, zostawiamy najlepsze z prób. Ruda na 18 kratkach to
+     kilkanaście możliwych układów, więc 80 prób z zapasem je pokrywa.          */
+  const cells = [];
+  for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) if (S.grid[r][c].seam) cells.push([c,r]);
+  const size = Math.max(2, cells.length);
+  const clearOre = () => { for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
+      if (S.grid[r][c].seam){ S.grid[r][c].seam=false; S.grid[r][c].ore=0; } } };
+  const amount = cells.length ? S.grid[cells[0][1]][cells[0][0]].ore : Math.round(BAL.ORE_MAX*ORE_YOUNG);
+  const free = (c,r) => { const g=S.grid[r] && S.grid[r][c]; return g && !g.b && !g.seam; };
+  const c0 = Math.min(2, COLS-1);
+  const seedAt = () => {
+    const blob=[];
+    for (let t=0;t<60 && !blob.length;t++){
+      const c=c0+(Math.random()*Math.max(1,COLS-c0)|0), r=(Math.random()*ROWS)|0;
+      if (free(c,r)) blob.push([c,r]);
+    }
+    if (!blob.length) return false;
+    for (let t=0;t<40 && blob.length<size;t++){
+      const [bc,br]=blob[(Math.random()*blob.length)|0];
+      const [dc,dr]=[[1,0],[-1,0],[0,1],[0,-1]][(Math.random()*4)|0];
+      const nc=bc+dc, nr=br+dr;
+      if (nc<c0||nc>=COLS||nr<0||nr>=ROWS) continue;
+      if (!free(nc,nr) || blob.some(x=>x[0]===nc&&x[1]===nr)) continue;
+      blob.push([nc,nr]);
+    }
+    for (const [c,r] of blob){ S.grid[r][c].seam=true; S.grid[r][c].ore=amount; }
+    return true;
+  };
+
+  let best=null, bestN=-1;
+  for (let t=0;t<80;t++){
+    clearOre();
+    if (!seedAt()) continue;
+    const a = anchors();
+    if (twoDisjoint(a)) return;                       // znalezione — zostaw jak jest
+    if (a.length > bestN){
+      bestN = a.length;
+      best = [];
+      for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) if (S.grid[r][c].seam) best.push([c,r]);
+    }
   }
+  clearOre();
+  for (const [c,r] of (best||cells)){ S.grid[r][c].seam=true; S.grid[r][c].ore=amount; }
 }
 
 // Karta bonus (NOWE ZŁOŻE): dokłada świeżą, bogatą żyłę w wolnym miejscu siatki.

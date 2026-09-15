@@ -19,7 +19,7 @@ import { resetTables, DOCTRINES, BAS_HP, BAS_X, LANE_Y, START_MONEY,
          FRONT_MIN, FRONT_MAX, COLS, ROWS, cellAt, setGrid, GRID_MAX_COLS } from './config.js';
 import { S, say, SECT } from './state.js';
 import { loadAssets } from './assets.js';
-import { genOre, oreTotal } from './economy.js';
+import { genOre, oreTotal, ensureRefinerySpot } from './economy.js';
 import { resetSect } from './sectors.js';
 import { mkBuilding, recalcPower, resetIds } from './buildings.js';
 import { openDraft, OPEN, DECK } from './cards.js';
@@ -88,6 +88,9 @@ function buildField(m, carry){
     if (m.money != null) S.money = Math.max(S.money, m.money);
   }
   if (!S.hq || !S.buildings.includes(S.hq)) S.hq = mkBuilding('hq', 0, Math.min(2, ROWS-2), true);
+  // DOPIERO TERAZ, ze sztabem na siatce: gwarancja, że rafineria ma gdzie stanąć
+  // i że pojedynczy budynek 1×1 nie zablokuje misji (patrz ensureRefinerySpot).
+  if (m.feats.ore !== false) ensureRefinerySpot();
 
   // karty i ulepszenia armii przechodzą MIĘDZY ŚWIATAMI — osobno od bazy (§8)
   if (carry && carry.run){
