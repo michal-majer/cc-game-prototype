@@ -235,6 +235,46 @@ misję 5 i nie dawało zamknięcia.
 (ostatnie, co ruszasz) · zasięg i tempo ostrzału · czas przejścia: cel 12–18 min,
 poniżej 5 = misja zepsuta.
 
+#### Pomiar 15.09.2026 — misja 6 jest dziś nieprzechodnia
+
+Bot, styl natarcie, pole 3 600 px. Dwa przebiegi: **porażka, fala 39–42, 18–19 min
+gry, 921–1046 zabitych wrogów, BASTION 0%.** Diagnostyka mówi dokładnie gdzie:
+
+| co | wartość |
+|---|---|
+| najdalszy punkt, do jakiego doszła Twoja armia | **3 315 px** — i stoi tam od fali 8 do 26 |
+| gardło leja | 3 284 px |
+| bastion | 3 958 px |
+| najbliżej, jak ktokolwiek Twój podszedł do bastionu | **643 px** (zasięg artylerii: 175) |
+| siły na polu, fala 8 / 16 / 24 | wróg 48 / 132 / 269 · Ty 39 / 117 / 182 |
+| stosunek sił (eRatio) | 1,24 → 1,36 → **1,85** |
+| artyleria postawiona przez bota | **0** |
+
+Trzy wnioski, osobne:
+
+1. **To jest §9.0, nie geometria.** Armia zatrzymuje się na wylocie leja, bo
+   przegrywa wojnę na wyczerpanie — wróg skaluje się szybciej (269 vs 182).
+   Front w tej grze przesuwa się WYŁĄCZNIE przez lokalne wygrywanie starć;
+   jednostka z celem w zasięgu nie idzie dalej, tylko strzela. Przy wiecznej
+   młynce nikt nie posuwa się ani o piksel.
+2. **Większa mapa nie zepsuła tego, ale obnażyła.** Na polu 760 px młynka stała
+   ~100–200 px od bastionu, więc „przegrywam na wyczerpanie" i tak kończyło się
+   drapaniem bastionu. Na 3 600 px młynka stoi 643 px od niego, czyli przegrana
+   znaczy teraz, że bastionu **nie widzisz w ogóle**.
+3. **„NACISK — artyleria dosięga BASTIONU" jest prawdą tylko na czystym polu.**
+   Wybór celu bierze NAJBLIŻSZEGO wroga w 340 px; bastion jest celem dopiero,
+   gdy nic bliżej nie ma. Sama stanica NACISK jest teraz poprawnie 150 px od
+   bastionu na każdym rozmiarze mapy — ale to linia, na którą armia nie dochodzi.
+   Do tego łańcuch radar → fabryka → laboratorium → artyleria jest tak długi, że
+   pod naciskiem bot nie kończy go nigdy: zaprojektowana odpowiedź misji 6
+   (artyleria i kolejność wejścia) nie trafia do gry.
+
+Do rozstrzygnięcia — i to są Twoje liczby, nie moje:
+· tempo rozbudowy wroga w późnych falach (`grow`, `EBUILD_EVERY`, bonus z sektorów)
+· skrócenie łańcuchа do artylerii w misji 6 albo danie jej w `unlock` od startu
+· czy lej ma być długi (dziś 674 px = ułamek pola) czy krótki i taktyczny
+  (~300 px = wielokrotność zasięgów) — dziś to ułamek, więc rośnie z mapą
+
 ---
 
 ## 4. Zasady, bez których to się rozsypie
@@ -349,7 +389,10 @@ stanu bazy. W kodzie: `snapshot()` zwraca `{ base, run }` i to jest ta różnica
 
 ## 9. Kolejność robót
 
-0. ~~Zlew kredytów w potyczce~~ — otwarte, mierzone botem (`tools/bot-test.js`).
+0. **Zlew kredytów / wróg out-skaluje gracza** — otwarte i teraz ZMIERZONE na
+   finale kampanii: misja 6 kończy się porażką z bastionem na 0%, a armia stoi
+   643 px od celu od fali 8. Szczegóły i liczby: §3, „Pomiar 15.09.2026".
+   Dopóki to nie przejdzie, reszta jest budowaniem na piasku.
 1. ~~`lane` i `lanesAt(x)` w symulacji~~ — **zrobione**, z rozkazem torowym.
 2. ~~Ramka misji~~ — **zrobione**: cel z danych, warunek wygranej, ekran między
    misjami, punkt kontrolny (`id` w `mkBuilding`, kratka trzyma `id`, `snapshot()`/`restoreBase()`).

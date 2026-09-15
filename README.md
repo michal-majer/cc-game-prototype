@@ -113,7 +113,10 @@ RUNS=2 MISJA=m2 node tools/bot-test.js           # misja kampanii
 ```
 
 Bot gra słabo (nie kituje, nie naprawia) — pokazuje dolną granicę, nie grę człowieka.
-Pomiar z 13.09.2026: 8 partii, 0 zwycięstw, bastion 0–3%. Szczegóły w `tools/bot-test.js`.
+Pomiar z 13.09.2026 (gra dowolna): 8 partii, 0 zwycięstw, bastion 0–3%.
+Pomiar z 15.09.2026 (misja 6): porażka, fala 39–42, 18–19 min, bastion 0%, a armia
+stoi 643 px od bastionu od 8. fali — wróg skaluje się szybciej (269 jednostek na
+polu wobec 182). Rozbiór na liczby: `FRONT.md` §3, „Pomiar 15.09.2026".
 
 ## Kampania
 
