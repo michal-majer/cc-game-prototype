@@ -10,7 +10,8 @@ import {
   COUNTER, HUNT_LEASH, ENGAGE_BAND, BACK_MUL, CONTACT, SEEN_HOLD, RAID_PAY, ETHINK, STANCES,
   isHeavy, isSoldier, isArmored, BAL, BASE_INCOME,
   lanesAt, laneCY, laneHalf, corridorHalf, LANE_SHIFT, maxLanes, SPD_MUL,
-  roadY, roadHalf, roadCount, roadName
+  roadY, roadHalf, roadCount, roadName,
+  COLS, ROWS, FORM_DEPTH, FORM_SPREAD, clamp
 } from './config.js';
 import { S, say, lineX } from './state.js';
 import { MIS, feat, goalDone, goalFailed } from './campaign.js';
@@ -89,7 +90,21 @@ export function dmgTo(t, amount, srcType, ap){
   return m;
 }
 
-export function spawn(type,side,x,y,lane){
+/* Szyk z UKŁADU BAZY. Kolumna → głębokość (prawa kolumna, czyli najbliżej
+   korytarza, stoi w pierwszej linii), wiersz → miejsce w poprzek drogi.
+   Liczone UŁAMKIEM siatki, nie w kratkach, żeby szyk czytał się tak samo na
+   6×3 co na 7×6 — i żeby nigdy nie wyszedł poza zasięgi broni.              */
+export function formOf(b){
+  if (!b || b.c == null || b.c < 0) return { d:0, s:0 };
+  const cSpan = Math.max(1, COLS-1), rSpan = Math.max(1, ROWS-1);
+  const [w,h] = B[b.type].fp;
+  const cMid = b.c + (w-1)/2, rMid = b.r + (h-1)/2;
+  return {
+    d: (cSpan - cMid) / cSpan * FORM_DEPTH,          // 0 = pierwsza linia
+    s: (rMid - rSpan/2) / (rSpan/2) * FORM_SPREAD,   // −1..1 w poprzek drogi
+  };
+}
+export function spawn(type,side,x,y,lane,form){
   const d=U[type];
   // Sztab NIE mnoży już HP polowej armii — przetrwałość Twoich jednostek idzie z
   // kart (pArm) i z Lab (poziomy). Sztab skaluje tylko obronę bazy (patrz dmgFrom
@@ -104,7 +119,8 @@ export function spawn(type,side,x,y,lane){
            : side==='p' ? (S.laneOrder >= 0 ? Math.min(S.laneOrder, n-1)
                                             : (S.pLaneRR = ((S.pLaneRR||0)+1) % n))
            : (Math.random()*n)|0;
-  S.units.push({type,side,x,y,lane:ln,shift:0,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0,fireT:0,moveT:0,muzT:0});
+  S.units.push({type,side,x,y,lane:ln,shift:0,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0,fireT:0,moveT:0,muzT:0,
+                formD:(form&&form.d)||0, formS:(form&&form.s)||0});
 }
 
 export function doWave(){
@@ -112,8 +128,11 @@ export function doWave(){
   for (const b of S.buildings){
     const d=B[b.type];
     if (!d.unit||!b.powered) continue;
+    // Szyk bierze się z KRATKI baraku — patrz formOf. Rozrzut przy narodzinach
+    // zostaje mały, żeby dwa baraki z tej samej kolumny stały naprawdę obok siebie.
+    const fm = formOf(b);
     for (let i=0;i<bCount(b);i++)
-      spawn(d.unit,'p', b.x+(Math.random()*10-5), b.y+(Math.random()*20-10));
+      spawn(d.unit,'p', b.x+(Math.random()*10-5), b.y+(Math.random()*20-10), null, fm);
   }
   // SZTURM MOŻE BYĆ SKOŃCZONY. „Odeprzyj 8 fal" z nieskończonym strumieniem
   // nigdy się nie kończy: warunek czeka na czyste pole, a fale lecą dalej
@@ -315,7 +334,10 @@ export function update(dt){
       }
       else { vx = u.side==='p'?1:-1; vy=0; }
       const hunting = d.hunt && t && t.type===d.hunt && t.x <= lineX()+HUNT_LEASH;
-      const LIM0 = lineX() + (hunting ? HUNT_LEASH : 0);
+      // SZYK: linia trzymania jest INDYWIDUALNA — żołnierz z tylnej kolumny bazy
+      // staje głębiej niż ten z przedniej. Stąd „agro" nie potrzebuje osobnego
+      // kodu: wybór celu bierze najbliższego, więc ogień zbiera ten wysunięty.
+      const LIM0 = lineX() - (u.side==='p' ? (u.formD||0) : 0) + (hunting ? HUNT_LEASH : 0);
       // Nie stój jak słup pod ostrzałem wroga o dłuższym zasięgu: jeśli cel jest
       // tuż za linią (w ENGAGE_BAND), podejdź na własną odległość strzału i oddaj
       // ogień. Poza pasmem trzymaj linię (bez pościgu za kiterem). Wcześniej clamp
@@ -349,7 +371,11 @@ export function update(dt){
     // przeprawy w poprzek. W gardle i w leju wszystkie drogi są jedną osią,
     // więc tam wszyscy zbiegają się do wspólnego korytarza.
     if (u.x > BASE_R){
-      const cy = roadY(u.lane|0, u.x), half = roadHalf(u.x);
+      const half = roadHalf(u.x);
+      // Szyk w poprzek: przesunięcie z wiersza baraku, ale NIGDY poza drogę —
+      // w gardle i w leju droga jest wąska, więc tam szyk sam się ściska.
+      const off = u.side==='p' ? clamp(u.formS||0, -half*0.6, half*0.6) : 0;
+      const cy = roadY(u.lane|0, u.x) + off;
       const dy = cy - u.y, ady = Math.abs(dy);
       if (ady > half){
         u.y += Math.sign(dy) * Math.min(LANE_SHIFT*dt, ady - half*0.5);
