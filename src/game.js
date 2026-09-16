@@ -19,6 +19,7 @@ import { resetTables, DOCTRINES, BAS_HP, BAS_X, LANE_Y, START_MONEY,
          FRONT_MIN, FRONT_MAX, COLS, ROWS, cellAt, setGrid, GRID_MAX_COLS,
          CARRY_FRAC, CARRY_CAP } from './config.js';
 import { S, say, SECT } from './state.js';
+import { siren } from './audio.js';
 import { loadAssets } from './assets.js';
 import { genOre, oreFromMap, checkOreLayout, oreTotal, ensureRefinerySpot } from './economy.js';
 import { resetSect } from './sectors.js';
@@ -26,7 +27,7 @@ import { mkBuilding, recalcPower, resetIds } from './buildings.js';
 import { openDraft, OPEN, DECK } from './cards.js';
 import { rollRun, finishRun, newStat, getMeta, resetMeta } from './meta.js';
 import { update, waveInterval } from './sim.js';
-import { initPixi, app, cam, WV, screenToWorld, clearViews, renderFrame, fitCam } from './render.js';
+import { initPixi, app, cam, WV, screenToWorld, clearViews, renderFrame, fitCam, outroStep } from './render.js';
 import { buildBar, buildStanceSlider, syncOverlays, updateHUD, initMinimap } from './hud.js';
 import { initInput, worldTap } from './input.js';
 import { MISSIONS, WORLDS, SKIRMISH, worldOf } from './missions.js';
@@ -212,9 +213,30 @@ async function main(){
     // przejście play → koniec misji: raport i OCENA SZTABU zbierane RAZ
     const ended = S.state==='win' || S.state==='over';
     if (ended && prevState!=='win' && prevState!=='over'){
-      const res = finishMission(S.state==='win');
-      finishRun();
-      if (res) showMissionEnd(res);
+      // ODJAZD NA FRONT — misja z `outro` nie kończy się okienkiem, tylko
+      // ruchem kamery: „masz 600, bang, widzisz front, jedziemy dalej".
+      if (S.state==='win' && MIS().outro){
+        S.outro = { t:0, dur:3.0 };
+        say('▬ PIERWSZY DZIEŃ ZA NAMI ▬','good');
+        say('Tam jest front. Jutro stoisz na nim Ty.','warn');
+        siren(); S.shake=Math.max(S.shake,16);
+      } else {
+        const res = finishMission(S.state==='win');
+        finishRun();
+        if (res) showMissionEnd(res);
+      }
+    }
+    if (S.outro){
+      S.outro.t += raw;
+      outroStep(Math.min(1, S.outro.t / S.outro.dur));
+      if (S.outro.t >= S.outro.dur){
+        const skip = MIS().noScore;
+        S.outro = null;
+        const res = finishMission(true);
+        finishRun();
+        if (skip) nextMission();            // tutorial nie ma czego oceniać
+        else if (res) showMissionEnd(res);
+      }
     }
     prevState = S.state;
     renderFrame();

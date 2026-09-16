@@ -189,6 +189,12 @@ const mmX2world = f => mmX0() + (mmX1()-mmX0())*f;
 function drawMinimap(){
   if (!mmCtx) return;
   const el = mmCv;
+  /* Minimapa zarabia na siebie dopiero przy KILKU DROGACH — wtedy jest jedynym
+     miejscem, gdzie widać, że obok toczy się druga walka. Przy jednej drodze
+     (misje 1–3) pokazuje pasek z jedną kreską i zajmuje róg ekranu za darmo. */
+  const warto = roadCount() > 1;
+  el.classList.toggle('hidden', !warto);
+  if (!warto) return;
   const wCss = el.clientWidth, hCss = el.clientHeight;
   if (!wCss || !hCss) return;
   const dpr = Math.min(2, window.devicePixelRatio||1);

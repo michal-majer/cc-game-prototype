@@ -96,7 +96,10 @@ export const MISSIONS = {
            'Potem RAFINERIA, ale PRZYLEGAJĄCA do żyły. Nie „gdziekolwiek".',
            'Z rafinerii wyjeżdża harvester: jeździ do żyły i wozi rudę do bazy.'],
     // Kamera startuje na samej bazie — w tej misji nie ma czego szukać w polu.
-    camBase:true,
+    // A gdy cel padnie, ODJEŻDŻA i odsłania korytarz: nagrodą za tutorial jest
+    // widok tego, po co to wszystko było. `noScore` pomija ocenę sztabu —
+    // „PRZEŁAMANIE · Fala 0 · Straty 0" za misję bez wroga to pusty ekran.
+    camBase:true, outro:'front', noScore:true,
     /* WYJAŚNIENIE WYDOBYCIA, podawane wtedy, kiedy jest o czym mówić — nie
        ścianą tekstu na odprawie. Warunki są nazwane (patrz tutorTick
        w campaign.js), bo dane misji mają zostać danymi.                      */
@@ -153,11 +156,12 @@ export const MISSIONS = {
   m2: {
     id:'m2', n:2, code:'ŚCIANA',
     teach:'Kredyty trzeba zamienić w armię.',
-    gen:'Dziesięć fal. Nie oddasz ani kratki.',
+    gen:'Osiem fal. Nie oddasz ani kratki.',
     brief:['GNIAZDO zajmuje kratkę tak samo jak barak. Wybierasz, nie dokładasz.',
            'Gniazdo strzela samo. Barak co falę wystawia żołnierza.',
            'Postawione źle? PRZESUŃ przenosi budynek za ćwierć kosztu.',
-           'Czwarta, ósma i dziesiąta uderzą ciasno. Między nimi odbudujesz.'],
+           'Pierwsze dwie są lekkie — jedno gniazdo i jeden żołnierz je przyjmą.',
+           'Szósta i ósma uderzą ciasno. Piąta daje oddech na odbudowę.'],
     // Działko stoi na kratce — inaczej nie byłoby wyboru, tylko dokładanie.
     // Ciasna siatka + koszt kratki = pierwsza misja, w której UKŁAD bazy jest
     // decyzją, a nie formalnością. PRZESUŃ (feats.move) jest zaworem: pomyłkę
@@ -196,21 +200,19 @@ export const MISSIONS = {
        obiektami. Dokładnie „na styk": przeżywasz, ale wychodzisz w strzępach.
        Pomiar końcowy z liczbami w README.                                     */
     waves:[
-      { t:40, inf:4 },                    // rozpoznanie
-      { t:34, inf:6 },
-      { t:30, inf:9,  lazik:1 },          // pierwszy pojazd
-      { t:23, inf:14, lazik:2 },          // ▲ SZPIC — tu zwykle pada pierwszy budynek
-      { t:39, inf:6  },                   // ▼ oddech: odbuduj, napraw, dostaw barak
-      { t:27, inf:13, lazik:2 },
-      { t:25, inf:16, lazik:3 },
-      { t:21, inf:24, lazik:4 },          // ▲ SZPIC — najcięższy punkt misji
-      { t:38, inf:8,  lazik:1 },          // ▼ ostatni oddech
-      { t:23, inf:30, lazik:7 },          // ▲ szturm końcowy
+      { t:45, inf:2 },                    // DWÓCH. Jeden żołnierz i jedno gniazdo
+      { t:40, inf:3 },                    // ...naprawdę to załatwiają — i o to chodzi
+      { t:36, inf:5,  lazik:1 },          // pierwszy pojazd
+      { t:30, inf:8,  lazik:1 },          // ▲ pierwszy nacisk
+      { t:42, inf:5 },                    // ▼ oddech: odbuduj, napraw, dostaw barak
+      { t:30, inf:14, lazik:3 },          // ▲ SZPIC — tu zwykle pada pierwszy budynek
+      { t:28, inf:18, lazik:4 },
+      { t:30, inf:24, lazik:5 },          // ▲ szturm końcowy
     ],
     unlock:['power','refinery','barracks','bunker'],
     feats:feats({ sell:true, repair:true, move:true }),
     // Szturm kończy się tam, gdzie kończy się plan — misja obronna ma mieć koniec.
-    goal:{ kind:'waves', target:10 },
+    goal:{ kind:'waves', target:8 },
     // `assault` — to nie front, tylko szturm na bazę: idą, nie stoją. Bez tego
     // przy porządnej obronie wróg w ogóle nie nacierał i misja nie miała końca.
     enemy:{ doc:'CZERWONA FALA', assault:true, spawnF:0.97, bastion:0 },

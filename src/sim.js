@@ -128,11 +128,20 @@ export function doWave(){
   for (const b of S.buildings){
     const d=B[b.type];
     if (!d.unit||!b.powered) continue;
-    // Szyk bierze się z KRATKI baraku — patrz formOf. Rozrzut przy narodzinach
-    // zostaje mały, żeby dwa baraki z tej samej kolumny stały naprawdę obok siebie.
+    /* Żołnierz staje OD RAZU NA SWOIM MIEJSCU W SZYKU, nie maszeruje z baraku.
+       Marsz z bazy na linię nie jest decyzją ani ryzykiem — to czas, w którym
+       gracz patrzy, jak nowy żołnierz idzie tam, gdzie i tak miał iść. Kosztem
+       posiłków jest zegar fali, nie długość drogi.                            */
     const fm = formOf(b);
-    for (let i=0;i<bCount(b);i++)
-      spawn(d.unit,'p', b.x+(Math.random()*10-5), b.y+(Math.random()*20-10), null, fm);
+    for (let i=0;i<bCount(b);i++){
+      const px = Math.max(BASE_R+6, lineX() - fm.d) + (Math.random()*8-4);
+      const half = roadHalf(px);
+      const lane = roadCount()>1
+        ? (S.laneOrder>=0 ? Math.min(S.laneOrder, roadCount()-1) : (S.pLaneRR||0)%roadCount())
+        : 0;
+      const py = roadY(lane, px) + clamp(fm.s, -half*0.6, half*0.6) + (Math.random()*10-5);
+      spawn(d.unit,'p', px, py, null, fm);
+    }
   }
   // SZTURM MOŻE BYĆ SKOŃCZONY. „Odeprzyj 8 fal" z nieskończonym strumieniem
   // nigdy się nie kończy: warunek czeka na czyste pole, a fale lecą dalej
