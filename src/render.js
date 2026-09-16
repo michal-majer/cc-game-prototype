@@ -184,7 +184,8 @@ function groundSet(gx, gy, T){
 
 function buildGround(){
   const key = (S.mission?S.mission.id:'-')+'|'+shapeId()+'|'+COLS+'x'+ROWS+'|'+fieldEnd()
-            + '|' + Math.round(WV.x)+','+Math.round(WV.y)+','+Math.round(WV.w)+','+Math.round(WV.h);
+            + '|' + Math.round(WV.x)+','+Math.round(WV.y)+','+Math.round(WV.w)+','+Math.round(WV.h)
+            + '|' + Math.round(BASE_X)+','+Math.round(BASE_Y);   // siatka kotwiczy się do korytarza, więc jej pozycja też jest zmienna
   if (key === groundKey) return;
   groundKey = key;
   groundLayer.removeChildren().forEach(c=>c.destroy());
