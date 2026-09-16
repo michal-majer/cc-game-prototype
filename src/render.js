@@ -170,12 +170,16 @@ function groundSet(gx, gy, T){
   /* ŚRODEK POLA MA BYĆ GŁADKI. Zarośla, skały i las to kafle-scenki: ułożone
      przez całe pobocze robią papkę, w której nie widać ani jednostek, ani
      terenu. Trzymamy je na obrzeżu, a to, co ma przyciągać oko bliżej walki,
-     kładzie warstwa ozdób — pojedynczymi obiektami na czystej trawie.        */
+     kładzie warstwa ozdób — pojedynczymi obiektami na czystej trawie. Głazy
+     przestały być gruntem i są dziś obiektem (decor 'glaz'), więc środek pola
+     obsługuje JEDEN zestaw: sąsiedztwo dwóch różnych gruntów samo w sobie
+     rysuje granicę kratki, choćby oba były bez szwów.                        */
   const v = outerT(y) + n*0.80;
-  if (v < 0.74) return 'trawa';
-  if (vnoise(gx/5.0 + 91, gy/5.0 + 57) > 0.84) return 'kamien';
-  if (v < 0.92) return 'krzaki';
-  return 'las';                                             // ściana drzew na samej ramie
+  if (v < 0.84) return 'trawa';                             // środek pola: JEDEN grunt
+  if (v < 0.96) return 'krzaki';                            // pas przejściowy pod las
+  // Rama pola: skalne obrzeże przeplatane drzewostanem. Różnica tonu czyta się
+  // tu jako urozmaicenie terenu, a nie jako krata — bo jest na skraju, nie pod walką.
+  return vnoise(gx/5.0 + 91, gy/5.0 + 57) > 0.58 ? 'kamien' : 'las';
 }
 
 function buildGround(){

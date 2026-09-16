@@ -190,7 +190,17 @@ def sample(sheet, picks, n, extra=0):
 # scenka z jasnymi i ciemnymi plamami; położony obok sąsiada każda taka plama
 # rysuje granicę kwadratu. Podłoże ma być POWIERZCHNIĄ — szczegół niesie warstwa
 # ozdób, która leży na wierzchu i nie układa się w siatkę.
-FLATTEN = {'trawa':0.58, 'ziemia':0.62, 'krzaki':0.66, 'kamien':0.72, 'las':0.78, 'skala':0.85}
+FLATTEN = {'trawa':0.86, 'ziemia':0.88, 'krzaki':0.88, 'kamien':0.92, 'las':0.94, 'skala':0.92}
+
+# Ile WIELKOSKALOWEJ zmienności zostawić w kaflu (0 = sam drobny detal).
+# To jest właściwy lek na „widać kwadraty". Kafle mają wyrównane średnie — mierzone
+# odchylenie tonu między wariantami trawy to mniej niż 2 poziomy — a mimo to każda
+# kratka się odcinała, bo w środku ma jaśniejszą i ciemniejszą POŁOWĘ. Powtórzona
+# co 52 px taka plama rysuje szachownicę niezależnie od tego, jak zgrane są brzegi.
+# Ściągamy więc samo niskie pasmo (różnicę względem mocno rozmytej kopii), a drobna
+# faktura — kamyki, kępki trawy, ślady kół — zostaje nietknięta. Tłumienie kontrastu
+# (FLATTEN) tego nie umiało: gasiło detal razem z plamą.
+DEBLOTCH = {'trawa':0.18, 'ziemia':0.22, 'krzaki':0.26, 'kamien':0.40, 'las':0.55}
 
 def grade(t, which):
     sat, gain, lift = GRADE[which]
@@ -202,6 +212,11 @@ def grade(t, which):
     if k is not None:                           # spłaszczenie kontrastu do tonu kafla
         m = a.reshape(-1,3).mean(axis=0)
         a = m + (a - m) * k
+    keep = DEBLOTCH.get(which)
+    if keep is not None:                        # zdjęcie wielkoskalowej plamy
+        img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+        lo = np.asarray(img.filter(ImageFilter.GaussianBlur(13)), dtype=np.float32)
+        a = a - (lo - lo.reshape(-1,3).mean(axis=0)) * (1 - keep)
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
 
 def normalize(tiles):
@@ -210,7 +225,9 @@ def normalize(tiles):
     Bez tego zestaw jest patchworkiem jaśniejszych i ciemniejszych kwadratów —
     to najbardziej rzuca się w oczy na polu, bardziej niż niedopasowane krawędzie.
     Częściowo (MIX), żeby nie spłaszczyć wszystkich wariantów do jednego koloru."""
-    MIX = 0.88
+    # Prawie do końca: dwa kafle tego samego gruntu mają się różnić UKŁADEM plam,
+    # nie jasnością. Różnica tonu czyta się jako granica kratki, układ nie.
+    MIX = 0.94
     arrs = [np.asarray(t, dtype=np.float32) for t in tiles]
     target = np.mean([a.reshape(-1,3).mean(axis=0) for a in arrs], axis=0)
     out = []
@@ -226,7 +243,7 @@ def edge_mean_of(arrs, width):
         a[:,:width].reshape(-1,3), a[:,-width:].reshape(-1,3)]).mean(axis=0)
         for a in arrs], axis=0)
 
-def blend_edges(tiles, target=None, width=15):
+def blend_edges(tiles, target=None, width=8):
     """Wyrównaj TON krawędzi kafli zestawu, nie zamalowuj ich.
 
     To jest lek na „widać kratę": kafel z generatora kończy się własnym,
@@ -249,7 +266,11 @@ def blend_edges(tiles, target=None, width=15):
     ramp = np.clip(1.0 - np.minimum(yy, xx)/width, 0, 1).astype(np.float32)[:,:,None]
     out = []
     for a in arrs:
-        gain = np.clip(target / np.maximum(edge_mean(a), 1e-3), 0.6, 1.7)
+        # Wąski zakres i wąska ramka są tu istotne: przy szerokiej korekta sięgała
+        # połowy powierzchni kafla i przesuwała ton CAŁEJ kratki — pole robiło się
+        # patchworkiem jaśniejszych i ciemniejszych kwadratów, czyli dokładnie tym,
+        # co miała usunąć. Styk ma być niewidoczny, wnętrze nietknięte.
+        gain = np.clip(target / np.maximum(edge_mean(a), 1e-3), 0.86, 1.16)
         out.append(Image.fromarray(
             np.clip(a * (1 + (gain - 1) * ramp), 0, 255).astype(np.uint8)))
     return out
@@ -377,7 +398,7 @@ def main():
                else expand([cut(src,r,c,extra=extra) for r,c in picks], VARY*VARY))
         made[name] = normalize([grade(t, name) for t in raw])
     fam = [np.asarray(t, dtype=np.float32) for n in FAMILY for t in made.get(n, [])]
-    fam_target = edge_mean_of(fam, 15) if fam else None
+    fam_target = edge_mean_of(fam, 8) if fam else None
     for name, tiles in made.items():
         tiles = blend_edges(tiles, fam_target if name in FAMILY else None)
         cx, cy = BLOCK_AT[name]
