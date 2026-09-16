@@ -404,6 +404,19 @@ export const SELL_BACK = 0.5;
 // względem rozbiórki (50% straty) i drogie względem darmowego cofnięcia —
 // planowanie zostaje decyzją, ale pomyłka nie jest wyrokiem na całą misję.
 export const MOVE_FRAC = 0.25, MOVE_SEC = 3;
+/* ----------------------------- FORMACJA ----------------------------------
+   UKŁAD BARAKÓW W BAZIE = SZYK ODDZIAŁU W POLU. Kolumna baraku mówi, jak
+   GŁĘBOKO stoi jego żołnierz (prawa kolumna = pierwsza linia), wiersz — gdzie
+   w poprzek drogi. Dzięki temu „2 – 1" znaczy coś naprawdę: wysunięty żołnierz
+   jest najbliżej wroga, więc to on zbiera ogień (wybór celu bierze NAJBLIŻSZEGO),
+   a dwóch z tyłu strzela zza niego.
+
+   Obie liczby są SUFITAMI, nie krokiem na kratkę: szyk ma czytać się tak samo
+   na siatce 6×3 (misja 1) i 7×6 (finał), a przede wszystkim ma mieścić się
+   w zasięgach broni. 34 px głębokości przy zasięgu piechoty 39 znaczy, że
+   tylny żołnierz wciąż dosięga tego, z kim bije się przedni — ale ma zapas
+   mniejszy niż on. Większa głębokość zamieniłaby tylne baraki w bezużyteczne. */
+export const FORM_DEPTH = 34, FORM_SPREAD = 40;
 // Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
 // Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
 // późną grą to STAŁY sink: utrzymanie ostrzeliwanego frontu kosztuje kredyty.
