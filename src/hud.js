@@ -317,7 +317,11 @@ function updateWavePlan(){
   for (let i=od;i<doI;i++){
     const n = i+1, comp = eCompN(n);
     const stan = n <= S.wave ? 'past' : n === S.wave+1 ? 'next' : '';
-    const skok = i>0 && sily[i] >= sily[i-1]*1.35 ? ' spike' : '';
+    // SZPIC liczony wobec SZCZYTU CAŁEGO PLANU, nie wobec poprzedniej fali.
+    // „Większa od poprzedniej o jedną trzecią" zapalało się przy każdym wyjściu
+    // z oddechu — a wtedy czerwone są trzy fale z sześciu i nie znaczą nic.
+    // Tak zapalają się te dwie, które naprawdę zrobią różnicę.
+    const skok = sily[i] >= max*0.6 ? ' spike' : '';
     // Bez radaru widać CO przyjdzie, ale nie ILE — a „w trzeciej są pojazdy"
     // to jest właśnie ta informacja, na której planuje się rozbudowę. Radar II
     // dokłada liczby, więc dalej ma za co brać pieniądze.

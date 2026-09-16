@@ -149,6 +149,9 @@ export const MISSIONS = {
   /* --- 2 — ŚCIANA ----------------------------------------------------------
      Uczy: kredyty trzeba zamienić w armię; barak i gniazdo robią RÓŻNE rzeczy.
      Pierwsza misja, w której da się przegrać.
+     GNIAZDO KM kosi piechotę, ale pancerz (płaska redukcja!) tnie mu obrażenia
+     najmocniej — dlatego pierwsze łaziki w fali trzeciej naprawdę coś znaczą
+     i dlatego działkiem startowym NIE jest gniazdo rakietowe (patrz config).
      Ciaśniejsza siatka, ten sam zestaw pojęć — czyta się jako obrona, nie
      ekspansja. Pułapka, w którą NIE wchodzimy: tower defense na własnych
      zasadach. Cokolwiek tu wejdzie, musi mówić tym samym słownictwem co
@@ -156,12 +159,12 @@ export const MISSIONS = {
   m2: {
     id:'m2', n:2, code:'ŚCIANA',
     teach:'Kredyty trzeba zamienić w armię.',
-    gen:'Osiem fal. Nie oddasz ani kratki.',
+    gen:'Sześć fal. Nie oddasz ani kratki.',
     brief:['GNIAZDO zajmuje kratkę tak samo jak barak. Wybierasz, nie dokładasz.',
-           'Gniazdo strzela samo. Barak co falę wystawia żołnierza.',
+           'Gniazdo KM kosi piechotę. Pancerz ledwo drapie — od tego są ludzie.',
            'Postawione źle? PRZESUŃ przenosi budynek za ćwierć kosztu.',
-           'Pierwsze dwie są lekkie — jedno gniazdo i jeden żołnierz je przyjmą.',
-           'Szósta i ósma uderzą ciasno. Piąta daje oddech na odbudowę.'],
+           'Pierwsze dwie są lekkie. Trzecia przyprowadza pojazdy.',
+           'Czwarta uderzy ciasno. Piąta daje oddech. Szósta to wszystko, co mają.'],
     // Działko stoi na kratce — inaczej nie byłoby wyboru, tylko dokładanie.
     // Ciasna siatka + koszt kratki = pierwsza misja, w której UKŁAD bazy jest
     // decyzją, a nie formalnością. PRZESUŃ (feats.move) jest zaworem: pomyłkę
@@ -180,43 +183,48 @@ export const MISSIONS = {
     ore:['..#.##',
          '......',
          '......'],
-    /* DZIESIĘĆ FAL ZE SZPICAMI I ODDECHAMI — i to jest cała kalibracja tej misji.
+    /* SZEŚĆ FAL: SPOKOJNY POCZĄTEK, CIĘŻKI ŚRODEK, FINAŁ DO PRZEŻYCIA.
 
-       Pomiar pokazał, że sama MASA nie robi wyzwania: przy potrójnej liczbie
-       piechoty bot wciąż wygrywał 2/2 ze sztabem na 100%, bo równy strumień
-       zawsze zdąży wyczyścić między falami. Pokrętłem jest ZEGAR — ale równy,
-       coraz ciaśniejszy zegar daje KLIF, nie wyzwanie: dwie sekundy na falę
-       dzieliły „wygrana 3/3, sztab 100%" od „przegrana 0/2, sztab 8%".
+       Dwie rzeczy z pomiaru, obie sprzeczne z intuicją.
 
-       Rozwiązaniem są SZPICE i ODDECHY. Fale 4, 8 i 10 uderzają ciasno i mocno;
-       5 i 9 dają czas na odbudowę. Gracz przeżywa trzy momenty na styk zamiast
-       jednego progu, którego nie czuje, dopóki go nie przekroczy.
+       PIERWSZA: pokrętłem wyzwania jest ŚRODEK KRZYWEJ, nie finał i nie zegar.
+       Od krzywej, która wychodziła 5/5 ze sztabem na 94%, ruszałem PO JEDNYM
+       pokrętle, po pięć przebiegów każde:
+         · zegar ciaśniejszy o 2 s na falę  → 5/5, sztab 92%  (czyli nic)
+         · fala 4 cięższa o 3 piech. + 1 łazik → 5/5, sztab 58%  (czyli „na styk")
+         · fala 6 cięższa o 3 piech. + 1 łazik → 3/5, sztab 12%  (czyli rzut monetą)
+       Dokładanie do FINAŁU nie robi wyzwania, tylko klif: misja rozstrzyga się
+       w ostatnich trzydziestu sekundach, a wszystko, co gracz zbudował przez
+       cztery minuty, przestaje mieć znaczenie. Dokładanie do ŚRODKA daje mu
+       dwie minuty na odpowiedź — i to jest ta misja.
 
-       PRZELICZONE po powrocie działek na kratki (+2 s na każdą falę). Gniazdo
-       zajmuje teraz kratkę, więc ta sama krzywa po zmianie dawała 0/3 ze
-       sztabem na 7% — plan, który wcześniej wychodził, przestał się mieścić
-       w bazie. Klif jest OSTRY i to jest tu najważniejsza liczba: +1 s na falę
-       to wciąż 0/3, +2 s to 3/3, ale ze sztabem na 41% i 13 straconymi
-       obiektami. Dokładnie „na styk": przeżywasz, ale wychodzisz w strzępach.
-       Pomiar końcowy z liczbami w README.                                     */
+       DRUGA: wcześniejsza wersja tej krzywej (osiem fal, szczyt 24 piech. + 5
+       łazików) była zmierzona na ZEPSUTEJ WALCE — limit podejścia jednostki
+       liczył się po osi X, a zasięg jest 2D, więc armia gracza w połowie starć
+       nie oddawała ognia (FRONT.md §3b, lekcja 4). Po poprawce ta sama krzywa
+       przestała cokolwiek znaczyć, a cała kalibracja poszła od zera.
+
+       Stan: 5/5, sztab schodzi do 54%, osiem straconych obiektów, 4:49.
+       Bot to dolna granica — przeżyjesz, ale wyjdziesz z tego w strzępach.   */
     waves:[
-      { t:45, inf:2 },                    // DWÓCH. Jeden żołnierz i jedno gniazdo
-      { t:40, inf:3 },                    // ...naprawdę to załatwiają — i o to chodzi
-      { t:36, inf:5,  lazik:1 },          // pierwszy pojazd
-      { t:30, inf:8,  lazik:1 },          // ▲ pierwszy nacisk
-      { t:42, inf:5 },                    // ▼ oddech: odbuduj, napraw, dostaw barak
-      { t:30, inf:14, lazik:3 },          // ▲ SZPIC — tu zwykle pada pierwszy budynek
-      { t:28, inf:18, lazik:4 },
-      { t:30, inf:24, lazik:5 },          // ▲ szturm końcowy
+      { t:45, inf:3 },                    // TRZECH. Jedno gniazdo naprawdę to załatwia
+      { t:40, inf:4 },                    // ...i o to chodzi: masz czas na rafinerię i barak
+      { t:36, inf:9,  lazik:2 },          // PIERWSZE POJAZDY. Gniazdo KM ledwo je drapie
+      { t:32, inf:17, lazik:4 },          // ▲ SZPIC — tu zwykle pada pierwszy budynek
+      { t:42, inf:8 },                    // ▼ oddech: odbuduj, napraw, dostaw barak
+      { t:30, inf:26, lazik:6 },          // ▲ szturm końcowy — wszystko, co im zostało
     ],
     unlock:['power','refinery','barracks','bunker'],
     feats:feats({ sell:true, repair:true, move:true }),
     // Szturm kończy się tam, gdzie kończy się plan — misja obronna ma mieć koniec.
-    goal:{ kind:'waves', target:8 },
+    goal:{ kind:'waves', target:6 },
     // `assault` — to nie front, tylko szturm na bazę: idą, nie stoją. Bez tego
     // przy porządnej obronie wróg w ogóle nie nacierał i misja nie miała końca.
     enemy:{ doc:'CZERWONA FALA', assault:true, spawnF:0.97, bastion:0 },
-    par:{ sec:480, loss:40 },
+    // Sam plan fal to 225 s, więc szybciej niż w ~240 s tej misji się nie kończy.
+    // PRZEŁAMANIE (0.7 × par) wypada na 252 s: trzeba sprzątnąć ostatnią falę
+    // od ręki i wyjść z niej z garstką strat. Bot kończy w 289 s.
+    par:{ sec:360, loss:14 },
   },
 
   /* --- 3 — PUNKT -----------------------------------------------------------
