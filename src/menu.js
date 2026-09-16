@@ -17,7 +17,7 @@
 
 import { S } from './state.js';
 import { WORLDS, MISSIONS, SKIRMISH } from './missions.js';
-import { loadProgress, resetProgress, missionOpen, fmtTime } from './campaign.js';
+import { loadProgress, resetProgress, missionOpen, fmtTime, goalText } from './campaign.js';
 import { syncOverlays } from './hud.js';
 import { resumeAudio, boom } from './audio.js';
 
@@ -133,18 +133,9 @@ function briefScreen(){
     <div class="m-goal">CEL — <b>${briefGoal(m)}</b></div>
     <button class="m-big go" data-act="go">DO BOJU ▶</button>`;
 }
-// cel z danych misji, bez wchodzenia w stan bieżącej rozgrywki
-function briefGoal(m){
-  const g = m.goal || {};
-  switch (g.kind){
-    case 'money':   return 'ZAROBIĆ '+g.target+' KREDYTÓW';
-    case 'waves':   return 'ODEPRZYJ '+g.target+' FAL';
-    case 'sectors': return g.target>1 ? 'PRZEJMIJ '+g.target+' Z 3 MINI-SZTABÓW' : 'PRZEJMIJ MINI-SZTAB';
-    case 'hold':    return 'UTRZYMAJ '+g.target+' SEKTORY PRZEZ '+(g.waves||1)+' FAL';
-    case 'bastion': return 'ZNISZCZ BASTION';
-    default:        return '—';
-  }
-}
+// Cel na odprawie to DOKŁADNIE ten sam tekst, co w panelu celu w grze —
+// osobna kopia rozjechała się i obiecywała co innego, niż misja sprawdzała.
+const briefGoal = m => goalText(m);
 
 /* -------------------------------- end ------------------------------------ */
 function endScreen(){

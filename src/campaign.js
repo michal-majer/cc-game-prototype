@@ -26,7 +26,7 @@ import {
   B, U, COLS, ROWS, BASE_X, BASE_Y, CELL, GRID_MAX_COLS, GRID_MAX_ROWS,
   LANE_Y, BAS_X, BAS_HP, FRONT_MIN, START_MONEY, DOCTRINES,
   STANCES, setGrid, setShape, setField, halfForShape, atF, fieldX1, resetTables, clamp,
-  setRoads, roadY, roadPointX, roadCount, roadName, sectKind,
+  setRoads, roadY, roadPointX, roadCount, roadName, sectKind, pl,
 } from './config.js';
 import { S, SECT, say } from './state.js';
 import { MISSIONS, WORLDS, SKIRMISH, worldOf } from './missions.js';
@@ -219,14 +219,25 @@ export function goalDone(){
     default:        return false;
   }
 }
-export function goalText(){
-  const g = MIS().goal || {};
+/* JEDNO źródło tekstu celu — dla panelu w grze i dla odprawy w menu.
+   Wcześniej menu miało własny `briefGoal` z innym słownictwem i BEZ przypadku
+   `roads`, więc odprawa misji 4 pokazywała „CEL — —", a piątka obiecywała
+   sektory, podczas gdy w grze chodziło o drogi. `m` pozwala opisać misję,
+   która nie jest jeszcze bieżąca.                                            */
+export function goalText(m){
+  const mi = m || MIS();
+  const g = mi.goal || {};
+  const fal = n => n+' '+pl(n,'FALĘ','FALE','FAL');
+  const drog = n => n+' '+pl(n,'DROGĘ','DROGI','DRÓG');
+  const rn = (mi.roads || []).length || roadCount();
   switch (g.kind){
     case 'money':   return 'ZAROBIĆ '+g.target+' KREDYTÓW';
-    case 'waves':   return 'ODEPRZYJ '+g.target+' FAL';
-    case 'sectors': return g.target>1 ? 'ZAJMIJ '+g.target+' CELE NA DROGACH' : 'ZAJMIJ CEL';
-    case 'roads':   return 'OPANUJ '+g.target+' Z '+roadCount()+' DRÓG';
-    case 'hold':    return 'UTRZYMAJ '+g.target+' DRÓG PRZEZ '+(g.waves||1)+' FAL';
+    case 'waves':   return 'ODEPRZYJ '+fal(g.target);
+    case 'sectors': return g.target>1
+                      ? 'ZAJMIJ '+g.target+' '+pl(g.target,'CEL','CELE','CELÓW')+' NA DROGACH'
+                      : 'ZAJMIJ CEL';
+    case 'roads':   return 'OPANUJ '+g.target+' Z '+rn+' DRÓG';
+    case 'hold':    return 'UTRZYMAJ '+drog(g.target)+' PRZEZ '+fal(g.waves||1);
     case 'bastion': return 'ZNISZCZ BASTION';
     default:        return '—';
   }

@@ -593,11 +593,15 @@ export function ringOf(t,c,r){
 // `light` wyłącza tę karę mimo pancerza — łazik jest opancerzony, ale wciąż to
 // szybki wóz rozpoznawczy, który MA móc odskoczyć (kit łowcy artylerii).
 export const isHeavy = d => !d.light && !!(d.arm || d.minR);
-export function plObj(n){
-  if (n===1) return 'OBIEKT';
-  const d=n%10, s=n%100;
-  return (d>=2&&d<=4&&!(s>=12&&s<=14)) ? 'OBIEKTY' : 'OBIEKTÓW';
+/* Polska liczba mnoga: 1 → forma pojedyncza, 2–4 → „few", reszta → „many",
+   z wyjątkiem 12–14, które idą jak „many". Bez tego panel celu pisał
+   „UTRZYMAJ 2 DRÓG PRZEZ 4 FAL", co czyta się jak tłumaczenie maszynowe.     */
+export function pl(n, one, few, many){
+  if (n === 1) return one;
+  const d = n % 10, s = n % 100;
+  return (d >= 2 && d <= 4 && !(s >= 12 && s <= 14)) ? few : many;
 }
+export const plObj = n => pl(n, 'OBIEKT', 'OBIEKTY', 'OBIEKTÓW');
 export function cellAt(px,py){
   const c=Math.floor((px-BASE_X)/CELL), r=Math.floor((py-BASE_Y)/CELL);
   return (c>=0&&c<COLS&&r>=0&&r<ROWS)?{c,r}:null;
