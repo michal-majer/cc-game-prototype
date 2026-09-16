@@ -83,7 +83,10 @@ function updateBar(){
       const extra = d.sup?' · +'+d.sup+' mocy' : (d.drn?' · −'+d.drn+' mocy':'');
       costEl.textContent = d.cost+' kr.'+extra;
       costEl.style.color = afford?CO.warn:'#5a6467';
-      let sub=d.desc||''; if (d.unit) sub='co falę: '+(d.count||1)+'× '+U[d.unit].name;
+      // Budynek wystawiający jednostki mówi wprost, że jego KRATKA to szyk —
+      // inaczej reguła istnieje tylko w zachowaniu armii, czyli nie istnieje.
+      let sub=d.desc||'';
+      if (d.unit) sub='co falę: '+(d.count||1)+'× '+U[d.unit].name+' · kratka = miejsce w szyku';
       descEl.textContent=sub;
     }
   }
@@ -362,7 +365,14 @@ export function updateHUD(){
   qs('ore-bar').style.background = dry?CO.bad:CO.ore;
   let note='', ncol=CO.dim;
   if (seamsAlive()===0){ note='POLE MARTWE — NIC NIE ODROŚNIE'; ncol=CO.bad; }
-  else if (seamsTapped()===0){ note='◄ RUDA LEŻY — PRZENIEŚ RAFINERIĘ'; ncol=CO.bad; }
+  // Bez rafinerii „PRZENIEŚ RAFINERIĘ" jest radą nie do wykonania — a to jest
+  // podpowiedź, którą gracz widzi w misji 1, zanim cokolwiek postawi.
+  else if (seamsTapped()===0){
+    note = S.buildings.some(b=>b.type==='refinery')
+      ? '◄ RUDA LEŻY — PRZENIEŚ RAFINERIĘ'
+      : '◄ RUDA LEŻY — POSTAW RAFINERIĘ PRZY ZŁOŻU';
+    ncol=CO.bad;
+  }
   else if (ob.rich>0){ const net=ob.richRate-ob.rich*ORE_SIP;
     if (net<=0.5){ note='złoża się utrzymują — odrost nadąża'; ncol=CO.ok; }
     else { note='złoża na '+Math.ceil(ot/net/WAVE_TIME)+' fal'; ncol=CO.dim; } }
