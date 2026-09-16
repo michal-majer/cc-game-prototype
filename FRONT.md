@@ -613,32 +613,38 @@ limitowi licznik fal przestaje rosnąć i przegrana nie odpala się wcale
 | | wygrane | czas | sztab min | stracone obiekty |
 |---|---|---|---|---|
 | M1 | 3/3 | 2:14 | 100% | 0 |
-| M2 | **3/3** | 5:57 | **55%** | **13** |
-| M3 | **1–2/3** | 3:03 | 100% | 0 |
-| M4 | **3/5** | 5:51 | **64%** | **11** |
-| M5 | **2/5** | 6:25 | 81–93% | **14** |
-| M6 | **0/2 — nieprzechodnia** | 38:00 | 100% | 0 |
+| M2 | **5/5** | 4:50 | **48%** | **8** |
+| M3 | 0/5 ⚠ | 3:46 | 100% | 4 |
+| M4 | 1/5 ⚠ | 5:51 | 23% | 14 |
+| M5 | 5/5 ⚠ | 4:35 | 100% | 0 |
+| M6 | 0/5 ⚠ | 8:06 | 42% | 15 |
+
+⚠ **M3–M6 NIE SĄ ZBALANSOWANE — te liczby to surowy odczyt po poprawce limitu
+podejścia, nie wynik strojenia.** Wszystkie wcześniejsze krzywe tych misji
+kalibrowałem na wojsku, które w połowie starć nie oddawało ognia (lekcja 4
+niżej), więc trzeba je przeliczyć od zera — misja po misji, nie hurtem.
+M3 wygląda przy tym na **zepsutą, nie za trudną**: bot nie przejmuje ANI JEDNEGO
+sektora, choć sztab ma cały czas 100 % i traci cztery obiekty. To nie jest
+profil misji przegranej siłą; to profil misji, w której armia nie dochodzi tam,
+gdzie ma dojść. Diagnoza przed strojeniem.
 
 Misje 4–6 mierzone z **przeniesioną bazą** (§3b, lekcja 2) i na **pięciu**
-przebiegach (lekcja 3). W czwórce i piątce wróg dochodzi do bazy w 2–3
-przebiegach na 5 — to jest ten „styk", o który chodziło.
+przebiegach (lekcja 3).
 
-**Misja 6 zostaje nieprzechodnia i nie ma sensu tego zmiękczać.** Armia
-dochodzi do gardła i trzyma pole bez strat, ale bastion schodzi z 65 % do 62 %
-przez dwadzieścia dwie minuty. Szczegóły i co z tego wynika — wyżej, w §3.
+**Misja 2 jest jedyną wystrojoną po poprawce.** Wyzwanie robi w niej ŚRODEK
+krzywej: od wersji wychodzącej 5/5 ze sztabem na 94 % ruszałem po jednym
+pokrętle, po pięć przebiegów każde — zegar ciaśniejszy o 2 s na falę dał 92 %
+(czyli nic), cięższa fala CZWARTA 58 % przy dalej pewnych 5/5, a cięższa fala
+SZÓSTA 12 % i 3/5. Dokładanie do finału nie robi trudności, tylko klif: misja
+rozstrzyga się w ostatnich trzydziestu sekundach, a cztery minuty rozbudowy
+przestają mieć znaczenie. **To jest pierwsza rzecz do sprawdzenia w każdej
+następnej misji.**
 
 Bot to **dolna granica**: nie kituje, nie wycofuje się, nie rozgrywa suwaka,
-nie przesuwa budynków. Jeśli on przechodzi dwójkę ze sztabem na 55% i trzynastoma
+nie przesuwa budynków. Jeśli on przechodzi dwójkę ze sztabem na 48% i ośmioma
 straconymi obiektami, człowiek przejdzie — ale wyjdzie z misji w gruzach.
-**Misja 1 jest jedynym świadomym wyjątkiem**: broni jej sam sztab
-(zasięg 330 wobec 39 piechoty), więc wróg ginie na podejściu bez względu na
-liczbę — trzynaście piechoty i sztab wciąż na 100%. Jej stawka jest z zegara
-i z tego, że fale rosną, a nie z ryzyka porażki.
-
-M3 waha się między 1/3 a 2/3 między seriami i to jest **spodziewane**: misja jest
-wyścigiem z zegarem, a nie progiem siły, więc rozstrzyga się o kilkanaście
-procent przejęcia. Pomiar pokazał bota na 87% w piątej fali i zmiecionego
-w szóstej — stąd szósta fala jest dziś oddechem, a nie drugim szpicem.
+**Misja 1 jest świadomym wyjątkiem**: nie ma w niej wroga w ogóle, więc nie ma
+czego bronić — jej stawka jest z wydobycia, nie z ryzyka porażki.
 
 ### Trzy rzeczy, których nie da się zgadnąć, pisząc plan fal
 
