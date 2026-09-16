@@ -1,0 +1,265 @@
+/* =========================================================================
+   FRONT — przeciwnik: ocena sił, decyzja szturm/odwrót, bastion jako baza,
+   skład fali i kontra celująca w to, co boli.
+   ========================================================================= */
+
+import {
+  U, B, EB, EARTY_CAP, EPUSH_R, EHOLD_R, EPATIENCE, EPAT_MASS, ESCOUT,
+  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X, EPUSH_MIN, ECOUNTER_FROM, narrowStart
+} from './config.js';
+import { S, SECT, say, lineX } from './state.js';
+import { MIS } from './campaign.js';
+import { boom, siren } from './audio.js';
+import { bDmg, radarLvl } from './buildings.js';
+import { terrCtrl, sectWeaken } from './sectors.js';
+
+// siła = Σ (HP + DPS×10), liczona tym samym wzorem po obu stronach
+export function force(side){
+  let s=0;
+  for (const u of S.units){
+    if (u.side!==side || u.hp<=0) continue;
+    const d=U[u.type];
+    s += u.hp + (d.dmg/d.rate)*10;
+  }
+  return s;
+}
+// Ile realnie waży obrona bazy w ocenie sił wroga.
+// SZTAB broni CAŁEJ bazy (range 330) — KAŻDY szturm na budynki gracza wchodzi w jego
+// ogień, więc liczy się ZAWSZE, niezależnie od bieżącej linii. DAWNIEJ warunek zasięgu
+// wycinał go, gdy gracz stał wysuniętą stanicą (SZTAB nie dosięgał dalekiej linii) —
+// wróg widział „słabą linię", szarżował na bazę i ginął pod działami SZTABU, których
+// nie policzył („na pałę ciśnie i ginie"). Bunkry/gniazda są PUNKTOWE (krótki zasięg):
+// liczą się tylko, gdy realnie kryją front. Dzięki temu wróg poprawnie wycenia dive na
+// bazę i zamiast samobójczej szarży TRZYMA linię — kontestuje mini-sztaby.
+export function pDefense(){
+  const LX=lineX();
+  let s=0;
+  for (const b of S.buildings){
+    const d=B[b.type];
+    if (!d.atk || !b.powered) continue;
+    if (b.type!=='hq' && b.x + d.atk.range < LX - 30) continue;
+    s += (bDmg(b)/d.atk.rate)*10 + b.hp*0.3;
+  }
+  return s;
+}
+export function eRatio(){
+  const p = force('p') + pDefense();
+  return p<1 ? 99 : force('e')/p;
+}
+// Gdzie wróg trzyma linię w postawie 'hold'. DAWNIEJ: sztywne EHOLD_X pod
+// bastionem (1040) — za wszystkimi mini-sztabami, więc wróg nigdy się o nie
+// nie bił. Potem: wychodził na najbardziej wysunięty (ku GRACZOWI) sektor,
+// którego jeszcze nie trzyma — ale to znaczyło lunięcie od razu na PRZEDPOLE
+// tuż pod sztab gracza, w jego artylerię: dostawał ostrzał i szarżował na bazę,
+// „za dużo pushując". TERAZ konsoliduje teren OD SWOJEJ strony na zewnątrz:
+// bierze najpierw sektor przy własnej bazie (NACISK), potem ŚRODEK, na końcu
+// PRZEDPOLE. Trzyma się na froncie SWOJEGO kontrolowanego bloku — jeden sektor
+// dalej, nie na drugim końcu pola. Realnie zdobywa mini-sztaby zamiast
+// nadziewać się na obronę gracza.
+//   · podłoga = linia gracza (bez szturmu nie wejdzie za jego front),
+//   · sufit   = EHOLD_X (nigdy nie zostawia bastionu bez osłony).
+// Sufit linii wroga = tuż przed JEGO przyczółkiem, a nie sztywne EHOLD_X liczone
+// od bastionu gry dowolnej. Bez tego w misji 1 (przyczółek na 800) wróg maszerował
+// na 1040 — poza pole misji, w pustkę za własnym spawnem.
+/* Sufit linii wroga. Trzy ograniczenia, każde z innego powodu:
+   · EHOLD_X        — nigdy nie zostawia bastionu bez osłony,
+   · przyczółek −60 — nie wychodzi za własny punkt startu fal,
+   · GARDŁO LEJA    — NIE wchodzi w zwężenie. Bez tego wróg masował 150 jednostek
+     w pasie 182 px wysokości i robił korek, którego gracz nie przebijał przez
+     dwadzieścia minut (pomiar bota: fala 46, 1277 zabitych, bastion 0%). Lej ma
+     bramkować wejście GRACZA, a nie być darmową twierdzą wroga — wróg broni się
+     PRZED lejem, na szerokim froncie, gdzie da się go rozegrać. */
+const eCap = () => {
+  const mouth = narrowStart();
+  return Math.min(EHOLD_X,
+                  (S.espawn ? S.espawn.x : EHOLD_X) - 60,
+                  mouth === Infinity ? Infinity : mouth - 40);
+};
+export function eHoldX(){
+  // Bez sektorów (misje 1–2) nie ma czego kontestować — wróg trzyma się
+  // pod własnym przyczółkiem i idzie dopiero, gdy zdecyduje o szturmie.
+  if (!SECT.length) return Math.max(eCap(), lineX());
+  let x = null;
+  for (let i = SECT.length-1; i >= 0; i--){  // od bazy wroga (prawa) ku frontowi (lewa)
+    const q = SECT[i];
+    if (q.own !== -1){ x = q.x; break; }      // pierwszy sektor od TYŁU jeszcze nie ich = cel
+  }
+  if (x === null) x = SECT[0].x;              // trzymają wszystkie → broń najdalej wysuniętego
+  return Math.min(eCap(), Math.max(x, lineX()));
+}
+export function eDecide(){
+  const r = eRatio(), n = S.units.filter(u=>u.side==='e').length;
+  const shelled = S.eDmgWave > ESHELLED;
+  S.eDmgWave = 0;
+  if (!n){ S.eStance='hold'; S.eHoldT=0; return; }
+  /* SZTURM vs FRONT — dwie różne sytuacje, a dotąd był tylko jeden kod.
+     Domyślna logika modeluje FRONT: wróg trzyma linię, kontestuje teren
+     i naciera dopiero, gdy uzbiera przewagę. W misji OBRONNEJ to znaczy, że
+     przy porządnej obronie NIE NACIERA NIGDY — stoi tysiąc pikseli od bazy,
+     pole się nie czyści i „odeprzyj 8 fal" nie kończy się nawet po dwudziestu
+     dwóch (pomiar: 12:27 w misji liczonej na pięć minut).
+     `enemy.assault` mówi: oni tu przyszli SZTURMOWAĆ. Idą i już.
+     Tak samo po OSTATNIEJ fali skończonego szturmu — nie mają na co czekać. */
+  const E = MIS().enemy || {};
+  if (E.assault || (E.waves && S.wave > E.waves)){
+    if (S.eStance!=='push'){ S.eStance='push'; S.ePush=ECOMMIT; }
+    return;
+  }
+  // Ostrzał wyzwala szarżę „nie damy się ostrzeliwać" — ale TYLKO gdy wróg nie jest
+  // wyraźnie słabszy (r >= EHOLD_R). Bezwarunkowo (jak dawniej) wystarczyło łupnąć
+  // artylerią w garstkę, by rzuciła się na bazę i zginęła bez sensu — najkrótsza droga
+  // do „na pałę ciśnie i ginie". Gdy jest słabszy, ostrzał go NIE wypycha: trzyma linię,
+  // kontestuje mini-sztaby i stackuje, aż uzbiera siłę na realne przebicie.
+  if (shelled && r >= EHOLD_R){
+    if (S.eStance!=='push'){
+      S.eStance='push';
+      say('NIE DAJĄ SIĘ OSTRZELIWAĆ — SZARŻUJĄ','bad');
+      siren(); S.shake=Math.max(S.shake,10);
+    }
+    S.eHoldT=0;
+    return;
+  }
+  if (S.eStance==='hold'){
+    S.eHoldT += ETHINK;
+    const terrPress = Math.max(0.35, 1 - terrCtrl()*0.8);
+    const pat = EPATIENCE * Math.max(0.25, 1 - n/EPAT_MASS) * terrPress;
+    // Dwie osobne przesłanki do szturmu na bazę:
+    //   · r > EPUSH_R    — realna PRZEWAGA SIŁ: przebije obronę, dosięgnie budynku.
+    //   · cierpliwość    — ale TYLKO gdy uzbierał MASĘ (n >= EPUSH_MIN) I NIE JEST
+    //     SŁABSZY (r >= EHOLD_R). Wcześniej garstka nadziewała się na bazę „z nudów",
+    //     a nawet po dodaniu progu masy wróg wciąż ruszał z cierpliwości, gdy GRACZ
+    //     miał wyraźną przewagę (r niskie) — szarżował na silniejszą obronę i ginął
+    //     bez sensu. Było to też niespójne z odwrotem (EHOLD_R): zaczynał push, który
+    //     natychmiast chciał przerwać. Teraz gdy jesteś silniejszy (r < EHOLD_R) wróg
+    //     NIE naciera z cierpliwości — trzyma linię, kontestuje mini-sztaby i STACKUJE,
+    //     aż uzbiera siłę na realne przebicie (r urośnie) albo urośnie z terenu.
+    const massPush = S.eHoldT >= pat && n >= EPUSH_MIN && r >= EHOLD_R;
+    if (r > EPUSH_R || massPush){
+      S.eStance='push'; S.eHoldT=0; S.ePush=ECOMMIT;
+      say('▲ SZTURM — RUSZA '+n+' JEDNOSTEK','bad');
+      siren(); boom(0.6); S.shake=Math.max(S.shake,14);
+    }
+  } else if (S.ePush-=ETHINK, S.ePush<=0 && r < EHOLD_R){
+    S.eStance='hold'; S.eHoldT=0;
+    say('ONI SIĘ COFAJĄ ZA SWOJĄ LINIĘ','good');
+  }
+}
+// Bastion JEST ich bazą: uszkodzony trwale osłabia produkcję (podłoga 0.45).
+// W misjach, w których bastion nie jest celem (S.bastion.target === false), stoi
+// jako punkt startu fal i nie da się go bić — produkcja idzie wtedy pełna.
+export const bEff = () => S.bastion.dead ? 0
+  : !S.bastion.target ? 1
+  : Math.max(0, 0.45 + 0.55*(S.bastion.hp/S.bastion.maxHp));
+/* ============================ PLAN FAL ===================================
+   Misja kampanii ma AUTORSKI plan fal: każda fala z ręki, z własnym składem
+   i własnym odstępem. Fale składane proceduralnie z bazy wroga znaczą, że
+   ta sama misja za każdym razem naciska inaczej — a wtedy nie da się jej
+   zbalansować ani zmierzyć. „Fale 1–3 przyjmiesz działkami, od czwartej
+   potrzebujesz ludzi" jest obietnicą, której procedura nie umie dotrzymać.
+
+   Format w danych misji:
+       waves:[ {t:40, inf:2}, {t:34, inf:3}, {t:30, inf:3, lazik:1}, … ]
+   `t` — sekundy DO tej fali · reszta kluczy to typy jednostek i ich liczba.
+   Po ostatniej fali szturm się KOŃCZY (misja obronna ma mieć koniec).
+
+   Bez `waves` wszystko zostaje po staremu: skład z bazy wroga, rozbudowa,
+   doktryny, eskalacja. To jest tryb gry dowolnej.                            */
+export const wavePlan = () => MIS().waves || null;
+// skład fali NUMER n (1-based), z planu albo proceduralnie
+export function eCompN(n){
+  const plan = wavePlan();
+  if (!plan) return eComp();
+  const w = plan[n-1];
+  if (!w) return {};                       // po planie nie ma już nic
+  const out = {};
+  for (const k in w) if (k !== 't' && U[k]) out[k] = w[k];
+  // BATERIE tną także fale autorskie — inaczej cel „ich fale −25%" kłamałby
+  const cut = 1 - sectWeaken();
+  if (cut < 1) for (const k in out){ out[k] = Math.round(out[k]*cut); if (!out[k]) delete out[k]; }
+  return out;
+}
+export function eComp(){
+  // Podgląd dla wywiadu: NASTĘPNA fala. Przy planie autorskim to po prostu
+  // kolejna pozycja z listy — radar pokazuje wtedy dokładnie to, co przyjdzie.
+  const plan = wavePlan();
+  if (plan) return eCompN(S.wave + 1);
+  // Zajete BATERIE tna sklad fali — jedyna rzecz w grze, ktora ZMNIEJSZA nacisk
+  // wroga zamiast tylko zwiekszac Twoj. Dlatego droga z bateria jest osobnym
+  // planem, nie wariantem tego samego.
+  const out={}, eff=bEff()*(1-sectWeaken());
+  for (const t of S.eBase){ const d=EB[t]; out[d.unit]=(out[d.unit]||0)+d.count; }
+  for (const k of Object.keys(out)){
+    out[k]=Math.round(out[k]*eff);
+    if (out[k]<=0) delete out[k];
+  }
+  return out;
+}
+export function eBuild(){
+  S.eArmCd--;
+  const iIdx = S.eIntel.length-1-ESCOUT;
+  const I = iIdx >= 0 ? S.eIntel[iIdx] : {tanks:0, wheels:0, arty:0, rkts:0};
+  const pTanks  = I.tanks;
+  const pWheels = I.wheels;
+  const pRkts   = I.rkts || 0;
+  const pInf    = I.inf || 0;
+  const eRkt = S.eBase.filter(t=>t==='rocket').length;
+  const eBar = S.eBase.filter(t=>t==='barracks').length;
+  const eWork = S.eBase.filter(t=>t==='workshop').length;
+  // Kontry dopiero od ECOUNTER_FROM (fala 5): wcześniej trzy baraki gracza ściągały
+  // warsztat (łaziki ×2 na piechotę) już w 3.–4. fali i walka piechoty kończyła się,
+  // zanim się zaczęła. Do tej fali wróg buduje tylko z kolejki doktryny.
+  const counters = S.wave >= ECOUNTER_FROM;
+  if (counters && pTanks >= 2 && eRkt < pTanks && S.eArmCd <= 0){
+    S.eBase.push('rocket'); S.eArmCd = 2; S.eBuildN++;
+    say(radarLvl()>=1 ? 'WYWIAD: ODPOWIADAJA RAKIETAMI' : 'ZA ICH LINIA — DLUGIE RURY', radarLvl()>=1?'intel':'warn');
+    return;
+  }
+  // Kontra na masówkę rakiet gracza: piechota. Rakietowiec (50 HP) obrywa ×2 od
+  // piechoty — to jego naturalny pogromca (TTK 2,1 s vs 6,0 s w drugą stronę).
+  // DAWNIEJ wywiad liczył czołgi/warsztaty/artylerię, ale NIE rakiety, więc ściana
+  // wyrzutni nie prowokowała odpowiedzi i STALOWA PIĘŚĆ w kółko nadziewała czołgi na
+  // rakiety. Pierwsza łata dała barak 1:1 do wyrzutni — ale to WCIĄŻ za mało: piechota
+  // to krucha masówka, a rakieta elitą; równa liczba ginie na ekranie pancerki, nim
+  // dosięgnie rur. Teraz enemy celuje w ~1,5 baraka na wyrzutnię (pRkts + połowa) —
+  // piechota realnie PRZELICZA rakiety i karze ich spam, gdy pancerka związuje front.
+  if (counters && pRkts >= 2 && eBar < pRkts + Math.ceil(pRkts/2) && S.eArmCd <= 0){
+    S.eBase.push('barracks'); S.eArmCd = 2; S.eBuildN++;
+    say(radarLvl()>=1 ? 'WYWIAD: SYPIA PIECHOTE POD RAKIETY' : 'ZA ICH LINIA — TUPOT BUTOW', radarLvl()>=1?'intel':'warn');
+    return;
+  }
+  // Kontra na masówkę PIECHOTY gracza: łaziki. Łazik ma strong:['inf'] (×2 przez
+  // COUNTER) + pancerz, który ścina drobne trafienia żołnierzy — to naturalny
+  // pogromca blobu piechoty (jeden łazik czyści ~3–4 żołnierzy). DAWNIEJ wywiad
+  // liczył czołgi/warsztaty/artylerię/rakiety, ale NIE piechotę, więc ściana baraków
+  // nie prowokowała żadnej odpowiedzi i spam piechoty przechodził bezkarnie. Teraz
+  // enemy dosypuje warsztat na każde ~2 baraki — łaziki kontrują tupot butów.
+  if (counters && pInf >= 3 && eWork < Math.ceil(pInf/2) && S.eArmCd <= 0){
+    S.eBase.push('workshop'); S.eArmCd = 2; S.eBuildN++;
+    say(radarLvl()>=1 ? 'WYWIAD: WYSYLAJA LAZIKI POD PIECHOTE' : 'ZA ICH LINIA — WARKOT SILNIKOW', radarLvl()>=1?'intel':'warn');
+    return;
+  }
+  if (counters && pWheels >= 3 && eBar < pWheels*2 && S.eArmCd <= 0){
+    S.eBase.push('barracks'); S.eArmCd = 2; S.eBuildN++;
+    say(radarLvl()>=1 ? 'WYWIAD: SYPIA BARAKI — IDA TLUMEM' : 'ZA ICH LINIA — GWAR', radarLvl()>=1?'intel':'warn');
+    return;
+  }
+  S.eCounterCd--;
+  const pArty = I.arty;
+  const eArty = S.eBase.filter(t=>t==='arty').length;
+  if (counters && pArty >= 2 && eArty < Math.ceil(pArty/2) && S.eCounterCd <= 0){
+    S.eBase.push('arty');
+    S.eCounterCd = 3; S.eBuildN++;
+    say(radarLvl()>=1 ? 'WYWIAD: ODPOWIADAJĄ KONTRBATERIĄ' : 'DALEKIE HUKI ZZA ICH LINII',
+        radarLvl()>=1?'intel':'warn');
+    return;
+  }
+  let list = S.eBuildN < S.doc.order.length ? S.doc.order[S.eBuildN]
+                                            : [S.doc.late[(Math.random()*S.doc.late.length)|0]];
+  S.eBuildN++;
+  if (list.includes('arty') && S.eBase.filter(t=>t==='arty').length >= EARTY_CAP)
+    list = ['barracks'];
+  for (const t of list){
+    S.eBase.push(t);
+    if (radarLvl()>=2) say('WYWIAD: '+EB[t].name,'intel');
+  }
+}
