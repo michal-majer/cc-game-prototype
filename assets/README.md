@@ -10,7 +10,8 @@ grafika nigdy nie blokuje rozgrywki** — to jest zasada, nie przypadek.
 
 | Plik | Co to | Uwagi |
 |---|---|---|
-| `assets/tiles/ziemia.png` | **arkusz kafli terenu** | trzy bloki 3×3 (skała / trawa / ziemia) + górny pasek ze znacznikami (lej, ruda) |
+| `assets/tiles/ziemia.png` | **arkusz kafli terenu** | sześć bloków 3×3 (beton / trawa / ziemia / las / kamień / zarośla) + górny pasek znaczników (lej, ruda, wrak, pożar) |
+| `assets/tiles/decor.png` | **ozdoby** | wiersz = rodzaj (krzak, głaz, zapora, złom), kolumna = odmiana; tło przezroczyste |
 | `assets/units/inf.png` | żołnierz | arkusz klatek **albo** pojedynczy sprite |
 | `assets/buildings/<typ>.png` | budynki | `hq`, `power`, `refinery`, `barracks`, `bunker`, … |
 | `assets/scene/bastion.png` | bastion wroga | |
@@ -53,32 +54,47 @@ wgrać pliku do katalogu, którego nie ma.
 
 ## Arkusz z AI — krok pośredni
 
-Generator zwraca **planszę poglądową**, nie tileset: kafel wypada na ułamku
-piksela, wiersze są poprzesuwane, każde pole ma własną ciemną ramkę, a krawędzie
-nie schodzą się z sąsiadem. Loader tnie sztywną siatką (`tile` px), więc taki
-plik wrzucony wprost daje paski sąsiadów w każdym kaflu i widoczną kratę na polu.
+Generator zwraca **planszę poglądową**, nie tileset. Trzy wady są tu istotne
+i każda wymaga innej poprawki:
 
-Droga jest więc dwuetapowa:
+| Wada | Co robi w grze | Lek |
+|---|---|---|
+| rozstaw kafli faluje (98–114 px) | paski sąsiadów w każdym kaflu | cięcie po **zmierzonych szwach**, nie równą siatką |
+| kafel ma wrysowaną ramkę i cień | widoczna krata | głębsze cięcie + wyrównanie tonu krawędzi |
+| kafel jest **scenką**, nie fakturą | tapeta z powtórzonego drzewa | scenki idą do warstwy ozdób, gruntem zostaje to, co płaskie |
 
-1. surowy plik → `assets/raw/` (magazyn wsadu, gra go nie czyta),
-2. pocięcie i przełożenie na **czysty arkusz o równej siatce** → `assets/tiles/ziemia.png`.
+Cięcie robi **`tools/kafle.py`** (`pip install pillow numpy`, potem
+`python3 tools/kafle.py`). Wszystko, co się dobiera ręcznie, siedzi w tabelach
+na górze pliku: zmierzone szwy arkuszy, wybór kafli na każdy grunt, prostokąty
+budynków i ozdób, dopasowanie do palety. Po dogenerowaniu nowej grafiki
+poprawiasz tabelę, nie kod.
 
-Czysty arkusz musi trafić w układ z `TILESETS` (niżej): bloki wariantów `vary×vary`
-pod współrzędnymi z `sets`, znaczniki w górnym pasku. Najprościej złożyć go tak,
-żeby pasował do domyślnego wpisu — wtedy w kodzie nie zmienia się nic.
+Narzędzie zapisuje:
 
-Co się nadaje na kafel gruntu, a co nie:
+- `assets/tiles/ziemia.png` — grunty i znaczniki (układ z `TILESETS`),
+- `assets/tiles/decor.png` — ozdoby z przezroczystością (układ z `DECORSET`),
+- `assets/buildings/*.png`, `assets/scene/bastion.png` — bryły.
 
-| Nadaje się | Nie nadaje się |
-|---|---|
-| jednolity grunt bez ramki i bez mocnego środka kompozycji | kafel z wyraźną obwódką (po ułożeniu = krata) |
-| drobny, powtarzalny szum (żwir, trawa, spękania) | duży pojedynczy obiekt (drzewo, wrak) — to dekoracja, nie grunt |
-| krawędzie schodzące się z sąsiadem | kafel z cieniem wychodzącym poza pole |
+### Czemu grunt jest osobno od obiektów
 
-Obiekty (drzewa, wraki, beczki, mury) zostaw na później — **silnik nie ma jeszcze
-warstwy dekoracji**, rysuje wyłącznie grunt (`sets`). `marks` (lej, ruda) są już
-w tabeli i loader je tnie, ale `markTex()` nie jest jeszcze nigdzie wołane w
-`render.js` — rudę i leje rysują dotąd figury proceduralne.
+Bo płaskiego gruntu, który wolno powtarzać, jest w arkuszu terenu **cztery
+kafle**. Reszta to scenki ze skomponowanym środkiem — drzewo, głaz, lej —
+a scenka powtórzona przez całe pole zawsze będzie tapetą. Dlatego podłoże jest
+gładkie (ścięty kontrast, zdjęta wielkoskalowa plama), a to, co przyciąga oko,
+leży na nim jako pojedyncze obiekty z własną skalą i przesunięciem.
+
+Trzy rzeczy, które usuwają widoczną kratę, i żadna nie zastępuje pozostałych:
+
+1. **wspólny ton krawędzi** w obrębie całej rodziny terenu — inaczej każdy styk
+   typów rysuje własną linię. Korekta mnożnikowa i wąska; wtapianie w płaski
+   kolor robi wokół kafla gładką ramkę, czyli tę samą kratę;
+2. **filtr górnoprzepustowy** — kafel ma w środku jaśniejszą i ciemniejszą
+   połowę, a taka plama powtórzona co 52 px daje szachownicę nawet przy idealnie
+   zgranych brzegach;
+3. **obrót i odbicie** kafla po pozycji — dziewięć wariantów w równym rytmie
+   ma rozpoznawalny deseń; osiem ułożeń robi z nich 72 widoki.
+
+Obiekty ozdób są odbijane, ale **nie obracane** — beczka ma pion.
 
 ---
 
