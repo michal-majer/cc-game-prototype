@@ -108,6 +108,7 @@ function buildGround(){
   const key = (S.mission?S.mission.id:'-')+'|'+shapeId()+'|'+COLS+'x'+ROWS+'|'+fieldEnd();
   if (key === groundKey) return;
   groundKey = key;
+  groundLayer.mask = null;
   groundLayer.removeChildren().forEach(c=>c.destroy());
   if (!hasTiles('ziemia')) return;
 
@@ -117,6 +118,12 @@ function buildGround(){
     sp.width = T; sp.height = T; sp.x = x; sp.y = y;
     groundLayer.addChild(sp);
   };
+  /* Kafel jest kwadratem, a korytarz zwęża się łukiem — kładzione „do środka
+     kratki" kończyły się schodkami wystającymi poza pas. Maska to TEN SAM
+     wielokąt, którym drawCorridor rysuje krawędź, więc grunt kończy się dokładnie
+     na niej. Dzięki temu strip() może sypać kafle z zapasem poza brzeg: lepiej
+     przyciąć nadmiar niż zostawić dziurę tam, gdzie środek kafla wypadł na zewnątrz. */
+  const maskG = new PIXI.Graphics();
   // 1) trakty — kafle idą TYLKO tam, gdzie pole jest przejezdne: gardło, każda
   //    droga osobno, lej. Pustka między drogami zostaje pustką (to ona je rozdziela).
   const END=fieldEnd(), x0=splitX(), x1=Math.min(mergeX(), END);
@@ -125,21 +132,31 @@ function buildGround(){
       const cx = x + T/2, cy0 = yFn(cx), half = hFn(cx);
       for (let y = cy0 - half; y < cy0 + half; y += T){
         const cy = y + T/2, d = Math.abs(cy - cy0);
-        if (d > half) continue;
+        if (d > half + T) continue;          // z zapasem — resztę utnie maska
         const gx = Math.round(x/T), gy = Math.round(y/T);
         put(tileTex(d > half - T ? 'trawa' : 'ziemia', gx, gy), x, y - T/2);
       }
     }
   };
-  if (!isFinite(x0) || roadCount()<2) strip(BASE_R, END, AXIS, corridorHalf);
-  else {
+  const band = (xa, xb, pad, yFn, hFn) => maskG.poly(bandPoly(xa, xb, pad, yFn, hFn)).fill(0xffffff);
+  if (!isFinite(x0) || roadCount()<2){
+    strip(BASE_R, END, AXIS, corridorHalf);
+    band(BASE_R, END, 26, AXIS, corridorHalf);
+  } else {
     strip(BASE_R, x0, AXIS, corridorHalf);
-    for (let i=0;i<roadCount();i++) strip(x0, x1, x=>roadY(i,x), roadHalf);
-    if (x1 < END) strip(x1, END, AXIS, corridorHalf);
+    band(BASE_R, x0, 22, AXIS, corridorHalf);
+    for (let i=0;i<roadCount();i++){
+      strip(x0, x1, x=>roadY(i,x), roadHalf);
+      band(x0, x1, 18, x=>roadY(i,x), roadHalf);
+    }
+    if (x1 < END){ strip(x1, END, AXIS, corridorHalf); band(x1, END, 22, AXIS, corridorHalf); }
   }
-  // 2) baza — skalny placyk pod siatką
+  // 2) baza — betonowy placyk pod siatką
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++)
     put(tileTex('skala', c+900, r+900), BASE_X + c*T, BASE_Y + r*T);
+  maskG.rect(BASE_X, BASE_Y, COLS*T, ROWS*T).fill(0xffffff);
+  groundLayer.addChild(maskG);                 // maska musi siedzieć w drzewie sceny
+  groundLayer.mask = maskG;
 }
 
 /* ================================= KAMERA ================================
@@ -434,8 +451,13 @@ function bandPoly(x0, x1, step, yFn, hFn){
   return out;
 }
 const AXIS = () => LANE_Y;
+/* Wypełnienie pasa jest POD kaflami w sensie kolejności rysowania, ale gWorld
+   leży NAD groundLayer — więc dopóki malowaliśmy je nieprzezroczyście, kafle
+   terenu były całkowicie zakryte i TILESETS nie dawał nic widocznego. Z kaflami
+   zostaje sama obwódka: grunt niesie teraz grafika, a krawędź dalej mówi, gdzie
+   kończy się przejezdne pole. Bez kafli — wypełnienie jak dotąd.              */
 function drawBand(g, poly, fill){
-  g.poly(poly).fill(fill);
+  if (!hasTiles('ziemia')) g.poly(poly).fill(fill);
   g.poly(poly).stroke({width:2, color:CO.laneEdge});
 }
 /* Pole to GARDŁO → osobne DROGI → LEJ. Drogi rysują się jako niezależne trakty
@@ -444,7 +466,11 @@ function drawBand(g, poly, fill){
 function drawCorridor(g){
   const END=fieldEnd(), x0=splitX(), x1=Math.min(mergeX(), END);
   const fh=fieldHalf();
-  g.rect(BASE_R, LANE_Y-fh, END-BASE_R, fh*2).fill({color:'#0b0f11', alpha:0.55});  // pobocze
+  // Pobocze przyciemniane jest tylko BEZ kafli. Ten prostokąt obejmuje też
+  // korytarz, więc z kaflami zjadałby 55% ich jasności; kontrast korytarz/pobocze
+  // niesie wtedy sama grafika — teren jest teksturą, pobocze gołym tłem.
+  if (!hasTiles('ziemia'))
+    g.rect(BASE_R, LANE_Y-fh, END-BASE_R, fh*2).fill({color:'#0b0f11', alpha:0.55});  // pobocze
   if (!isFinite(x0) || roadCount()<2){
     drawBand(g, bandPoly(BASE_R, END, 26, AXIS, corridorHalf), '#212a2c');
     return;
@@ -463,7 +489,9 @@ function drawCorridor(g){
 function drawBaseGrid(g){
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
     const x=BASE_X+c*CELL, y=BASE_Y+r*CELL, cell=S.grid[r][c];
-    g.rect(x+1,y+1,CELL-2,CELL-2).fill(CO.grid);
+    // Z kaflami tylko przydymienie, nie krycie — płyta betonowa ma własną ramkę,
+    // więc kratka budowy dalej się czyta, a grafika nie znika pod CO.grid.
+    g.rect(x+1,y+1,CELL-2,CELL-2).fill(hasTiles('ziemia') ? {color:CO.grid, alpha:0.20} : CO.grid);
     if (cell.seam && !cell.b){
       const f=cell.ore/BAL.ORE_MAX;
       g.rect(x+4,y+4,CELL-8,CELL-8).fill({color:CO.oreDark, alpha:0.20+0.80*f});

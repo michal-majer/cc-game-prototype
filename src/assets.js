@@ -40,16 +40,25 @@ export const MANIFEST = {
   // Do zadziałania wrzuć plik assets/units/inf.png (arkusz z magentowym tłem).
   // Dopóki pliku nie ma, gra rysuje glif jak dotąd (jeden warn w konsoli).
   inf: 'assets/units/inf.png',
-  // --- grafika od grafika: wrzuć plik i odkomentuj wiersz ---------------
-  // Statyczny sprite (bez arkusza) wystarczy — brak wpisu w SHEETS znaczy
-  // „jedna klatka", render skaluje ją do `sz` jednostki i odbija dla wroga.
-  // inf:     'assets/units/inf.png',          // pojedynczy żołnierz (zamiast arkusza)
-  // b_hq:      'assets/buildings/hq.png',
-  // b_barracks:'assets/buildings/barracks.png',
-  // b_power:   'assets/buildings/power.png',
-  // b_refinery:'assets/buildings/refinery.png',
-  // b_bunker:  'assets/buildings/bunker.png',
-  // bastion: 'assets/scene/bastion.png',
+  // --- bryły bazy (wycięte z assets/raw/beton.png przez tools/kafle.py) ------
+  // Sprite skalowany jest do prostokąta kratek przez min(szer, wys), więc bryły
+  // dobrane są pod PROPORCJE fp z tabeli B: wieża kratownicowa na rocket [1,2],
+  // długi kontener na workshop [2,1], sześciany na jednokratkowe.
+  b_hq:       'assets/buildings/hq.png',
+  b_power:    'assets/buildings/power.png',
+  b_refinery: 'assets/buildings/refinery.png',
+  b_barracks: 'assets/buildings/barracks.png',
+  b_bunker:   'assets/buildings/bunker.png',
+  b_workshop: 'assets/buildings/workshop.png',
+  b_radar:    'assets/buildings/radar.png',
+  b_rocket:   'assets/buildings/rocket.png',
+  b_factory:  'assets/buildings/factory.png',
+  b_reactor:  'assets/buildings/reactor.png',
+  b_lab:      'assets/buildings/lab.png',
+  b_arty:     'assets/buildings/arty.png',
+  // b_heavy — bez grafiki, rysuje się proceduralnie (arkusz nie ma już bryły,
+  // która odróżniałaby się od fabryki; w scenariuszu I wchodzi i tak po lab).
+  bastion: 'assets/scene/bastion.png',
 };
 
 // Opis arkuszy klatek. Klucz = ta sama nazwa co w MANIFEST.
