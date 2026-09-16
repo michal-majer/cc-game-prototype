@@ -22,9 +22,17 @@ Potrzebujemy powierzchni, która jest jednocześnie:
                                    daje dokładnie odwrotność — gęsty drobny
                                    detal, który przy 52 px robi się papką.
 
-Szum proceduralny daje wszystkie trzy rzeczy naraz i za darmo. AI zostaje tam,
-gdzie jest niezastąpione: przy obiektach (drzewa, głazy, wraki), bo tam liczy
-się kształt i charakter, a nie powtarzalność.
+Szum proceduralny daje wszystkie trzy rzeczy naraz i za darmo.
+
+ALE NAJLEPIEJ WYPADA POŁĄCZENIE. Płachta z generatora ma STRUKTURĘ, której szum
+nie wymyśli — kierunek źdźbeł, nieregularne przetarcia, charakter. Brakuje jej
+tylko palety: przychodzi jasna i nasycona, a przyciemnienie zamienia trawę
+w słomę. Rozwiązaniem jest wzięcie z płachty samej jasności i przepuszczenie
+jej przez RAMPĘ BARW gry — bo to rampa, czyli kilka zdefiniowanych stopni
+zamiast ciągłego widma, czyta się jako „malowane", a nie „fotografia".
+
+Dlatego: jeśli obok leży płachta źródłowa (patrz ZRODLA), materiał powstaje
+z niej. Jeśli nie ma — powstaje w całości z szumu i też jest dobry.
 
 BEZSZWOWOŚĆ jest tu z konstrukcji, nie z obróbki: wartości losowane są w węzłach
 kraty, a indeks węzła liczy się MODULO rozmiar kraty. Prawa krawędź czyta więc
@@ -96,16 +104,47 @@ def rampa(f, kolory):
     return k[i]*(1-u) + k[i1]*u
 
 
+# Materiał -> płachta źródłowa z generatora obrazu. Brak pliku = czysta procedura,
+# więc listę można zostawić wypełnioną „na zapas".
+ZRODLA = {
+  'trawa':  'tex-grass.png',
+  'ziemia': 'tex-dirt.png',
+  'piach':  'tex-sand.png',
+  'beton':  'tex-concrete.png',
+}
+
+
+def z_obrazu(sciezka, ramp):
+    """Struktura z płachty, barwy z rampy gry.
+
+    Bierzemy samą jasność, rozciągamy ją na pełny zakres (percentyle, nie min/max,
+    żeby pojedynczy jasny kamyk nie zjadł kontrastu całej płachty) i przekładamy
+    przez rampę. Barwa źródła jest wyrzucana w całości — to ona przychodziła za
+    jasna i za nasycona, a samo przyciemnienie zamieniało trawę w słomę."""
+    a = np.asarray(Image.open(sciezka).convert('RGB'), dtype=np.float32)
+    lum = a.mean(axis=2)
+    lo, hi = np.percentile(lum, 2), np.percentile(lum, 98)
+    f = np.clip((lum - lo) / max(1e-6, hi - lo), 0, 1)
+    return rampa(f, ramp)
+
+
 def zrob(nazwa, cfg, seed):
     rng = np.random.default_rng(seed)
-    a = rampa(pole(rng, cfg['plama']), cfg['ramp'])
+    zrodlo = os.path.join(ROOT, 'assets/raw', ZRODLA.get(nazwa, ''))
+    skad = 'szum'
+    if ZRODLA.get(nazwa) and os.path.exists(zrodlo):
+        a = z_obrazu(zrodlo, cfg['ramp'])
+        skad = 'struktura z ' + os.path.basename(zrodlo)
+    else:
+        a = rampa(pole(rng, cfg['plama']), cfg['ramp'])
     # ziarno: drobne, wysokoczęstotliwościowe, żeby powierzchnia nie była gładka
     # jak plastik — ale na tyle słabe, by nie wróciła papka.
     a += (rng.random(a.shape[:2]).astype(np.float32) - 0.5)[..., None] * cfg['ziarno'] * 2
     out = os.path.join(ROOT, 'assets/raw', f'tex-{nazwa}.png')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(out)
-    print('zapisano', os.path.relpath(out, ROOT), f'{SIZE}×{SIZE}')
+    print('zapisano', os.path.relpath(out, ROOT),
+          f'{a.shape[1]}×{a.shape[0]}', '·', skad)
 
 
 if __name__ == '__main__':

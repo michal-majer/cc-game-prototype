@@ -12,3 +12,6 @@ package-lock.json
 # katalog roboczy testów (zrzuty ekranu, skrypty playwright)
 .tmp/
 __pycache__/
+
+# podglądy z tools/plachta-test.py — generowane, nie wsad
+assets/raw/*-kafel.png
