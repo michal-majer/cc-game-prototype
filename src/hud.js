@@ -318,9 +318,12 @@ function updateWavePlan(){
     const n = i+1, comp = eCompN(n);
     const stan = n <= S.wave ? 'past' : n === S.wave+1 ? 'next' : '';
     const skok = i>0 && sily[i] >= sily[i-1]*1.35 ? ' spike' : '';
+    // Bez radaru widać CO przyjdzie, ale nie ILE — a „w trzeciej są pojazdy"
+    // to jest właśnie ta informacja, na której planuje się rozbudowę. Radar II
+    // dokłada liczby, więc dalej ma za co brać pieniądze.
     const txt = (jawne || n <= S.wave+1)
       ? (Object.keys(comp).map(k=>comp[k]+'× '+U[k].name).join(' · ') || '—')
-      : '· · ·';
+      : (Object.keys(comp).map(k=>U[k].name).join(' · ') || '—');
     html += `<div class="wp-row ${stan}${skok}"><span class="wp-n">${n}</span>` +
             `<span class="wp-sila"><i style="width:${Math.round(100*sily[i]/max)}%"></i></span>` +
             `<span class="wp-txt">${txt}</span></div>`;
