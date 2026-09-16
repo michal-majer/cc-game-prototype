@@ -106,6 +106,12 @@ def rampa(f, kolory):
 
 # Materiał -> płachta źródłowa z generatora obrazu. Brak pliku = czysta procedura,
 # więc listę można zostawić wypełnioną „na zapas".
+#   'rampa'  — z płachty bierzemy samą jasność, barwę daje rampa gry,
+#   'wprost' — płachta idzie jak jest (bez zmiany barwy).
+# 'wprost' wybrane dla trawy świadomie: barwa z Midjourney jest bliższa jasności
+# trawy z wizualizacji docelowej niż ciemna rampa, którą proponowałem.
+TRYB = {'trawa': 'wprost'}
+
 ZRODLA = {
   'trawa':  'tex-grass.png',
   'ziemia': 'tex-dirt.png',
@@ -133,13 +139,18 @@ def zrob(nazwa, cfg, seed):
     zrodlo = os.path.join(ROOT, 'assets/raw', ZRODLA.get(nazwa, ''))
     skad = 'szum'
     if ZRODLA.get(nazwa) and os.path.exists(zrodlo):
-        a = z_obrazu(zrodlo, cfg['ramp'])
-        skad = 'struktura z ' + os.path.basename(zrodlo)
+        if TRYB.get(nazwa) == 'wprost':
+            a = np.asarray(Image.open(zrodlo).convert('RGB'), dtype=np.float32)
+            skad = 'wprost z ' + os.path.basename(zrodlo)
+        else:
+            a = z_obrazu(zrodlo, cfg['ramp'])
+            skad = 'struktura z ' + os.path.basename(zrodlo)
     else:
         a = rampa(pole(rng, cfg['plama']), cfg['ramp'])
     # ziarno: drobne, wysokoczęstotliwościowe, żeby powierzchnia nie była gładka
     # jak plastik — ale na tyle słabe, by nie wróciła papka.
-    a += (rng.random(a.shape[:2]).astype(np.float32) - 0.5)[..., None] * cfg['ziarno'] * 2
+    if skad == 'szum':          # ziarno dokłada się tylko do szumu; płachta ma swoje
+        a += (rng.random(a.shape[:2]).astype(np.float32) - 0.5)[..., None] * cfg['ziarno'] * 2
     out = os.path.join(ROOT, 'assets/raw', f'tex-{nazwa}.png')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(out)
