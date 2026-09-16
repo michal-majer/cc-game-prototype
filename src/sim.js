@@ -11,7 +11,7 @@ import {
   isHeavy, isSoldier, isArmored, BAL, BASE_INCOME,
   lanesAt, laneCY, laneHalf, corridorHalf, LANE_SHIFT, maxLanes, SPD_MUL,
   roadY, roadHalf, roadCount, roadName,
-  COLS, ROWS, FORM_DEPTH, FORM_SPREAD, clamp
+  COLS, ROWS, FORM_DEPTH, FORM_SPREAD, TTK_MUL, clamp
 } from './config.js';
 import { S, say, lineX } from './state.js';
 import { MIS, feat, goalDone, goalFailed } from './campaign.js';
@@ -119,7 +119,7 @@ export function spawn(type,side,x,y,lane,form){
            : side==='p' ? (S.laneOrder >= 0 ? Math.min(S.laneOrder, n-1)
                                             : (S.pLaneRR = ((S.pLaneRR||0)+1) % n))
            : (Math.random()*n)|0;
-  S.units.push({type,side,x,y,lane:ln,shift:0,hp,maxHp:hp,cd:Math.random()*d.rate,flash:0,fireT:0,moveT:0,muzT:0,
+  S.units.push({type,side,x,y,lane:ln,shift:0,hp,maxHp:hp,cd:Math.random()*d.rate*TTK_MUL,flash:0,fireT:0,moveT:0,muzT:0,
                 formD:(form&&form.d)||0, formS:(form&&form.s)||0});
 }
 
@@ -289,7 +289,7 @@ export function update(dt){
     for (const u of eU){ const dist=Math.hypot(u.x-b.x,u.y-b.y); if (dist<bd){ bd=dist; tgt=u; } }
     // Działa bazy (sztab, bunkry) — JEDYNE miejsce, gdzie pBuff() jeszcze działa:
     // upgrade sztabu podbija ogień obrony bazy, nie polowej armii.
-    if (tgt){ dmgTo(tgt,bDmg(b)*pBuff(),null,d.atk.ap); S.tracers.push({x1:b.x,y1:b.y,x2:tgt.x,y2:tgt.y,t:0.09,c:d.atk.ap?CO.warn:CO.blue}); b.cd=d.atk.rate; }
+    if (tgt){ dmgTo(tgt,bDmg(b)*pBuff(),null,d.atk.ap); S.tracers.push({x1:b.x,y1:b.y,x2:tgt.x,y2:tgt.y,t:0.09,c:d.atk.ap?CO.warn:CO.blue}); b.cd=d.atk.rate*TTK_MUL; }
   }
   if (!S.bastion.dead && S.bastion.target){
     S.bastion.cd -= dt;
@@ -303,7 +303,7 @@ export function update(dt){
         for (const u of near) dmgTo(u,BAS_DMG,null);
         S.tracers.push({x1:S.bastion.x,y1:S.bastion.y,x2:tgt.x,y2:tgt.y,t:0.11,c:CO.red,w:2.4});
         explode(tgt.x,tgt.y,14,CO.warn); boom(0.22); S.shake=Math.max(S.shake,2);
-        S.bastion.cd=BAS_RATE;
+        S.bastion.cd=BAS_RATE*TTK_MUL;
       }
     }
     if (S.bastion.flash>0) S.bastion.flash-=dt*6;
@@ -363,7 +363,7 @@ export function update(dt){
             S.fx.push({x:t.x,y:t.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.2,c:'#ffe680',r:2.4});
           }
         }
-        u.cd=d.rate; u.fireT=0.5; u.muzT=0.16;   // fireT: poza „shoot” trzyma dłużej; muzT: błysk z lufy (widoczniejszy)
+        u.cd=d.rate*TTK_MUL; u.fireT=0.5; u.muzT=0.16;   // fireT: poza „shoot” trzyma dłużej; muzT: błysk z lufy (widoczniejszy)
       }
     } else {
       let vx,vy, sMul=1;

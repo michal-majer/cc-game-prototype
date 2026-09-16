@@ -436,6 +436,18 @@ export const FORM_DEPTH = 24, FORM_SPREAD = 16;
    Zostaje ŻOŁD: ułamek oszczędności do sufitu, jako premia za gospodarność,
    a nie jako przepustka. Właściwym startem jest `money` z danych misji.      */
 export const CARRY_FRAC = 0.15, CARRY_CAP = 150;
+/* --------------------------- TEMPO WALKI ---------------------------------
+   Jedno pokrętło na to, JAK DŁUGO trwa starcie. Mnoży PRZERWĘ MIĘDZY STRZAŁAMI
+   wszystkiego, co strzela — jednostek, dział bazy, bastionu. Dzięki temu każda
+   relacja zostaje nietknięta: kontry siedzą w obrażeniach, pancerzu i zasięgu,
+   a nie w kadencji, więc wydłużenie jej u WSZYSTKICH jednakowo rozciąga każdy
+   pojedynek w tym samym stopniu.
+
+   Czemu nie HP: podbicie życia jednostkom zmienia ich relację do budynków
+   (te mają własne HP), a podbicie wszystkiego naraz to ta sama operacja
+   okrężną drogą. Kadencja jest jedyną liczbą wspólną dla obu stron.
+   1.0 = jak było · wyżej = wolniej i czytelniej · niżej = młynek.           */
+export const TTK_MUL = 1.6;
 // Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
 // Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
 // późną grą to STAŁY sink: utrzymanie ostrzeliwanego frontu kosztuje kredyty.
