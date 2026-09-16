@@ -4,14 +4,14 @@
    ========================================================================= */
 
 import {
-  CO, B, U, BAR, STANCES, TERR_MAX, WAVE_TIME, ORE_SIP, EPATIENCE, EPAT_MASS
+  CO, B, U, BAR, STANCES, TERR_MAX, WAVE_TIME, ORE_SIP, EPATIENCE, EPAT_MASS, pl
 } from './config.js';
 import { S, say, SECT } from './state.js';
 import { isMuted } from './audio.js';
 import { incomeRate, oreBreak, oreTotal, seamsAlive, seamsTapped } from './economy.js';
 import { terrIncome } from './sectors.js';
 import { radarLvl, unlocked, reqText, canUp, upCost, upText } from './buildings.js';
-import { eComp, eRatio, wavePlan } from './enemy.js';
+import { eComp, eCompN, eRatio, wavePlan } from './enemy.js';
 import { takeCard } from './cards.js';
 import { setStance, setArmyLane, waveInterval } from './sim.js';
 import { MIS, feat, isCampaign, goalText, goalNow, goalDone } from './campaign.js';
@@ -137,7 +137,7 @@ export function renderCards(){
   syncOverlays();
 }
 // elementy HUD-a, które w menu mają zniknąć razem z polem walki
-const CHROME = ['topbar','intel','log','log-toggle','stance-slider','buildbar','objective','lanes','minimap'];
+const CHROME = ['topbar','intel','log','log-toggle','stance-slider','buildbar','objective','waveplan','lanes','minimap'];
 export function syncOverlays(){
   const inMenu = S.state==='menu';
   for (const id of CHROME){ const el=qs(id); if (el) el.classList.toggle('off', inMenu); }
@@ -288,6 +288,56 @@ function updateObjective(){
     : (after && S.wave < after && target && now >= target) ? 'ZALICZY SIĘ OD FALI '+after
     : now+' / '+target;
 }
+/* --------------------------- PLAN SZTURMU --------------------------------
+   Autorski plan fal jest OBIETNICĄ (patrz missions.js): „pierwsze dwie lekkie,
+   szósta i ósma uderzą ciasno". Dopóki siedział wyłącznie w danych i w jednym
+   zdaniu odprawy, gracz nie miał jak go użyć — a cała misja 2 polega na tym,
+   żeby ROZBUDOWAĆ SIĘ NA CZAS. Bez widocznego kształtu szturmu „co teraz
+   postawić" jest zgadywanką, a nie planem.
+
+   SKŁAD odsłania się tak jak dotąd: fale minione, bieżąca i NAJBLIŻSZA są
+   jawne, dalsze pokazują samą SIŁĘ. Radar II dalej ma za co brać pieniądze —
+   kupuje dokładny skład zawczasu, a nie samą świadomość, że coś nadchodzi.  */
+const SILA_HP = { inf:60, rkt:50, tank:190, lazik:125, arty:70, kolos:430 };
+const silaFali = comp => Object.keys(comp).reduce((s,k)=>s + comp[k]*(SILA_HP[k]||60), 0);
+let planShown = '';
+function updateWavePlan(){
+  const el = qs('waveplan'), plan = wavePlan();
+  if (!plan || !plan.length || S.state==='menu'){ el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const jawne = radarLvl()>=2;
+  const sily = plan.map((_,i)=>silaFali(eCompN(i+1)));
+  const max = Math.max(1, ...sily);
+  // Okno wokół bieżącej fali — przy czternastu falach cała drabinka zjadłaby
+  // ekran, a i tak liczy się to, co dopiero idzie.
+  const N = plan.length, WID = 9;
+  let od = Math.max(0, Math.min(N-WID, S.wave-3)); if (N<=WID) od = 0;
+  const doI = Math.min(N, od+WID);
+  let html = '';
+  for (let i=od;i<doI;i++){
+    const n = i+1, comp = eCompN(n);
+    const stan = n <= S.wave ? 'past' : n === S.wave+1 ? 'next' : '';
+    // SZPIC liczony wobec SZCZYTU CAŁEGO PLANU, nie wobec poprzedniej fali.
+    // „Większa od poprzedniej o jedną trzecią" zapalało się przy każdym wyjściu
+    // z oddechu — a wtedy czerwone są trzy fale z sześciu i nie znaczą nic.
+    // Tak zapalają się te dwie, które naprawdę zrobią różnicę.
+    const skok = sily[i] >= max*0.6 ? ' spike' : '';
+    // Bez radaru widać CO przyjdzie, ale nie ILE — a „w trzeciej są pojazdy"
+    // to jest właśnie ta informacja, na której planuje się rozbudowę. Radar II
+    // dokłada liczby, więc dalej ma za co brać pieniądze.
+    const txt = (jawne || n <= S.wave+1)
+      ? (Object.keys(comp).map(k=>comp[k]+'× '+U[k].name).join(' · ') || '—')
+      : (Object.keys(comp).map(k=>U[k].name).join(' · ') || '—');
+    html += `<div class="wp-row ${stan}${skok}"><span class="wp-n">${n}</span>` +
+            `<span class="wp-sila"><i style="width:${Math.round(100*sily[i]/max)}%"></i></span>` +
+            `<span class="wp-txt">${txt}</span></div>`;
+  }
+  if (doI < N) html += `<div class="wp-row"><span class="wp-n">⋯</span>` +
+                       `<span class="wp-sila"></span><span class="wp-txt">i jeszcze ${N-doI}</span></div>`;
+  if (html !== planShown){ qs('wp-rows').innerHTML = html; planShown = html; }
+  qs('wp-lbl').textContent = 'PLAN SZTURMU · ' + N + ' ' + pl(N,'FALA','FALE','FAL');
+}
+
 /* Rozkaz DROGOWY. Pokazuje się tylko tam, gdzie dróg jest więcej niż jedna.
    Każdy przycisk nosi NAZWĘ drogi i jej cele — bo decyzja „którą drogą" jest
    decyzją o zysku (moc? kratki? radar? osłabienie?), a nie o kierunku.        */
@@ -462,6 +512,7 @@ export function updateHUD(){
   updateLog();
   updateUpgradePanel();
   updateObjective();
+  updateWavePlan();
   updateLanes();
   updateCamBtns();
   drawMinimap();

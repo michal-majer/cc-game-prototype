@@ -20,9 +20,21 @@ export const CELL = 52;
 // sie razem z siatka — mniejsza siatka to mniej kratek w tej samej bazie, nie inne pole.
 export const GRID_MAX_COLS = 7, GRID_MAX_ROWS = 6;
 export let COLS = GRID_MAX_COLS, ROWS = GRID_MAX_ROWS;
-export const BASE_X = 40, BASE_Y = 176;
-export const BASE_R = BASE_X + GRID_MAX_COLS*CELL;   // 404 — stale, niezalezne od COLS
 export const LANE_Y = 332;
+/* BAZA I PLAC WALKI TO JEDNA PLANSZA.
+   BASE_R (krawędź bazy = wylot korytarza) zostaje STAŁE — od niego liczy się
+   cała geometria pola (stanice, sektory, bastion), więc nie może jeździć razem
+   z siatką. Ale POZYCJA SIATKI już musi: przy 6 kolumnach baza kończyła się na
+   352, a korytarz zaczynał na 404 — pięćdziesiąt dwa piksele CZARNEJ PRZERWY
+   między własnym barakiem a drogą, którą idzie wróg. Tak samo w pionie: trzy
+   wiersze rysowały się od 176 w dół, czyli baza wisiała NAD osią drogi.
+   Siatka kotwiczy się więc PRAWĄ KRAWĘDZIĄ do wylotu korytarza i ŚRODKIEM do
+   jego osi — mniejsza siatka to mniej kratek dosuniętych do frontu, nie baza
+   odsunięta w pustkę. Przy pełnej siatce (7×6) wychodzą stare 40/176, więc
+   misje grane na maksimum wyglądają identycznie. */
+export const BASE_R = 40 + GRID_MAX_COLS*CELL;       // 404 — stale, niezalezne od COLS
+export let BASE_X = BASE_R - COLS*CELL;
+export let BASE_Y = LANE_Y - (ROWS*CELL)/2;
 export const FRONT_MIN = BASE_R;
 
 /* ============================ ŚWIAT / KORYTARZ ===========================
@@ -117,6 +129,9 @@ export function setField(len, halfH){
 export function setGrid(cols, rows){
   COLS = clamp(cols|0, 2, GRID_MAX_COLS);
   ROWS = clamp(rows|0, 2, GRID_MAX_ROWS);
+  // Siatka dosuwa się do wylotu korytarza i siada na jego osi — patrz BASE_X.
+  BASE_X = BASE_R - COLS*CELL;
+  BASE_Y = LANE_Y - (ROWS*CELL)/2;
 }
 
 /* Stanice. Dwie pierwsze to UŁAMKI korytarza, dwie ostatnie liczą się OD BASTIONU
@@ -136,7 +151,10 @@ export const STANCES = [
   // się od bazy: na polu 1300 linia stała 104 px za krawędzią bazy, na 3600
   // byłaby kilkaset px w polu, poza zasięgiem własnych dział. Obrona ma znaczyć
   // „przy drucie, pod gniazdami", niezależnie od rozmiaru mapy.
-  {n:'OBRONA',    fromBase:40, x:0, d:'pod działami bazy'},
+  // 40 → 16: „pod działami bazy" ma znaczyć PRZY DRUCIE. Czterdzieści pikseli
+  // za krawędzią siatki czytało się jako wyjście w pole — żołnierz stał sam,
+  // krok przed własnym gniazdem, zamiast na jego wysokości.
+  {n:'OBRONA',    fromBase:16, x:0, d:'przy drucie, pod gniazdami'},
   {n:'PRZEDPOLE', f:0.25, x:0, d:'1/4 — poza osłoną'},
   {n:'ŚRODEK',    mid:true, x:0, d:'neutralny grunt'},
   {n:'NACISK',    fromEnd:true, x:0, d:'artyleria dosięga BASTIONU'},
@@ -496,9 +514,24 @@ export const B = {
   // przed bazą (próbowane 15.09) zdejmowały tę decyzję i zostawiały samo
   // „kliknij, gdy masz 180 kredytów". Zamiast nich jest PRZESUŃ (patrz input.js):
   // planujesz, a pomyłkę da się poprawić za część wartości.
-  bunker:  {name:'GNIAZDO RAK.',  short:'GNIAZ.',fp:[1,1], cost:180, hp:350,  col:'#8fa3a8', ico:'▲', drn:1, req:['rocket'],
-            desc:'rakiety 230 px · przebija pancerz',
-            atk:{dmg:15, range:230, rate:1.0, ap:true}},
+  /* PIERWSZE DZIAŁKO JEST ZWYKŁYM DZIAŁKIEM. Przez chwilę jedynym gniazdem na
+     pasku było GNIAZDO RAKIETOWE — czyli gracz dostawał odpowiedź na pancerz,
+     zanim zobaczył pierwszy pojazd, a misja 2 („barak czy gniazdo?") uczyła
+     wyboru między piechotą a bronią przeciwpancerną. Gniazdo KM bije SZYBKO
+     i płasko: na piechotę świetne, na łazika (pancerz 3) już ledwo — więc
+     łazik w misji 2 naprawdę coś znaczy, a rakiety przychodzą wtedy, kiedy
+     jest na co (patrz rnest).                                                */
+  // SERIA MAŁYCH POCISKÓW, nie jeden duży — i to jest cała różnica między
+  // gniazdem KM a rakietowym. Pancerz jest PŁASKĄ redukcją (dmgTo), więc tnie
+  // najmocniej broń bijącą często i słabo: 7 → 4 na łaziku (pancerz 3), 7 → 2
+  // na czołgu (5). Na piechotę KM jest najlepszym, co masz, na pancerz —
+  // najgorszym. Dlatego pierwszy łazik w misji 2 naprawdę coś znaczy.
+  bunker:  {name:'GNIAZDO KM',    short:'GNIAZ.',fp:[1,1], cost:180, hp:350,  col:'#8fa3a8', ico:'▲', drn:1, req:[],
+            desc:'seria 200 px · kosi piechotę, pancerz ledwo drapie',
+            atk:{dmg:7, range:200, rate:0.28}},
+  rnest:   {name:'GNIAZDO RAK.',  short:'G.RAK.',fp:[1,1], cost:260, hp:300,  col:'#9b7fd4', ico:'▲', drn:2, req:['rocket'],
+            desc:'rakiety 250 px · przebija pancerz',
+            atk:{dmg:26, range:250, rate:1.6, ap:true}},
   workshop:{name:'WARSZTAT',     short:'WARSZ.',fp:[2,1], cost:200, hp:220,  col:'#d9a04d', ico:'w', drn:2, req:[],
             unit:'lazik', count:1},
   factory: {name:'FABRYKA',      short:'FABR.', fp:[2,2], cost:400, hp:300,  col:'#4d9de0', ico:'T', drn:3, req:['radar'],
@@ -514,8 +547,11 @@ export const B = {
   heavy:   {name:'CIĘŻKA FABR.', short:'C.FAB.',fp:[2,2], cost:700, hp:420,  col:'#3a7fc0', ico:'K', drn:5, req:['lab'],
             unit:'kolos', count:1},
 };
-export const BAR = ['power','refinery','barracks','rocket','bunker','workshop','factory',
-             'radar','reactor','lab','arty','heavy'];
+// KOLEJNOŚĆ NA PASKU = KOLEJNOŚĆ, W JAKIEJ SIĘ TO POZNAJE. Prąd, ruda, ludzie,
+// działko — dopiero potem rzeczy z wymaganiami. Rakiety (wyrzutnia i gniazdo
+// rakietowe) stoją obok siebie, bo jedno odblokowuje drugie.
+export const BAR = ['power','refinery','barracks','bunker','workshop','rocket','rnest',
+             'radar','factory','reactor','lab','arty','heavy'];
 
 // --- jednostki ---
 export const U = {

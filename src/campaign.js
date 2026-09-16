@@ -377,7 +377,28 @@ export function growGrid(){
   if (COLS >= max[0] && ROWS >= max[1]) return false;
   const nc = Math.min(max[0], COLS+1), nr = Math.min(max[1], ROWS);
   if (nc===COLS && nr===ROWS) return false;
+  const wiecejKolumn = nc > COLS;
   setGrid(nc, nr);
+  /* NOWA KRATKA DOCHODZI OD ZAPLECZA, nie od frontu. Siatka kotwiczy się prawą
+     krawędzią do wylotu korytarza (patrz BASE_X w config), więc dopisanie kolumny
+     na końcu tablicy przesunęłoby CAŁĄ bazę o kratkę w lewo — wszystkie budynki
+     skoczyłyby w bok w trakcie walki. Wstawiamy ją więc na początek i przesuwamy
+     indeksy: na ekranie nic się nie rusza, a z tyłu przybywa placu.            */
+  if (wiecejKolumn){
+    for (const b of S.buildings) b.c += 1;
+    for (let r=0;r<ROWS;r++){
+      if (!S.grid[r]) S.grid[r]=[];
+      S.grid[r].unshift({ore:0,seam:false,pull:false,b:null,prevOre:0});
+    }
+  }
+  // Piksele budynku są liczone RAZ, przy stawianiu. Przeliczamy je po każdej
+  // zmianie siatki — przesunięcie indeksu i przesunięcie kotwicy znoszą się
+  // co do piksela, ale poleganie na tym byłoby poleganiem na przypadku.
+  for (const b of S.buildings){
+    const [w,h] = B[b.type].fp;
+    b.x = BASE_X + (b.c + w/2)*CELL;
+    b.y = BASE_Y + (b.r + h/2)*CELL;
+  }
   for (let r=0;r<ROWS;r++){
     if (!S.grid[r]) S.grid[r]=[];
     for (let c=0;c<COLS;c++)
