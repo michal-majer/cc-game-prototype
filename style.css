@@ -198,7 +198,9 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
    ========================================================================= */
 
 /* ---------- cel misji (kampania) ---------- */
-#objective{ right:calc(8px + var(--safe-r)); top:calc(var(--top-h) + 8px); width:210px;
+#rightcol{ right:calc(8px + var(--safe-r)); top:calc(var(--top-h) + 8px);
+  display:flex; flex-direction:column; gap:8px; align-items:flex-end; pointer-events:none; }
+#objective{ width:210px;
   background:#0e1416ee; border:1px solid var(--gridHi); border-left:3px solid var(--warn);
   border-radius:4px; padding:6px 9px; pointer-events:none; }
 #obj-lbl{ font-size:9px; color:var(--dim); letter-spacing:1px; }
@@ -212,7 +214,7 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 /* ---------- plan szturmu ----------
    Drabinka fal pod celem misji. Gracz ma WIEDZIEĆ, że szósta uderzy ciasno,
    zanim uderzy — inaczej „rozbuduj się na czas" jest zagadką, nie decyzją. */
-#waveplan{ right:calc(8px + var(--safe-r)); top:calc(var(--top-h) + 108px); width:210px;
+#waveplan{ width:210px;
   background:#0e1416ee; border:1px solid var(--gridHi); border-left:3px solid var(--dim);
   border-radius:4px; padding:6px 9px; pointer-events:none; }
 #wp-lbl{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:3px; }
@@ -313,9 +315,10 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 
 /* ---------- telefon ---------- */
 @media (max-width:720px){
-  #objective{ width:150px; top:70px; padding:5px 7px; }
+  #rightcol{ top:70px; }
+  #objective{ width:150px; padding:5px 7px; }
   #obj-txt{ font-size:10px; }
-  #waveplan{ width:150px; top:166px; padding:5px 7px; }
+  #waveplan{ width:150px; padding:5px 7px; }
   .wp-row{ font-size:8px; line-height:1.35; }
   .wp-row .wp-sila{ flex-basis:22px; }
   #lanes{ bottom:calc(222px + var(--safe-b)); }
