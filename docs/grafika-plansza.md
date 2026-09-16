@@ -31,6 +31,31 @@ generator jest mocny, a my nie tracimy niczego.
 
 ---
 
+## 1a. Czym to generować
+
+Nie chodzi o markę, tylko o **jedną zdolność**: model musi umieć generować
+w trybie kaflowania (circular padding / seamless / `--tile`). Bez niego dostajesz
+ładny obrazek, który na styku z samym sobą pokazuje szew.
+
+| Zadanie | Czego szukać | Dlaczego |
+|---|---|---|
+| płachty materiału (A) | **tryb kaflowania**: `--tile` w Midjourney albo „Tiling / circular padding" w Stable Diffusion (ComfyUI, A1111, Invoke) | to jedyna rzecz, której nie da się dobrze naprawić po fakcie; przesunięcie i wtopienie szwu zawsze zostawia ślad |
+| obiekty (B, C) | model **instrukcyjny** (czatowy generator obrazu) | trzeba wyegzekwować jednolite magentowe tło i rozdzielenie obiektów, a modele instrukcyjne trzymają się takich poleceń lepiej niż modele „estetyczne" |
+
+Jeśli masz tylko generator bez trybu kaflowania — płachty i tak się przydadzą.
+Wytnę z nich okna i zszyję szwy offline; wyjdzie gorzej niż z prawdziwego
+kaflowania, ale wciąż nieporównanie lepiej niż z kafli-scenek.
+
+**Na obiekty rozważ generowanie pojedynczo** — jeden obiekt na obraz, na
+magencie — zamiast całego arkusza. Więcej generowań, ale znacznie wyższa
+skuteczność: model przestaje mieć pokusę komponowania sceny, a wycinanie staje
+się trywialne.
+
+Parametry startowe: Midjourney `--tile --ar 1:1 --style raw --stylize 100`;
+Stable Diffusion: kaflowanie włączone, CFG 5–7, kwadrat 1024.
+
+---
+
 ## 2. Co zamawiamy
 
 ### Paczka A — płachty materiału (4 obrazy)
@@ -189,6 +214,16 @@ NO watermark.
 
 Hand-painted stylized art, muted desaturated palette, dark olive and grey-brown,
 matching a dark UI. 1536x1024.
+```
+
+### Negatyw (dla Stable Diffusion; modele czatowe go nie potrzebują)
+
+```
+vignette, gradient, light source, sunbeam, cast shadow, border, frame, margin,
+grid lines, visible tile seams, text, watermark, signature, label, numbers,
+single large object, tree, bush, boulder, path, road, composition, focal point,
+depth of field, blur, bokeh, high contrast, saturated colors, neon, isometric
+view, perspective, horizon, sky, character, vehicle, building
 ```
 
 ---
