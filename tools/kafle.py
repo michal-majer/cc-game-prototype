@@ -49,6 +49,27 @@ SCENE = {
   'bastion': (1308,217,1479,382),    # opancerzona kopuła — twierdza wroga
 }
 
+# --- OZDOBY -----------------------------------------------------------------
+# Prostokąty wykryte w prawym pasku teren.png (spójne plamy na ciemnym tle).
+# Po co osobna warstwa obiektów, skoro są kafle terenu: kafel z generatora to
+# SCENKA ze skomponowanym środkiem, a scenka powtórzona 200 razy zawsze będzie
+# tapetą. Płaskiego gruntu, który wolno powtarzać, jest w arkuszu cztery kafle.
+# Stąd podział jak na wizualizacji: gładkie podłoże + obiekty rozstawiane
+# pojedynczo, z własną skalą i przesunięciem w kratce.
+DECOR = {
+  # pobocze — zieleń i głazy
+  'krzak': [(1399,489,1448,533), (1457,489,1521,536), (1455,546,1522,593)],
+  'glaz':  [(1266,495,1305,526), (1353,496,1388,524), (1228,546,1264,578),
+            (1467,606,1516,638)],
+  # trakt — ślady walki
+  'zapora':[(1278,548,1326,580), (1337,544,1386,582), (1399,547,1447,585),
+            (1349,655,1386,691), (1466,656,1518,691), (1404,709,1455,743)],
+  'zlom':  [(1359,598,1387,637), (1403,602,1452,639), (1230,656,1278,692),
+            (1234,709,1276,744), (1293,709,1331,744), (1294,759,1327,792)],
+}
+DECOR_TILE = 64          # komórka arkusza ozdób
+DECOR_COLS = 6
+
 TILE = 64          # bok kafla w gotowym arkuszu — musi zgadzać się z TILESETS.ziemia.tile
 VARY = 3           # blok wariantów 3x3 = 9 odmian jednego gruntu
 
@@ -127,6 +148,7 @@ GRADE = {                       # (nasycenie, jasność, podniesienie dna)
   # Znaczniki NIE są przyciemniane tak jak grunt: lej, wrak i żyła mają być
   # widoczne z lotu kamery, a nie wtapiać się w podłoże.
   'mark':   (0.88, 0.95, 4),
+  'decor':  (0.80, 0.88, 4),    # ozdoba ma się odcinać od podłoża, ale nie świecić
 }
 
 def load(sheet):
@@ -164,12 +186,22 @@ def sample(sheet, picks, n, extra=0):
         k += 1
     return out[:n]
 
+# Ile kontrastu WEWNĄTRZ kafla zostawić (1.0 = bez zmian). Kafel z generatora to
+# scenka z jasnymi i ciemnymi plamami; położony obok sąsiada każda taka plama
+# rysuje granicę kwadratu. Podłoże ma być POWIERZCHNIĄ — szczegół niesie warstwa
+# ozdób, która leży na wierzchu i nie układa się w siatkę.
+FLATTEN = {'trawa':0.58, 'ziemia':0.62, 'krzaki':0.66, 'kamien':0.72, 'las':0.78, 'skala':0.85}
+
 def grade(t, which):
     sat, gain, lift = GRADE[which]
     a = np.asarray(t, dtype=np.float32)
     grey = a.mean(axis=2, keepdims=True)
     a = grey + (a - grey) * sat                 # odbarwienie
     a = lift + a * gain                         # przyciemnienie z podniesionym dnem
+    k = FLATTEN.get(which)
+    if k is not None:                           # spłaszczenie kontrastu do tonu kafla
+        m = a.reshape(-1,3).mean(axis=0)
+        a = m + (a - m) * k
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
 
 def normalize(tiles):
@@ -178,7 +210,7 @@ def normalize(tiles):
     Bez tego zestaw jest patchworkiem jaśniejszych i ciemniejszych kwadratów —
     to najbardziej rzuca się w oczy na polu, bardziej niż niedopasowane krawędzie.
     Częściowo (MIX), żeby nie spłaszczyć wszystkich wariantów do jednego koloru."""
-    MIX = 0.72
+    MIX = 0.88
     arrs = [np.asarray(t, dtype=np.float32) for t in tiles]
     target = np.mean([a.reshape(-1,3).mean(axis=0) for a in arrs], axis=0)
     out = []
@@ -236,6 +268,64 @@ def expand(tiles, n):
         out.append(ops[1 + k // len(tiles) % (len(ops)-1)](tiles[k % len(tiles)]))
         k += 1
     return out[:n]
+
+def cutout_of(im, box, pad=2):
+    """Wytnij bryłę z podanego arkusza i zdejmij tło do przezroczystości.
+
+    Tło zdejmowane jest ZALEWANIEM OD KRAWĘDZI, nie progiem jasności: bryły mają
+    własne ciemne partie (cień pod okapem, wnęki), a próg zjadłby je razem z tłem.
+    Zalewanie rusza z ramki, więc ciemne wnętrze zostaje nietknięte."""
+    x0, y0, x1, y1 = box
+    c = im.crop((x0-pad, y0-pad, x1+pad, y1+pad)).convert('RGBA')
+    a = np.asarray(c, dtype=np.int16)
+    H, W = a.shape[:2]
+    ring = np.concatenate([a[0,:,:3], a[-1,:,:3], a[:,0,:3], a[:,-1,:3]])
+    bg = np.median(ring, axis=0)
+    near = np.abs(a[:,:,:3] - bg).sum(axis=2) <= 60
+    out = np.zeros((H,W), bool)
+    stack = [(y,x) for y in (0,H-1) for x in range(W)] + [(y,x) for x in (0,W-1) for y in range(H)]
+    stack = [(y,x) for y,x in stack if near[y,x]]
+    for y,x in stack: out[y,x] = True
+    while stack:
+        y,x = stack.pop()
+        for dy,dx in ((1,0),(-1,0),(0,1),(0,-1)):
+            ny,nx = y+dy, x+dx
+            if 0<=ny<H and 0<=nx<W and near[ny,nx] and not out[ny,nx]:
+                out[ny,nx] = True; stack.append((ny,nx))
+    px = np.array(c)
+    px[:,:,3] = np.where(out, 0, 255)
+    return Image.fromarray(px)
+
+def save_decor():
+    """Złóż ozdoby w jeden arkusz: stała komórka, obiekt wpisany z marginesem.
+
+    Stała komórka, bo render musi znać rozmiar bez tabeli wymiarów per obiekt;
+    proporcje zostają, więc beczka nie robi się kwadratem."""
+    im = Image.open(os.path.join(ROOT, SHEETS['teren']['path'])).convert('RGB')
+    names = list(DECOR)
+    rows = max(len(v) for v in DECOR.values())
+    sheet = Image.new('RGBA', (DECOR_COLS*DECOR_TILE, len(names)*DECOR_TILE), (0,0,0,0))
+    for r, name in enumerate(names):
+        for c, box in enumerate(DECOR[name][:DECOR_COLS]):
+            t = cutout_of(im, box)
+            t = grade_rgba(t, 'decor')
+            sc = min((DECOR_TILE-6)/t.width, (DECOR_TILE-6)/t.height)
+            t = t.resize((max(1,round(t.width*sc)), max(1,round(t.height*sc))), Image.LANCZOS)
+            sheet.paste(t, (c*DECOR_TILE + (DECOR_TILE-t.width)//2,
+                            r*DECOR_TILE + (DECOR_TILE-t.height)//2), t)
+    out = os.path.join(ROOT, 'assets/tiles/decor.png')
+    sheet.save(out)
+    print('zapisano', os.path.relpath(out, ROOT), sheet.size,
+          '—', ', '.join(f'{n}×{len(DECOR[n])}' for n in names))
+
+def grade_rgba(t, which):
+    a = np.asarray(t, dtype=np.float32)
+    sat, gain, lift = GRADE[which]
+    rgb = a[:,:,:3]
+    grey = rgb.mean(axis=2, keepdims=True)
+    rgb = lift + (grey + (rgb - grey)*sat) * gain
+    a[:,:,:3] = np.clip(rgb, 0, 255)
+    return Image.fromarray(a.astype(np.uint8))
 
 def cutout(box, pad=2):
     """Wytnij bryłę i zdejmij tło do przezroczystości.
@@ -299,6 +389,7 @@ def main():
     sheet.save(OUT)
     print('zapisano', os.path.relpath(OUT, ROOT), sheet.size)
     save_pieces()
+    save_decor()
 
 if __name__ == '__main__':
     main()

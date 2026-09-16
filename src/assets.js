@@ -128,9 +128,27 @@ export const TILESETS = {
   },
 };
 
+/* ---------------------------- OZDOBY -------------------------------------
+   Osobny arkusz obiektów z przezroczystością: krzaki, głazy, zapory, złom.
+
+   Po co osobno, skoro są kafle terenu: kafel z generatora to SCENKA ze
+   skomponowanym środkiem, a scenka powtórzona przez całe pole zawsze będzie
+   tapetą. Grunt ma być gładki i powtarzalny, a to, co przyciąga oko, ma leżeć
+   NA nim pojedynczo — z własną skalą i przesunięciem w kratce, żeby nie
+   układało się w rytm siatki.
+
+   Wiersz arkusza = rodzaj, kolumna = odmiana. Brak pliku = brak ozdób i tyle. */
+export const DECORSET = {
+  url:'assets/tiles/decor.png',
+  tile:64,
+  rows:{ krzak:0, glaz:1, zapora:2, zlom:3 },   // rodzaj -> wiersz
+  count:{ krzak:3, glaz:4, zapora:6, zlom:6 },  // ile odmian w wierszu
+};
+
 const loaded = {};   // name -> Texture (pełny obraz / reprezentatywna klatka)
 const sheets = {};   // name -> { fw, fh, clips:{name:[Texture,...]+meta}, anchor }
 const tiles  = {};   // tileset -> { sets:{nazwa:[Texture,...]}, marks:{nazwa:Texture} }
+const decor  = {};   // rodzaj -> [Texture,...]
 
 // Wczytaj obrazek jako <img> (do keyingu przez canvas). Odrzuca przy braku pliku.
 function loadImage(url){
@@ -216,6 +234,20 @@ async function loadTileset(name, ts){
   tiles[name] = out;
 }
 
+// Potnij arkusz ozdób na obiekty. Brak pliku = pusta tabela, render pomija warstwę.
+async function loadDecor(){
+  const base = await PIXI.Assets.load(DECORSET.url);
+  base.source.scaleMode = 'nearest';
+  const T = DECORSET.tile;
+  for (const [name, row] of Object.entries(DECORSET.rows)){
+    const arr = [];
+    for (let i=0;i<(DECORSET.count[name]||0);i++)
+      arr.push(new PIXI.Texture({ source: base.source,
+        frame: new PIXI.Rectangle(i*T, row*T, T, T) }));
+    decor[name] = arr;
+  }
+}
+
 // Wczytaj tylko to, co jawnie wpisano w MANIFEST. Brak wpisu = glif proceduralny.
 export async function loadAssets() {
   for (const n of Object.keys(MANIFEST)) {
@@ -229,6 +261,8 @@ export async function loadAssets() {
     try { await loadTileset(n, ts); }
     catch (e) { console.warn('[assets] brak kafli:', ts.url, '— pole rysuje się płasko'); }
   }
+  try { await loadDecor(); }
+  catch (e) { console.warn('[assets] brak ozdób:', DECORSET.url, '— pole bez obiektów'); }
   return Object.keys(loaded);
 }
 
@@ -243,6 +277,12 @@ export function tileTex(set, gx, gy){
 }
 export function markTex(name){ const t=tiles.ziemia; return (t && t.marks[name]) || null; }
 export const tilePx = () => (tiles.ziemia ? tiles.ziemia.tile : 64);
+
+export function decorTex(name, i){
+  const a = decor[name];
+  return (a && a.length) ? a[i % a.length] : null;
+}
+export const hasDecor = name => !!(decor[name] && decor[name].length);
 
 export function tex(name)      { return loaded[name] || null; }
 export function hasTex(name)   { return !!loaded[name]; }

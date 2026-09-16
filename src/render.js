@@ -13,7 +13,7 @@ import {
   FRONT_MAX
 } from './config.js';
 import { S, SECT, lineX } from './state.js';
-import { buildTex, unitTex, unitSheet, tex, tileTex, markTex, hasTiles } from './assets.js';
+import { buildTex, unitTex, unitSheet, tex, tileTex, markTex, hasTiles, decorTex, hasDecor } from './assets.js';
 import { shellMark } from './sim.js';
 import { radarLvl, canUp, maxLvl, fits, canMove, fitsMoved, moveCost } from './buildings.js';
 import { eTerrCtrl } from './sectors.js';
@@ -167,11 +167,15 @@ function groundSet(gx, gy, T){
   // przy większej wadze trawa i zarośla migotały na przemian i wracała szachownica.
   const n = vnoise(gx/6.5, gy/6.5)*0.82 + vnoise(gx/2.6, gy/2.6)*0.18 - 0.5;
   if (trackT(x, y) + n*0.85 < 0.95) return 'ziemia';        // ubity trakt
-  const v = outerT(y) + n*0.95;
-  if (v < 0.40) return 'krzaki';                            // zarośla tuż przy trakcie
-  if (vnoise(gx/5.0 + 91, gy/5.0 + 57) > 0.80) return 'kamien';   // grubsza skala = wychodnie, nie pojedyncze kratki
-  if (v < 0.86) return 'trawa';
-  return 'las';                                             // ściana drzew dopiero na brzegu
+  /* ŚRODEK POLA MA BYĆ GŁADKI. Zarośla, skały i las to kafle-scenki: ułożone
+     przez całe pobocze robią papkę, w której nie widać ani jednostek, ani
+     terenu. Trzymamy je na obrzeżu, a to, co ma przyciągać oko bliżej walki,
+     kładzie warstwa ozdób — pojedynczymi obiektami na czystej trawie.        */
+  const v = outerT(y) + n*0.80;
+  if (v < 0.74) return 'trawa';
+  if (vnoise(gx/5.0 + 91, gy/5.0 + 57) > 0.84) return 'kamien';
+  if (v < 0.92) return 'krzaki';
+  return 'las';                                             // ściana drzew na samej ramie
 }
 
 function buildGround(){
@@ -231,7 +235,50 @@ function buildGround(){
     }
   }
 
-  // 3) BAZA — betonowy plac pod siatką, na wierzchu terenu
+  /* 3) OZDOBY — krzaki i głazy na poboczu, zapory i złom na trakcie.
+
+     Rozstawiane POJEDYNCZO, nie kaflowane: każdy obiekt dostaje własną skalę,
+     przesunięcie wewnątrz kratki i odbicie. Dzięki temu nie układają się
+     w rytm siatki, a pole zyskuje to, czego gładki grunt dać nie może —
+     punkty zaczepienia dla oka. Wszystko po tej samej funkcji mieszającej co
+     grunt, więc wracają na swoje miejsce po powrocie z menu.                  */
+  if (hasDecor('krzak') || hasDecor('zapora')){
+    const END = fieldEnd();
+    const baseL = BASE_X - T, baseR = BASE_X + COLS*T + T;
+    const baseT = BASE_Y - T, baseB = BASE_Y + ROWS*T + T;
+    for (let gy = gy0; gy <= gy1; gy++){
+      for (let gx = gx0; gx <= gx1; gx++){
+        const x = gx*T, y = gy*T, cx = x + T/2, cy = y + T/2;
+        if (cx > baseL && cx < baseR && cy > baseT && cy < baseB) continue;   // plac zostaje pusty
+        const h = hash2(gx*3 + 11, gy*5 + 29);
+        const onTrack = trackT(cx, cy) < 1.0;
+        let kind, chance;
+        if (onTrack){
+          if (cx < BASE_R + 2*T || cx > END) continue;
+          const far = Math.min(1, (cx - BASE_R) / Math.max(1, END - BASE_R));
+          chance = 4 + 12*far;                      // im bliżej bastionu, tym więcej śladów
+          kind = (h & 1) ? 'zapora' : 'zlom';
+        } else {
+          const v = outerT(cy);
+          chance = 16 + 30*Math.min(1, v);          // pobocze gęstnieje ku ramie
+          kind = ((h >>> 3) % 3) ? 'krzak' : 'glaz';
+        }
+        if ((h % 100) >= chance) continue;
+        const t = decorTex(kind, (h >>> 7) % 8);
+        if (!t) continue;
+        const sp = new PIXI.Sprite(t);
+        const sz = T * (0.60 + ((h >>> 11) % 100)/100 * 0.55);
+        sp.width = sz; sp.height = sz;
+        sp.anchor.set(0.5);
+        sp.x = cx + (((h >>> 17) % 100)/100 - 0.5) * T * 0.55;
+        sp.y = cy + (((h >>> 23) % 100)/100 - 0.5) * T * 0.55;
+        if (h & 2) sp.scale.x = -sp.scale.x;         // odbicie, ale NIE obrót: obiekt ma pion
+        groundLayer.addChild(sp);
+      }
+    }
+  }
+
+  // 4) BAZA — betonowy plac pod siatką, na wierzchu terenu
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++)
     put(tileTex('skala', c+900, r+900), BASE_X + c*T, BASE_Y + r*T, false);
 }
