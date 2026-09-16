@@ -76,18 +76,42 @@ const feats = o => ({ ...OFF, ...o });
 export const MISSIONS = {
 
   /* --- 1 — PIERWSZY DZIEŃ --------------------------------------------------
-     Uczy: EKONOMIA MA STAWKĘ. Cel jest ekonomiczny, ale zegar tyka i po nim
-     przychodzi fala. Nie musi być wyzwaniem — odpierasz ją działami sztabu —
-     ale gracz widzi, PO CO była ekonomia. Sama checklista („zbierz X, postaw
-     elektrownię") uczy interfejsu, nie gry.
-     Nie ma: suwaka, sektorów, kart, radaru, rozbiórki, ulepszania.           */
+     Uczy: SKĄD SIĘ BIORĄ KREDYTY. Nic więcej.
+
+     Wcześniej stały tu trzy fale wroga „żeby gracz widział, po co ekonomia".
+     Nie widział — sztab je zdejmował na podejściu (pomiar: 13 piechoty, sztab
+     na 100%), więc były dekoracją, która odciągała wzrok od jedynej rzeczy,
+     jakiej ta misja ma nauczyć. Misja 1 to teraz CZYSTA ROZBUDOWA BAZY: bez
+     wroga, bez zegara, z wyjaśnieniem wydobycia krok po kroku (`hints`).
+     Pierwszy przeciwnik jest w misji 2 — i tam od razu ma znaczenie.
+
+     Nie ma: suwaka, sektorów, kart, radaru, rozbiórki, PRZESUŃ.             */
   m1: {
     id:'m1', n:1, code:'PIERWSZY DZIEŃ',
-    teach:'Ekonomia ma stawkę.',
-    gen:'Prąd i ruda. Bez nich jesteś tu tylko celem.',
-    brief:['Sztab stoi. Reszta zależy od Ciebie.',
-           'Najpierw prąd. Rafineria bez niego nie ruszy.',
-           'Trzy fale. Działa sztabu je przyjmą — Ty masz zdążyć z kredytami.'],
+    teach:'Skąd się biorą kredyty.',
+    gen:'Prąd, rafineria, żyła. W tej kolejności.',
+    brief:['Dziś nikt nie nadejdzie. Masz rozstawić bazę i zrozumieć wydobycie.',
+           'SZTAB daje 4 mocy na start. Każdy budynek ją zjada.',
+           'Najpierw ELEKTROWNIA — rafineria bez prądu nie ruszy.',
+           'Potem RAFINERIA, ale PRZYLEGAJĄCA do żyły. Nie „gdziekolwiek".',
+           'Z rafinerii wyjeżdża harvester: jeździ do żyły i wozi rudę do bazy.'],
+    // Kamera startuje na samej bazie — w tej misji nie ma czego szukać w polu.
+    // A gdy cel padnie, ODJEŻDŻA i odsłania korytarz: nagrodą za tutorial jest
+    // widok tego, po co to wszystko było. `noScore` pomija ocenę sztabu —
+    // „PRZEŁAMANIE · Fala 0 · Straty 0" za misję bez wroga to pusty ekran.
+    camBase:true, outro:'front', noScore:true,
+    /* WYJAŚNIENIE WYDOBYCIA, podawane wtedy, kiedy jest o czym mówić — nie
+       ścianą tekstu na odprawie. Warunki są nazwane (patrz tutorTick
+       w campaign.js), bo dane misji mają zostać danymi.                      */
+    hints:[
+      { when:'start',      txt:'Żółte kratki to ŻYŁY RUDY. Zostaw je wolne — rafineria ma stać OBOK, nie na nich.', kind:'warn' },
+      { when:'noPower',    txt:'Zacznij od ELEKTROWNI. Bez prądu rafineria stoi martwa.', kind:'warn' },
+      { when:'power',      txt:'Prąd jest. Teraz RAFINERIA — postaw ją tak, żeby DOTYKAŁA żyły.', kind:'good' },
+      { when:'refDry',     txt:'Ta rafineria nie dotyka żadnej żyły — harvester nie ma dokąd jechać.', kind:'bad' },
+      { when:'mining',     txt:'Harvester ruszył. Wozi rudę z żyły do bazy — to są Twoje kredyty.', kind:'good' },
+      { when:'mining2',    txt:'Jeden harvester = jedna żyła. Ulepszenie rafinerii dokłada następnego.', kind:'info' },
+      { when:'oreLow',     txt:'Żyła się wyczerpuje. Odrasta, ale wolno — bogate złoża są policzone.', kind:'warn' },
+    ],
     // NAJCIAŚNIEJ w całej kampanii: 18 kratek, z czego cztery bierze sztab,
     // a złoże kolejne dwa. Siatka rośnie z każdą misją razem z odsunięciem
     // frontu (m2 20, m3 25→35, m4 36→42) — miejsce jest NAGRODĄ ZA TEREN,
@@ -104,14 +128,9 @@ export const MISSIONS = {
     ore:['....#.',
          '......',
          '..#...'],
-    /* TRZY FALE, cel dopiero po trzeciej. Jedna fala i cel po pierwszej znaczyły,
-       że misja kończy się, ZANIM ktokolwiek dojdzie do bazy — gracz nie widział
-       nawet, po co była ekonomia. Teraz widzi ich pod płotem trzy razy.
-       Misja 1 JAKO JEDYNA nie jest „na styk" i to jest świadome: broni jej sam
-       sztab (zasięg 330 wobec 39 piechoty), więc wróg ginie na podejściu bez
-       względu na liczbę — pomiar: 13 piechoty i sztab wciąż na 100%. Stawka tu
-       jest z zegara i z tego, że fale rosną, a nie z ryzyka porażki. */
-    waves:[{ t:55, inf:4 }, { t:42, inf:6 }, { t:38, inf:8 }],
+    // ZERO FAL. Pusta lista to nie brak danych, tylko decyzja: `waveInterval`
+    // widzi plan bez pozycji i nie odpala nigdy żadnej fali.
+    waves:[],
     unlock:['power','refinery'],
     // Rafineria WYMAGA elektrowni. Bez tego misja o ekonomii przechodziła się
     // samą rafinerią: sztab daje 4 mocy, rafineria bierze 2, więc prąd był
@@ -119,14 +138,11 @@ export const MISSIONS = {
     // wymuszone, a kolejność „najpierw prąd" jest lekcją, nie ozdobą.
     reqAdd:{ refinery:['power'] },
     feats:feats({}),
-    // Cel liczy KREDYTY ZAROBIONE, nie saldo. Liczony po saldzie karałby za budowanie,
-    // czyli dokładnie za to, czego misja uczy — bot to pokazał: wygrywał dopiero
-    // w 5. fali, bo wydawał wszystko na bieżąco. `after:1` trzyma wygraną do pierwszej
-    // fali, żeby gracz zobaczył, PO CO była ekonomia: z prądem i rafinerią cel pada
-    // tuż PO odparciu fali, bez nich to cztery minuty i kilka fal — presja bez
-    // twardego limitu czasu.
-    goal:{ kind:'money', target:600, after:3 },
-    enemy:{ doc:'CZERWONA FALA', base:['barracks'], spawnF:0.97, bastion:0 },
+    // Cel liczy KREDYTY ZAROBIONE, nie saldo — saldo karałoby za budowanie,
+    // czyli za to, czego misja uczy. Bez `after`: nie ma fal, na które można by
+    // czekać, a misja kończy się wtedy, gdy wydobycie NAPRAWDĘ działa.
+    goal:{ kind:'money', target:600 },
+    enemy:{ doc:'CZERWONA FALA', spawnF:0.97, bastion:0 },
     par:{ sec:180, loss:0 },
   },
 
@@ -140,22 +156,30 @@ export const MISSIONS = {
   m2: {
     id:'m2', n:2, code:'ŚCIANA',
     teach:'Kredyty trzeba zamienić w armię.',
-    gen:'Dziesięć fal. Nie oddasz ani kratki.',
+    gen:'Osiem fal. Nie oddasz ani kratki.',
     brief:['GNIAZDO zajmuje kratkę tak samo jak barak. Wybierasz, nie dokładasz.',
            'Gniazdo strzela samo. Barak co falę wystawia żołnierza.',
            'Postawione źle? PRZESUŃ przenosi budynek za ćwierć kosztu.',
-           'Czwarta, ósma i dziesiąta uderzą ciasno. Między nimi odbudujesz.'],
+           'Pierwsze dwie są lekkie — jedno gniazdo i jeden żołnierz je przyjmą.',
+           'Szósta i ósma uderzą ciasno. Piąta daje oddech na odbudowę.'],
     // Działko stoi na kratce — inaczej nie byłoby wyboru, tylko dokładanie.
     // Ciasna siatka + koszt kratki = pierwsza misja, w której UKŁAD bazy jest
     // decyzją, a nie formalnością. PRZESUŃ (feats.move) jest zaworem: pomyłkę
     // da się odkręcić za 25% wkładu, ale budynek jest 3 s martwy.
     // Siatka ROŚNIE przez całą kampanię i NIGDY się nie kurczy (6×3 → 6×4 →
     // 6×5→7×5 → 7×5→7×6). Misja 2 dokłada wiersz, nie zabiera kolumny.
-    grid:[6,4], shape:'1', len:1300, money:450,
-    ore:['..##..',
+    /* SIATKA TAKA SAMA JAK W MISJI 1 — i to jest treść tej misji, nie oszczędność.
+       Na 6×4 mieściła się JEDNOCZEŚNIE pełna ekonomia i ściana dział, więc
+       „wybierasz, nie dokładasz" było napisem na odprawie, a nie decyzją
+       (pomiar: 24 kratki, ruda bierze 3, sztab 4 → dziesięć kratek na budynki
+       bojowe po opłaceniu prądu i rafinerii). Na 6×3 zostaje ich pięć.
+       Plansza rośnie dopiero w misji 3 — jako NAGRODA ZA TEREN, nie z rozpędu. */
+    grid:[6,3], shape:'1', len:1300, money:450,
+    // Dwa ROZŁĄCZNE miejsca na rafinerię: kolumny 2–3 i 4–5 w wierszach 1–2,
+    // każde stykające się z żyłą w wierszu 0. Jedna pomyłka nie zamyka misji.
+    ore:['..#.##',
          '......',
-         '......',
-         '....#.'],
+         '......'],
     /* DZIESIĘĆ FAL ZE SZPICAMI I ODDECHAMI — i to jest cała kalibracja tej misji.
 
        Pomiar pokazał, że sama MASA nie robi wyzwania: przy potrójnej liczbie
@@ -176,21 +200,19 @@ export const MISSIONS = {
        obiektami. Dokładnie „na styk": przeżywasz, ale wychodzisz w strzępach.
        Pomiar końcowy z liczbami w README.                                     */
     waves:[
-      { t:40, inf:4 },                    // rozpoznanie
-      { t:34, inf:6 },
-      { t:30, inf:9,  lazik:1 },          // pierwszy pojazd
-      { t:23, inf:14, lazik:2 },          // ▲ SZPIC — tu zwykle pada pierwszy budynek
-      { t:39, inf:6  },                   // ▼ oddech: odbuduj, napraw, dostaw barak
-      { t:27, inf:13, lazik:2 },
-      { t:25, inf:16, lazik:3 },
-      { t:21, inf:24, lazik:4 },          // ▲ SZPIC — najcięższy punkt misji
-      { t:38, inf:8,  lazik:1 },          // ▼ ostatni oddech
-      { t:23, inf:30, lazik:7 },          // ▲ szturm końcowy
+      { t:45, inf:2 },                    // DWÓCH. Jeden żołnierz i jedno gniazdo
+      { t:40, inf:3 },                    // ...naprawdę to załatwiają — i o to chodzi
+      { t:36, inf:5,  lazik:1 },          // pierwszy pojazd
+      { t:30, inf:8,  lazik:1 },          // ▲ pierwszy nacisk
+      { t:42, inf:5 },                    // ▼ oddech: odbuduj, napraw, dostaw barak
+      { t:30, inf:14, lazik:3 },          // ▲ SZPIC — tu zwykle pada pierwszy budynek
+      { t:28, inf:18, lazik:4 },
+      { t:30, inf:24, lazik:5 },          // ▲ szturm końcowy
     ],
     unlock:['power','refinery','barracks','bunker'],
     feats:feats({ sell:true, repair:true, move:true }),
     // Szturm kończy się tam, gdzie kończy się plan — misja obronna ma mieć koniec.
-    goal:{ kind:'waves', target:10 },
+    goal:{ kind:'waves', target:8 },
     // `assault` — to nie front, tylko szturm na bazę: idą, nie stoją. Bez tego
     // przy porządnej obronie wróg w ogóle nie nacierał i misja nie miała końca.
     enemy:{ doc:'CZERWONA FALA', assault:true, spawnF:0.97, bastion:0 },

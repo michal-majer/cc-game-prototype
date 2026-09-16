@@ -167,6 +167,22 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
   padding:6px 12px; font-size:12px; font-weight:700; animation:toast 2.4s forwards; }
 @keyframes toast{ 0%{ opacity:0; transform:translateY(-6px); } 10%,80%{ opacity:1; transform:none; } 100%{ opacity:0; } }
 
+/* ---------- FALA: baner nadejścia ----------
+   „Która to fala" była w pasku na górze, małą czcionką obok czterech innych
+   liczb — czyli nigdzie. Nadejście fali jest najważniejszym zdarzeniem w grze
+   i ma być widać bez szukania, ale nie ma zasłaniać pola: duże litery, krótko,
+   bez tła, na wysokości korytarza.                                            */
+#wavebanner{ position:absolute; top:26%; left:50%; transform:translateX(-50%);
+  z-index:14; pointer-events:none; text-align:center; opacity:0; }
+#wavebanner.on{ animation:wb 2.2s forwards; }
+#wavebanner .wb-n{ display:block; font-size:44px; font-weight:800; letter-spacing:6px;
+  color:var(--warn); text-shadow:0 0 18px #000, 0 2px 0 #000; }
+#wavebanner .wb-s{ display:block; font-size:13px; font-weight:700; letter-spacing:2px;
+  color:var(--txt); text-shadow:0 0 10px #000; margin-top:2px; }
+@keyframes wb{ 0%{ opacity:0; transform:translateX(-50%) scale(1.14); }
+               12%{ opacity:1; transform:translateX(-50%) scale(1); }
+               70%{ opacity:1; } 100%{ opacity:0; } }
+
 /* ---------- telefon (wąsko) ---------- */
 @media (max-width:720px){
   .stat{ min-width:50px; } .stat .big{ font-size:16px; } .bar{ width:70px; }
