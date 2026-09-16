@@ -11,7 +11,7 @@ import {
   isHeavy, isSoldier, isArmored, BAL, BASE_INCOME,
   lanesAt, laneCY, laneHalf, corridorHalf, LANE_SHIFT, maxLanes, SPD_MUL,
   roadY, roadHalf, roadCount, roadName,
-  COLS, ROWS, CELL, FORM_DEPTH, FORM_SPREAD, TTK_MUL, clamp
+  COLS, ROWS, CELL, FORM_DEPTH, FORM_SPREAD, LINE_SLOP, TTK_MUL, clamp
 } from './config.js';
 import { S, say, lineX } from './state.js';
 import { MIS, feat, goalDone, goalFailed } from './campaign.js';
@@ -414,11 +414,16 @@ export function update(dt){
       // SZYK: linia trzymania jest INDYWIDUALNA — żołnierz z tylnej kolumny bazy
       // staje głębiej niż ten z przedniej. Stąd „agro" nie potrzebuje osobnego
       // kodu: wybór celu bierze najbliższego, więc ogień zbiera ten wysunięty.
-      // Nawet tylna kolumna szyku stoi PRZED drutem, nie na własnym baraku:
-      // OBRONA leży 16 px za krawędzią siatki, a głębokość szyku sięga 24 px,
-      // więc bez tego progu żołnierz z tyłu trzymałby linię wewnątrz bazy.
-      const LIM0 = Math.max(BASE_R + 8,
-        lineX() - (u.side==='p' ? (u.formD||0) : 0)) + (hunting ? HUNT_LEASH : 0);
+      /* SZYK MUSI SIĘ MIEŚCIĆ MIĘDZY DRUTEM A LINIĄ. Gdy między nimi jest mniej
+         miejsca niż głębokość szyku, twarde obcięcie (`max(BASE_R+8, …)`) zlepia
+         WSZYSTKIE kolumny na jednym pikselu — a wtedy kilkunastu żołnierzy tłoczy
+         się w jednym punkcie, odpychają się nawzajem za linię, każdy zawraca
+         i pluton DRGA w miejscu zamiast stać. Zamiast obcinać, ŚCISKAMY szyk
+         proporcjonalnie: kolejność kolumn zostaje, tylko robi się płytsza.     */
+      const miejsce = Math.max(0, lineX() - (BASE_R + 4));
+      const glab = u.side==='p' && u.formD
+        ? u.formD * Math.min(1, miejsce / FORM_DEPTH) : 0;
+      const LIM0 = lineX() - glab + (hunting ? HUNT_LEASH : 0);
       // Nie stój jak słup pod ostrzałem wroga o dłuższym zasięgu: jeśli cel jest
       // tuż za linią (w ENGAGE_BAND), podejdź na własną odległość strzału i oddaj
       // ogień. Poza pasmem trzymaj linię (bez pościgu za kiterem). Wcześniej clamp
@@ -441,7 +446,13 @@ export function update(dt){
         LIM = Math.max(LIM0, t.x - poX);
       }
       if (u.side==='p'){
-        if (u.x > LIM){ vx = -1; vy = 0; }
+        /* MARTWA STREFA NA LINII. Bez niej żołnierz wypchnięty przez sąsiada
+           o piksel za linię zawraca PEŁNYM krokiem, sąsiad wypycha go z powrotem
+           i tak w kółko — z boku wygląda to jak zacięcie („chyba zacięły się
+           jednostki"). Pomiar: 93 px przebytej drogi w cztery sekundy przy
+           pięciu pikselach przesunięcia netto, bez żadnego wroga w pobliżu.   */
+        if (u.x > LIM + LINE_SLOP){ vx = -1; vy = 0; }
+        else if (u.x > LIM){ vx = 0; vy = 0; }        // w strefie — stój, nie szarp
         else if (vx>0 && u.x + vx*d.spd*sMul*dt > LIM) vx = 0;
         // Zejście BOKIEM na pełnej prędkości. Wektor „do celu" przy podejściu
         // niemal czołowym ma składową pionową rzędu ułamka prędkości, więc
@@ -460,6 +471,9 @@ export function update(dt){
       // wszystkich jednakowo, więc relacje i kontry zostają (patrz config).
       const sp = d.spd * SPD_MUL;
       u.x += vx*sp*sMul*dt; u.y += vy*sp*sMul*dt;
+      // Wracając na linię NIE przestrzeliwuj jej w drugą stronę — inaczej krok
+      // powrotny wyrzuca żołnierza przed nią, a następny znowu za nią.
+      if (u.side==='p' && vx<0 && u.x < LIM) u.x = LIM;
     }
     // TOR jako rozkaz: jednostka dojeżdża do środka SWOJEGO toru i tam trzyma pas.
     // Zmiana u.lane (rozkaz gracza) natychmiast przestawia cel — przerzut kosztuje

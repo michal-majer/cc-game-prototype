@@ -151,10 +151,17 @@ export const STANCES = [
   // się od bazy: na polu 1300 linia stała 104 px za krawędzią bazy, na 3600
   // byłaby kilkaset px w polu, poza zasięgiem własnych dział. Obrona ma znaczyć
   // „przy drucie, pod gniazdami", niezależnie od rozmiaru mapy.
-  // 40 → 16: „pod działami bazy" ma znaczyć PRZY DRUCIE. Czterdzieści pikseli
-  // za krawędzią siatki czytało się jako wyjście w pole — żołnierz stał sam,
-  // krok przed własnym gniazdem, zamiast na jego wysokości.
-  {n:'OBRONA',    fromBase:16, x:0, d:'przy drucie, pod gniazdami'},
+  /* 40 px ZA KRAWĘDZIĄ SIATKI — i tyle właśnie ma być.
+     „Żołnierze przechodzą za daleko" brało się z GEOMETRII, nie z tej liczby:
+     przy sześciu kolumnach siatka kończyła się na 352, a linia liczyła się od
+     stałego BASE_R=404, więc pluton stawał 92 px za własnym drutem. Odkąd
+     siatka kotwiczy się prawą krawędzią do BASE_R (patrz config: BASE_X),
+     te same 40 px to naprawdę 40 px od ostatniej kratki.
+     Zejście do 16 px, które próbowałem wcześniej, popsuło co innego: głębokość
+     szyku to 24 px, więc cały pluton zlepiał się w jedną kolumnę, żołnierze
+     odpychali się nawzajem bez końca i DRGALI w miejscu zamiast stać.
+     Ta liczba musi być WIĘKSZA NIŻ FORM_DEPTH — inaczej szyk nie ma gdzie stanąć. */
+  {n:'OBRONA',    fromBase:40, x:0, d:'przy drucie, pod gniazdami'},
   {n:'PRZEDPOLE', f:0.25, x:0, d:'1/4 — poza osłoną'},
   {n:'ŚRODEK',    mid:true, x:0, d:'neutralny grunt'},
   {n:'NACISK',    fromEnd:true, x:0, d:'artyleria dosięga BASTIONU'},
@@ -439,13 +446,27 @@ export const MOVE_FRAC = 0.25, MOVE_SEC = 3;
    na siatce 6×3 (misja 1) i 7×6 (finał), a przede wszystkim ma mieścić się
    w zasięgach broni.
 
-   CAŁA KOPERTA SZYKU MUSI ZMIEŚCIĆ SIĘ W NAJKRÓTSZYM ZASIĘGU. Pierwsze liczby
-   (34 w głąb, 40 w poprzek) tego nie spełniały: żołnierz ze skraju stał 40 px
-   od osi drogi przy zasięgu piechoty 39, a po przekątnej 52 — więc nie dosięgał
-   tego, z kim bił się sąsiad, i szyk zamiast wspierać się nawzajem rozłaził się
-   na osobne walki. Teraz przekątna to ~29 px, z zapasem pod 39: szyk widać,
-   ale każdy w nim strzela do tego samego celu.                               */
-export const FORM_DEPTH = 24, FORM_SPREAD = 16;
+   SZYK MUSI MIEĆ GDZIE STANĄĆ. Pierwsze liczby (34 w głąb, 40 w poprzek) zbiłem
+   do 24/16, bo żołnierz ze skraju stał wtedy 40 px od osi drogi przy zasięgu
+   piechoty 39 i nie dosięgał tego, z kim bił się sąsiad. Prawdziwą przyczyną był
+   jednak LIMIT PODEJŚCIA liczony po samej osi X (patrz sim): po jego poprawce
+   jednostka sama schodzi w bok, żeby wejść w zasięg, i szerokość szyku przestała
+   cokolwiek psuć — sprawdzone przy przesunięciu do 40 px.
+
+   Zbyt ciasny szyk psuje co innego, i to widać w grze: kilkunastu żołnierzy
+   w pasie 12×32 px nie ma jak stać (każdy potrzebuje 8 px odstępu), więc
+   odpychają się nawzajem bez końca i pluton DRGA w miejscu zamiast stać.
+   Pomiar: 124 px przebytej drogi w cztery sekundy przy 8 px przesunięcia netto.
+   24 w głąb × 26 w poprzek daje kopertę 24×52 px — miejsce na kilkunastu ludzi.
+   OBRONA (STANCES) musi leżeć dalej od drutu niż FORM_DEPTH, inaczej głębokość
+   nie ma się gdzie rozwinąć i wracamy do zlepka.                              */
+export const FORM_DEPTH = 24, FORM_SPREAD = 26;
+// Martwa strefa wokół linii trzymania. Odpychanie jednostek od siebie (sim)
+// potrafi wypchnąć żołnierza kilka pikseli za linię; bez tolerancji zawraca on
+// wtedy pełnym krokiem, sąsiad odpycha go z powrotem i pluton drga w miejscu
+// zamiast stać. Musi być większa niż typowe wypchnięcie z kolizji (2×sz = 8 px
+// dla piechoty), a na tyle mała, żeby linia dalej znaczyła linię.
+export const LINE_SLOP = 10;
 /* --------------------- ŻOŁD: kredyty MIĘDZY misjami ----------------------
    Baza przechodzi między misjami w całości, KREDYTY nie. Pełny portfel robił
    z następnej misji formalność: z misji 1 wychodziło się z ~1500 kredytów, za
