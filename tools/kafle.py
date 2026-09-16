@@ -56,7 +56,7 @@ VARY = 3           # blok wariantów 3x3 = 9 odmian jednego gruntu
 SHEETS = {
   'teren': dict(
     path='assets/raw/teren.png',
-    xs=[6,104,210,321,427,536,644,754,863,972],
+    xs=[6,104,210,321,427,536,644,754,863,972,1095,1213],
     ys=[7,111,220,332,446,551,656,760,866,972],
     inset=7),                       # ile px obciąć z każdej strony, żeby zdjąć ramkę
   'beton': dict(
@@ -69,20 +69,49 @@ SHEETS = {
 # --- wybór kafli: (arkusz, [(wiersz, kolumna), ...]) -------------------------
 # Kryterium: grunt ma być SZUMEM, nie obiektem. Drzewo, wrak czy lej mają swój
 # środek kompozycji — powtórzone na polu czytają się jako tapeta, nie teren.
+# Gdzie który blok siedzi w gotowym arkuszu — MUSI zgadzać się z TILESETS.ziemia
+# w src/assets.js. Wiersz 0 to pasek znaczników, dalej dwa rzędy bloków 3x3.
+BLOCK_AT = {'skala':(0,1), 'trawa':(3,1), 'ziemia':(6,1),
+            'las':(0,4), 'kamien':(3,4), 'krzaki':(6,4)}
+MARK_AT  = {'lej':0, 'ruda':1, 'wrak':2, 'ogien':3}
+
+# Ile px obciąć dodatkowo dla konkretnego zestawu (ponad `inset` arkusza).
+# Beton: zdejmujemy całą jasną ramkę płyty, zostaje sama faktura.
+# Zestawy, które stykają się ze sobą na polu. Dostają WSPÓLNY ton krawędzi,
+# inaczej każdy styk typów (trawa|krzaki, krzaki|las) rysuje własną linię
+# i wraca krata — tym razem po granicach stref, a nie kafli.
+FAMILY = ('trawa', 'ziemia', 'las', 'kamien', 'krzaki')
+
+INSET_SET = {'skala': 30, 'trawa': 12, 'ziemia': 12, 'las': 12, 'kamien': 12, 'krzaki': 12}
+
+SHEET_W, SHEET_H = 9, 7      # arkusz wyjściowy w kaflach (pasek znaczników + 2 rzędy bloków)
+
 PICKS = {
   # placyk pod siatką bazy: betonowe płyty z arkusza beton.png. Mają wrysowaną
   # jasną ramkę i to jest tu ZALETA — kratka bazy ma się czytać jako kratka budowy.
   # Płyta = jedna kratka budowy, więc próbkowanie z przesunięciem jest tu wyłączone.
-  'skala':  ('beton', [(0,0),(0,1),(0,4),(0,5),(0,6),(1,0),(1,1),(2,1),(2,3)], False),
+  # Wnętrze płyty, NIE cała płyta: ramka wrysowana w kafel powtórzona co 52 px
+  # robi z placu podłogę w kratkę. Plac ma być ciągły — rozdzielenie kratek
+  # budowy rysuje już silnik (CO.grid). Stąd duży inset w INSET_SET.
+  'skala':  ('beton', [(0,0),(0,1),(0,4),(0,5),(0,6),(1,0),(1,1),(2,1),(2,3)], True),
   # pobocze korytarza — trawa z przetarciami, bez krzaków i kamiennych wychodni
   'trawa':  ('teren', [(0,0),(0,1),(1,0),(1,1),(1,3),(7,1),(7,2),(7,3)], True),
   # środek korytarza — goła ziemia. Unikatów jest tylko 4: arkusz ma dużo brązu,
   # ale prawie zawsze z lejem albo wrakiem w środku, a te na gruncie się powtarzają.
   'ziemia': ('teren', [(2,6),(3,5),(4,6),(5,5)], True),
+  # --- pobocze: to ono robi z pola MAPĘ, a nie pasa w czerni ---------------
+  # Bez nich wszystko poza korytarzem zostaje gołym tłem. Te trzy zestawy plamią
+  # pobocze kępami, a nie jednolitą trawą.
+  'las':    ('teren', [(0,5),(0,6),(0,8),(0,9),(0,10),(1,9),(1,10),(7,5),(7,6)], True),
+  'kamien': ('teren', [(0,3),(1,2),(1,4),(4,5),(8,3),(0,2)], True),
+  'krzaki': ('teren', [(2,4),(2,5),(1,3),(7,2),(7,3)], True),
 }
-MARKS = {                                   # pojedyncze kafle do górnego paska
-  'lej':  ('teren', (3,7)),                 # lej po pocisku
-  'ruda': ('teren', (4,3)),                 # bryły rudy
+# Znaczniki — pojedyncze kafle z górnego paska. Rozsypywane po polu, nie kaflowane.
+MARKS = {
+  'lej':   ('teren', (3,7)),                # lej po pocisku
+  'ruda':  ('teren', (4,4)),                # największa kępa brył — żyła ma być widoczna
+  'wrak':  ('teren', (6,10)),               # rozbity sprzęt
+  'ogien': ('teren', (4,9)),                # pożar z dymem
 }
 
 # --- dopasowanie do palety gry ----------------------------------------------
@@ -92,14 +121,19 @@ GRADE = {                       # (nasycenie, jasność, podniesienie dna)
   'skala':  (0.55, 0.62, 5),    # beton ma być tłem dla ikon budynków, nie bohaterem
   'trawa':  (0.70, 0.74, 6),    # pobocze może zostać zielone — to ono niesie „mapkę"
   'ziemia': (0.62, 0.72, 6),
-  'mark':   (0.70, 0.78, 6),
+  'las':    (0.66, 0.64, 4),    # ciemniejszy od trawy, żeby kępy czytały się jako masa
+  'kamien': (0.55, 0.70, 6),
+  'krzaki': (0.70, 0.72, 6),
+  # Znaczniki NIE są przyciemniane tak jak grunt: lej, wrak i żyła mają być
+  # widoczne z lotu kamery, a nie wtapiać się w podłoże.
+  'mark':   (0.88, 0.95, 4),
 }
 
 def load(sheet):
     s = SHEETS[sheet]
     return Image.open(os.path.join(ROOT, s['path'])).convert('RGB'), s
 
-def cut(sheet, r, c, win=None, off=(0,0)):
+def cut(sheet, r, c, win=None, off=(0,0), extra=0):
     """Wytnij kafel po zmierzonych szwach, z insetem zdejmującym ramkę.
 
     `win` zawęża wycinek do okna `win` px przesuniętego o `off` — stąd biorą się
@@ -107,7 +141,7 @@ def cut(sheet, r, c, win=None, off=(0,0)):
     ma ten sam układ plam i na polu widać go jako lustro, a przesunięte okno jest
     po prostu innym kawałkiem tej samej ziemi."""
     im, s = load(sheet)
-    i = s['inset']
+    i = s['inset'] + extra
     x0, y0 = s['xs'][c]+i, s['ys'][r]+i
     x1, y1 = s['xs'][c+1]-i, s['ys'][r+1]-i
     if win:
@@ -115,18 +149,18 @@ def cut(sheet, r, c, win=None, off=(0,0)):
         x1, y1 = min(x0+win, x1), min(y0+win, y1)
     return im.crop((x0, y0, x1, y1)).resize((TILE, TILE), Image.LANCZOS)
 
-def sample(sheet, picks, n):
+def sample(sheet, picks, n, extra=0):
     """Zbierz n wariantów: najpierw pełne kafle, potem okna przesunięte w ich wnętrzu."""
-    out = [cut(sheet, r, c) for r, c in picks]
+    out = [cut(sheet, r, c, extra=extra) for r, c in picks]
     if len(out) >= n: return out[:n]
     im, s = load(sheet)
-    span = min(s['xs'][1]-s['xs'][0], s['ys'][1]-s['ys'][0]) - 2*s['inset']
+    span = min(s['xs'][1]-s['xs'][0], s['ys'][1]-s['ys'][0]) - 2*(s['inset']+extra)
     win = int(span*0.78)
     jit = [(0,0), (span-win,0), (0,span-win), (span-win,span-win), ((span-win)//2,(span-win)//2)]
     k = 0
     while len(out) < n:
         r, c = picks[k % len(picks)]
-        out.append(cut(sheet, r, c, win, jit[1 + (k//len(picks)) % (len(jit)-1)]))
+        out.append(cut(sheet, r, c, win, jit[1 + (k//len(picks)) % (len(jit)-1)], extra))
         k += 1
     return out[:n]
 
@@ -152,6 +186,40 @@ def normalize(tiles):
         m = a.reshape(-1,3).mean(axis=0)
         a = a + (target - m) * MIX
         out.append(Image.fromarray(np.clip(a,0,255).astype(np.uint8)))
+    return out
+
+def edge_mean_of(arrs, width):
+    return np.mean([np.concatenate([
+        a[:width].reshape(-1,3), a[-width:].reshape(-1,3),
+        a[:,:width].reshape(-1,3), a[:,-width:].reshape(-1,3)]).mean(axis=0)
+        for a in arrs], axis=0)
+
+def blend_edges(tiles, target=None, width=15):
+    """Wyrównaj TON krawędzi kafli zestawu, nie zamalowuj ich.
+
+    To jest lek na „widać kratę": kafel z generatora kończy się własnym,
+    ciemniejszym obrzeżem, więc ułożony obok sąsiada rysuje linię i pole czyta
+    się jako szachownica. Skoro każdy kafel zestawu kończy się tą samą jasnością,
+    dowolny pasuje do dowolnego.
+
+    Korekta jest MNOŻNIKOWA i liczona z profilu brzegu, nie wtapianiem w płaski
+    kolor: wtapianie robiło wokół kafla gładką ramkę, czyli tę samą kratę, tylko
+    jaśniejszą. Mnożnik zachowuje kamyki i trawę na brzegu — zmienia im wyłącznie
+    ton — i gaśnie liniowo w głąb kafla, więc sam nie rysuje obwódki."""
+    arrs = [np.asarray(t, dtype=np.float32) for t in tiles]
+    H, W, _ = arrs[0].shape
+    edge_mean = lambda a: np.concatenate([
+        a[:width].reshape(-1,3), a[-width:].reshape(-1,3),
+        a[:,:width].reshape(-1,3), a[:,-width:].reshape(-1,3)]).mean(axis=0)
+    if target is None: target = np.mean([edge_mean(a) for a in arrs], axis=0)
+    yy = np.minimum(np.arange(H), H-1-np.arange(H))[:,None]
+    xx = np.minimum(np.arange(W), W-1-np.arange(W))[None,:]
+    ramp = np.clip(1.0 - np.minimum(yy, xx)/width, 0, 1).astype(np.float32)[:,:,None]
+    out = []
+    for a in arrs:
+        gain = np.clip(target / np.maximum(edge_mean(a), 1e-3), 0.6, 1.7)
+        out.append(Image.fromarray(
+            np.clip(a * (1 + (gain - 1) * ramp), 0, 255).astype(np.uint8)))
     return out
 
 def expand(tiles, n):
@@ -209,16 +277,24 @@ def main():
     # Układ arkusza wyjściowego = dokładnie to, czego szuka TILESETS.ziemia:
     #   wiersz 0 — pasek znaczników (lej [4.5,0], ruda [5.5,0] w kaflach)
     #   wiersze 1-3 — bloki wariantów 3x3: skala [0,1], trawa [3,1], ziemia [6,1]
-    sheet = Image.new('RGBA', (9*TILE, 4*TILE), (0,0,0,0))
+    sheet = Image.new('RGBA', (SHEET_W*TILE, SHEET_H*TILE), (0,0,0,0))
+    # Najpierw wytnij i wyrównaj wszystkie zestawy, DOPIERO POTEM zszyj krawędzie:
+    # wspólny ton dla rodziny da się policzyć dopiero, gdy jest z czego.
+    made = {}
     for name, (src, picks, jitter) in PICKS.items():
-        raw = sample(src, picks, VARY*VARY) if jitter else expand([cut(src,r,c) for r,c in picks], VARY*VARY)
-        tiles = normalize([grade(t, name) for t in raw])
-        cx = {'skala':0, 'trawa':3, 'ziemia':6}[name]
+        extra = INSET_SET.get(name, 0)
+        raw = (sample(src, picks, VARY*VARY, extra) if jitter
+               else expand([cut(src,r,c,extra=extra) for r,c in picks], VARY*VARY))
+        made[name] = normalize([grade(t, name) for t in raw])
+    fam = [np.asarray(t, dtype=np.float32) for n in FAMILY for t in made.get(n, [])]
+    fam_target = edge_mean_of(fam, 15) if fam else None
+    for name, tiles in made.items():
+        tiles = blend_edges(tiles, fam_target if name in FAMILY else None)
+        cx, cy = BLOCK_AT[name]
         for i, t in enumerate(tiles):
-            sheet.paste(t, ((cx + i % VARY)*TILE, (1 + i//VARY)*TILE))
-    for name, (src, (r, c)) in MARKS.items():
-        x = {'lej':4.5, 'ruda':5.5}[name]
-        sheet.paste(grade(cut(src, r, c), 'mark'), (int(x*TILE), 0))
+            sheet.paste(t, ((cx + i % VARY)*TILE, (cy + i//VARY)*TILE))
+    for i, (name, (src, (r, c))) in enumerate(MARKS.items()):
+        sheet.paste(grade(cut(src, r, c), 'mark'), (MARK_AT[name]*TILE, 0))
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     sheet.save(OUT)
     print('zapisano', os.path.relpath(OUT, ROOT), sheet.size)

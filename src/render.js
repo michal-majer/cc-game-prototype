@@ -98,65 +98,142 @@ function buildGlyphs(){
 }
 
 /* ------------------------------ KAFLE TERENU -----------------------------
-   Budowane RAZ na misję (klucz: misja + kształt + siatka), nie co klatkę —
-   to kilkaset sprite'ów. Wariant kafla dobiera assets.tileTex po pozycji,
-   więc pole wygląda tak samo po powrocie z menu.
+   Budowane RAZ na misję (klucz: misja + kształt + siatka + obwiednia świata),
+   nie co klatkę — to kilka tysięcy sprite'ów. Wariant kafla dobiera
+   assets.tileTex po pozycji, więc pole wygląda tak samo po powrocie z menu.
+
+   MAPA, NIE PAS W CZERNI. Wcześniej kaflowany był wyłącznie korytarz, a wszystko
+   poza nim zostawało gołym tłem — pole czytało się jako korytarz zawieszony
+   w pustce. Teraz kafluje się CAŁA obwiednia świata (WV), a korytarz jest w niej
+   traktem z ubitej ziemi. Pobocze plami się kępami lasu, skał i zarośli, żeby
+   nie było tapetą z jednej trawy.
 
    Bez pliku z kaflami hasTiles() jest false i wszystko zostaje po staremu:
    płaskie wypełnienie z gWorld. Grafika NIE jest warunkiem grywalności.     */
+
+// Deterministyczny szum po pozycji — to samo ziarno co w assets.tileTex, żeby
+// pole nie migotało między klatkami i wyglądało tak samo po powrocie z menu.
+function hash2(a, b){
+  let n = (Math.imul(a|0, 73856093) ^ Math.imul(b|0, 19349663)) >>> 0;
+  n ^= n >>> 13; n = Math.imul(n, 1274126177) >>> 0;
+  return (n ^ (n >>> 16)) >>> 0;
+}
+/* Szum z interpolacją — wartości losowane są w węzłach rzadkiej kraty i wygładzane
+   między nimi. Samo `hash(gx>>2, gy>>2)` dawało kępy w postaci KWADRATÓW 4×4
+   z twardą krawędzią: na polu widać było szachownicę lasu i trawy, a nie las.  */
+function vnoise(x, y){
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x-xi, yf = y-yi;
+  const u = xf*xf*(3-2*xf), v = yf*yf*(3-2*yf);        // wygładzenie brzegów komórki
+  const g = (a,b) => (hash2(a,b) % 1024) / 1024;
+  const a = g(xi,yi), b = g(xi+1,yi), c = g(xi,yi+1), d = g(xi+1,yi+1);
+  return (a*(1-u)+b*u)*(1-v) + (c*(1-u)+d*u)*v;
+}
+/* Jak daleko od NAJBLIŻSZEGO traktu, w jego własnych połówkach szerokości:
+   0 = oś, 1 = krawędź przejezdnego pola, dalej pobocze. Liczone po drogach,
+   więc przy rozwidleniu każda ma własne otoczenie, a nie jedno wspólne.      */
+function trackT(x, y){
+  const END=fieldEnd(), x0=splitX(), x1=Math.min(mergeX(), END);
+  const xc = Math.max(BASE_R, Math.min(END, x));
+  let best = Infinity;
+  const one = (cy, half) => { const d = Math.abs(y-cy)/Math.max(1, half); if (d<best) best=d; };
+  if (!isFinite(x0) || roadCount()<2 || xc<x0 || xc>x1) one(AXIS(), corridorHalf(xc));
+  else for (let i=0;i<roadCount();i++) one(roadY(i,xc), roadHalf(xc));
+  if (x > END) best += (x-END)/300;            // za bastionem teren zarasta
+  return best;
+}
+
+/* Jak daleko od OSI POLA w jego własnej połowie wysokości: 0 w osi, 1 na brzegu.
+   Druga miara obok trackT, bo obie odpowiadają za co innego. trackT liczy
+   w połówkach szerokości traktu — przy brzegu pola dochodzi do 4 i wszystko
+   powyżej korytarza wychodziło lasem, w równych poziomych pasach. outerT skaluje
+   się do CAŁEGO pola, więc trawa i las mają gdzie się rozłożyć.               */
+function outerT(y){ return Math.abs(y - AXIS()) / Math.max(1, fieldHalf()); }
+
+/* Rodzaj gruntu w danej kratce.
+
+   TRAKT NIE JEST OSOBNĄ WARSTWĄ. Wcześniej ziemia szła jako pas przycięty maską
+   do wielokąta korytarza — i było widać jego krawędź, ostrą jak wycinana nożem.
+   Teraz o gruncie decyduje ODLEGŁOŚĆ OD OSI zaburzona szumem: ubita ziemia
+   przechodzi w zarośla, te w trawę, a trawa w las. Granicy nie widać, bo jej
+   nie ma — jest strefa przejścia szerokości kilku kafli.
+
+   Szum jest z interpolacją (vnoise), bo `hash(gx>>2, gy>>2)` dawał kępy
+   w postaci KWADRATÓW 4×4 z twardą krawędzią: na polu widać było szachownicę
+   lasu i trawy, a nie las. Skały idą własnym kanałem, żeby nie siadały zawsze
+   na obrzeżu lasu.                                                            */
+function groundSet(gx, gy, T){
+  const x = gx*T + T/2, y = gy*T + T/2;
+  // Drobna oktawa ma STRZĘPIĆ brzegi stref, nie przerzucać typu z kratki na kratkę —
+  // przy większej wadze trawa i zarośla migotały na przemian i wracała szachownica.
+  const n = vnoise(gx/6.5, gy/6.5)*0.82 + vnoise(gx/2.6, gy/2.6)*0.18 - 0.5;
+  if (trackT(x, y) + n*0.85 < 0.95) return 'ziemia';        // ubity trakt
+  const v = outerT(y) + n*0.95;
+  if (v < 0.40) return 'krzaki';                            // zarośla tuż przy trakcie
+  if (vnoise(gx/5.0 + 91, gy/5.0 + 57) > 0.80) return 'kamien';   // grubsza skala = wychodnie, nie pojedyncze kratki
+  if (v < 0.86) return 'trawa';
+  return 'las';                                             // ściana drzew dopiero na brzegu
+}
+
 function buildGround(){
-  const key = (S.mission?S.mission.id:'-')+'|'+shapeId()+'|'+COLS+'x'+ROWS+'|'+fieldEnd();
+  const key = (S.mission?S.mission.id:'-')+'|'+shapeId()+'|'+COLS+'x'+ROWS+'|'+fieldEnd()
+            + '|' + Math.round(WV.x)+','+Math.round(WV.y)+','+Math.round(WV.w)+','+Math.round(WV.h);
   if (key === groundKey) return;
   groundKey = key;
-  groundLayer.mask = null;
   groundLayer.removeChildren().forEach(c=>c.destroy());
   if (!hasTiles('ziemia')) return;
 
   const T = CELL;                                  // kafel rysowany w skali kratki bazy
-  const put = (t, x, y) => {
+  /* Kafel kładziony jest z OBROTEM I ODBICIEM dobranym po pozycji. Bez tego
+     dziewięć wariantów w równym rytmie 52 px daje rozpoznawalny deseń — oko
+     wyłapuje powtarzającą się sylwetkę kępy i pole znowu czyta się jako krata,
+     choć tony krawędzi już się zgadzają. Osiem ułożeń z tych samych dziewięciu
+     kafli to 72 różne widoki za darmo. Krawędzie są ujednolicone w kafle.py,
+     więc obrót nie psuje styków.                                            */
+  const put = (t, x, y, turn=true) => {
     const sp = new PIXI.Sprite(t);
-    sp.width = T; sp.height = T; sp.x = x; sp.y = y;
-    groundLayer.addChild(sp);
+    sp.width = T; sp.height = T;
+    if (turn){
+      const h = hash2(Math.round(x/T)*7, Math.round(y/T)*13);
+      sp.anchor.set(0.5);
+      sp.x = x + T/2; sp.y = y + T/2;
+      sp.rotation = (h & 3) * Math.PI/2;
+      if (h & 4) sp.scale.x = -sp.scale.x;
+    } else { sp.x = x; sp.y = y; }
+    groundLayer.addChild(sp); return sp;
   };
-  /* Kafel jest kwadratem, a korytarz zwęża się łukiem — kładzione „do środka
-     kratki" kończyły się schodkami wystającymi poza pas. Maska to TEN SAM
-     wielokąt, którym drawCorridor rysuje krawędź, więc grunt kończy się dokładnie
-     na niej. Dzięki temu strip() może sypać kafle z zapasem poza brzeg: lepiej
-     przyciąć nadmiar niż zostawić dziurę tam, gdzie środek kafla wypadł na zewnątrz. */
-  const maskG = new PIXI.Graphics();
-  // 1) trakty — kafle idą TYLKO tam, gdzie pole jest przejezdne: gardło, każda
-  //    droga osobno, lej. Pustka między drogami zostaje pustką (to ona je rozdziela).
-  const END=fieldEnd(), x0=splitX(), x1=Math.min(mergeX(), END);
-  const strip = (xa, xb, yFn, hFn) => {
-    for (let x = xa; x < xb; x += T){
-      const cx = x + T/2, cy0 = yFn(cx), half = hFn(cx);
-      for (let y = cy0 - half; y < cy0 + half; y += T){
-        const cy = y + T/2, d = Math.abs(cy - cy0);
-        if (d > half + T) continue;          // z zapasem — resztę utnie maska
-        const gx = Math.round(x/T), gy = Math.round(y/T);
-        put(tileTex(d > half - T ? 'trawa' : 'ziemia', gx, gy), x, y - T/2);
+
+  // 1) TEREN — cała obwiednia świata z zapasem jednego kafla, żeby przy odjeździe
+  //    kamery nie było widać, gdzie mapa się urywa.
+  const gx0 = Math.floor((WV.x - T) / T), gx1 = Math.ceil((WV.x + WV.w + T) / T);
+  const gy0 = Math.floor((WV.y - T) / T), gy1 = Math.ceil((WV.y + WV.h + T) / T);
+  for (let gy = gy0; gy <= gy1; gy++)
+    for (let gx = gx0; gx <= gx1; gx++)
+      put(tileTex(groundSet(gx, gy, T), gx, gy), gx*T, gy*T);
+
+  /* 2) ŚLADY WALKI — leje, wraki i pożary rozsypane po trakcie, gęściej im bliżej
+     bastionu. To one mówią, że tędy się już przetaczało; bez nich pole jest równą
+     płachtą ziemi na całej długości. Rozstawiane po tej samej kratce co grunt,
+     więc wracają w to samo miejsce po powrocie z menu.                        */
+  const marks = [markTex('lej'), markTex('wrak'), markTex('ogien')].filter(Boolean);
+  if (marks.length){
+    const END = fieldEnd();
+    for (let gy = gy0; gy <= gy1; gy++){
+      for (let gx = gx0; gx <= gx1; gx++){
+        const x = gx*T + T/2, y = gy*T + T/2;
+        if (x < BASE_R + 3*T || x > END) continue;         // nie zaśmiecaj wyjścia z bazy
+        if (trackT(x, y) > 0.80) continue;                 // znacznik ma leżeć NA trakcie
+        const far = Math.min(1, (x - BASE_R) / Math.max(1, END - BASE_R));
+        const h = hash2(gx, gy*31 + 5);
+        if ((h % 100) >= 4 + 13*far) continue;             // rzadko z przodu, gęsto przy bastionie
+        const sp = put(marks[(h >>> 9) % marks.length], gx*T, gy*T, false);
+        sp.alpha = 0.92;
       }
     }
-  };
-  const band = (xa, xb, pad, yFn, hFn) => maskG.poly(bandPoly(xa, xb, pad, yFn, hFn)).fill(0xffffff);
-  if (!isFinite(x0) || roadCount()<2){
-    strip(BASE_R, END, AXIS, corridorHalf);
-    band(BASE_R, END, 26, AXIS, corridorHalf);
-  } else {
-    strip(BASE_R, x0, AXIS, corridorHalf);
-    band(BASE_R, x0, 22, AXIS, corridorHalf);
-    for (let i=0;i<roadCount();i++){
-      strip(x0, x1, x=>roadY(i,x), roadHalf);
-      band(x0, x1, 18, x=>roadY(i,x), roadHalf);
-    }
-    if (x1 < END){ strip(x1, END, AXIS, corridorHalf); band(x1, END, 22, AXIS, corridorHalf); }
   }
-  // 2) baza — betonowy placyk pod siatką
+
+  // 3) BAZA — betonowy plac pod siatką, na wierzchu terenu
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++)
-    put(tileTex('skala', c+900, r+900), BASE_X + c*T, BASE_Y + r*T);
-  maskG.rect(BASE_X, BASE_Y, COLS*T, ROWS*T).fill(0xffffff);
-  groundLayer.addChild(maskG);                 // maska musi siedzieć w drzewie sceny
-  groundLayer.mask = maskG;
+    put(tileTex('skala', c+900, r+900), BASE_X + c*T, BASE_Y + r*T, false);
 }
 
 /* ================================= KAMERA ================================
@@ -494,10 +571,19 @@ function drawBaseGrid(g){
     g.rect(x+1,y+1,CELL-2,CELL-2).fill(hasTiles('ziemia') ? {color:CO.grid, alpha:0.20} : CO.grid);
     if (cell.seam && !cell.b){
       const f=cell.ore/BAL.ORE_MAX;
-      g.rect(x+4,y+4,CELL-8,CELL-8).fill({color:CO.oreDark, alpha:0.20+0.80*f});
-      if (cell.ore>0){
-        const n=Math.max(1,Math.ceil(6*f));
-        for (let i=0;i<n;i++) g.rect(x+9+((i*17+r*7+c*5)%(CELL-22)), y+9+((i*23+c*11+r*3)%(CELL-22)),5,5).fill(CO.ore);
+      /* Żyła z kaflem rudy zamiast żółtego prostokąta. Bryły niesie grafika,
+         a ZASOBNOŚĆ dalej czyta się z jasności: wyczerpana kratka przygasa pod
+         welonem w kolorze tła. Bez kafla — wypełnienie i kropki jak dotąd.   */
+      const oreT = markTex('ruda');
+      if (oreT){
+        g.texture(oreT, 0xffffff, x+3, y+3, CELL-6, CELL-6);
+        if (f<1) g.rect(x+3,y+3,CELL-6,CELL-6).fill({color:CO.bg, alpha:0.28*(1-f)});
+      } else {
+        g.rect(x+4,y+4,CELL-8,CELL-8).fill({color:CO.oreDark, alpha:0.20+0.80*f});
+        if (cell.ore>0){
+          const n=Math.max(1,Math.ceil(6*f));
+          for (let i=0;i<n;i++) g.rect(x+9+((i*17+r*7+c*5)%(CELL-22)), y+9+((i*23+c*11+r*3)%(CELL-22)),5,5).fill(CO.ore);
+        }
       }
       if (cell.pull){
         const net = cell.ore - (cell.prevOre==null?cell.ore:cell.prevOre);   // odrost − wydobycie w tej klatce

@@ -111,13 +111,19 @@ export const TILESETS = {
     tile:64,                       // bok pojedynczego kafla w pliku
     vary:3,                        // blok wariantów: 3×3 = 9 odmian
     sets:{                         // nazwa -> [kolumna, wiersz] lewego-górnego kafla bloku
-      skala:  [0, 1],              // szara skała
-      trawa:  [3, 1],              // ziemia z zielenią
-      ziemia: [6, 1],              // goła ziemia
+      skala:  [0, 1],              // betonowa płyta — placyk pod siatką bazy
+      trawa:  [3, 1],              // grunt pobocza
+      ziemia: [6, 1],              // goła ziemia — trakt, po którym się chodzi
+      // Pobocze to nie tło, tylko MAPA: te trzy zestawy plamią je kępami.
+      las:    [0, 4],              // zwarty drzewostan
+      kamien: [3, 4],              // wychodnie skalne
+      krzaki: [6, 4],              // zarośla, przejście między trawą a lasem
     },
-    marks:{                        // pojedyncze kafle z górnego paska
-      lej:  [4.5, 0],              // lej po pocisku
-      ruda: [5.5, 0],              // bryły rudy
+    marks:{                        // pojedyncze kafle z górnego paska (rozsypywane, nie kaflowane)
+      lej:   [0, 0],               // lej po pocisku
+      ruda:  [1, 0],               // bryły rudy
+      wrak:  [2, 0],               // rozbity sprzęt
+      ogien: [3, 0],               // pożar
     },
   },
 };
