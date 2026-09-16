@@ -9,6 +9,7 @@
   --blue:#4d9de0; --ore:#c9a227; --power:#e8b23a; --intel:#c9a2e8; --crt:#7de08a;
   --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
   --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
+  --top-h:66px;                     /* mierzona wysokość paska górnego (hud.js) */
 }
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidden;
@@ -48,7 +49,7 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 @keyframes pulse{ 50%{ background:#2a1414; } }
 
 /* ---------- wywiad ---------- */
-#intel{ top:74px; left:calc(8px + var(--safe-l)); right:calc(8px + var(--safe-r));
+#intel{ top:calc(var(--top-h) + 8px); left:calc(8px + var(--safe-l)); right:calc(8px + var(--safe-r));
   font-size:11px; background:#0e1416cc; border:1px solid var(--gridHi);
   border-radius:4px; padding:6px 8px; max-width:640px; pointer-events:none; }
 .intel-title{ color:var(--intel); font-weight:700; font-size:10px; }
@@ -59,11 +60,11 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 .intel-army{ font-size:10px; color:var(--ok); margin-top:3px; }
 
 /* ---------- log ---------- */
-#log{ left:calc(8px + var(--safe-l)); bottom:calc(150px + var(--safe-b)); width:230px;
+#log{ left:calc(8px + var(--safe-l)); bottom:calc(182px + var(--safe-b)); width:230px;
   max-height:150px; overflow:hidden; background:#0a0f0bdd; border:1px solid #2f5c39;
   border-radius:4px; padding:6px 8px; font-size:10px; line-height:1.35; pointer-events:none; }
 #log .ln{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-#log-toggle{ display:none; left:calc(8px + var(--safe-l)); bottom:calc(150px + var(--safe-b));
+#log-toggle{ display:none; left:calc(8px + var(--safe-l)); bottom:calc(182px + var(--safe-b));
   font-size:10px; padding:5px 7px; background:#0a0f0bee; border:1px solid #2f5c39;
   color:var(--crt); border-radius:4px; cursor:pointer; }
 
@@ -103,7 +104,7 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 .tile.repair.on{ border-color:var(--ok); }
 
 /* ---------- GOTÓW ---------- */
-#ready{ left:50%; transform:translateX(-50%); bottom:calc(150px + var(--safe-b));
+#ready{ left:50%; transform:translateX(-50%); bottom:calc(182px + var(--safe-b));
   font-family:inherit; font-size:15px; font-weight:700; color:var(--warn);
   background:var(--panelHi); border:2px solid var(--warn); border-radius:5px;
   padding:12px 22px; cursor:pointer; z-index:8; }
@@ -169,9 +170,159 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 /* ---------- telefon (wąsko) ---------- */
 @media (max-width:720px){
   .stat{ min-width:50px; } .stat .big{ font-size:16px; } .bar{ width:70px; }
-  #intel{ font-size:10px; top:68px; }
+  #intel{ font-size:10px; }
   #log{ display:none; } #log-toggle{ display:block; }
   #log.show{ display:block; }
   #buildbar{ height:92px; } .tile{ flex-basis:104px; height:78px; }
   .ctrls .btn{ padding:6px 7px; font-size:10px; }
 }
+
+/* =========================================================================
+   CEL MISJI · ROZKAZ TOROWY · MENU / ODPRAWA / OCENA SZTABU
+   ========================================================================= */
+
+/* ---------- cel misji (kampania) ---------- */
+#objective{ right:calc(8px + var(--safe-r)); top:calc(var(--top-h) + 8px); width:210px;
+  background:#0e1416ee; border:1px solid var(--gridHi); border-left:3px solid var(--warn);
+  border-radius:4px; padding:6px 9px; pointer-events:none; }
+#obj-lbl{ font-size:9px; color:var(--dim); letter-spacing:1px; }
+#obj-txt{ font-size:12px; font-weight:700; color:var(--txt); line-height:1.2; margin:2px 0 4px; }
+.obj-bar{ height:5px; background:#0a0d0e; border:1px solid var(--gridHi); overflow:hidden; }
+.obj-bar i{ display:block; height:100%; width:0; background:var(--warn); transition:width .2s linear; }
+#obj-num{ font-size:10px; color:var(--warn); margin-top:3px; font-weight:700; }
+#objective.done{ border-left-color:var(--ok); }
+#objective.done #obj-num{ color:var(--ok); }
+
+/* ---------- rozkaz torowy ---------- */
+#lanes{ right:calc(8px + var(--safe-r)); bottom:calc(182px + var(--safe-b));
+  display:flex; flex-direction:column; gap:4px; }
+.lane-btn{ font-family:inherit; font-size:10px; font-weight:700; color:var(--dim);
+  background:#12181ae6; border:1px solid var(--gridHi); border-radius:4px;
+  padding:7px 10px; cursor:pointer; min-width:92px; min-height:32px; }
+.lane-btn.on{ border-color:var(--warn); color:var(--warn); background:#231c0e; }
+.lane-btn.split{ border-style:dashed; }
+.lane-btn:active{ background:var(--panelHi); }
+
+/* ---------- menu (wspólne) ---------- */
+#menu{ background:#080b0ceb; backdrop-filter:blur(2px); }
+#menu.in .menu-inner{ animation:menuIn .22s ease-out; }
+@keyframes menuIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+.menu-inner{ width:100%; max-width:760px; padding:18px calc(16px + var(--safe-r)) 18px calc(16px + var(--safe-l));
+  max-height:100%; overflow-y:auto; text-align:center; }
+
+.m-title{ font-size:clamp(40px,13vw,84px); font-weight:700; letter-spacing:8px;
+  color:var(--txt); line-height:1; }
+.m-sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:6px; }
+.m-btns{ display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:26px; }
+.m-big{ font-family:inherit; font-size:15px; font-weight:700; letter-spacing:1px;
+  color:var(--warn); background:#12181a; border:1px solid var(--warn); border-radius:4px;
+  padding:14px 22px; cursor:pointer; width:min(420px,88vw); }
+.m-big:active{ background:var(--warn); color:#0f1315; }
+.m-big.alt{ color:var(--txt); border-color:var(--gridHi); }
+.m-big.go{ margin-top:14px; }
+.m-big.off{ color:#3d4b4f; border-color:#222b2e; cursor:default; }
+.m-big.off:active{ background:#12181a; color:#3d4b4f; }
+.m-mini{ font-family:inherit; font-size:10px; color:var(--dim); background:transparent;
+  border:1px solid var(--gridHi); border-radius:3px; padding:7px 12px; cursor:pointer; }
+.m-foot{ margin-top:28px; }
+
+/* ---------- nagłówek ekranu ---------- */
+.m-head{ position:relative; margin-bottom:14px; }
+.m-back{ position:absolute; left:0; top:0; font-family:inherit; font-size:10px; color:var(--dim);
+  background:transparent; border:1px solid var(--gridHi); border-radius:3px; padding:6px 10px; cursor:pointer; }
+.m-h1{ font-size:clamp(18px,5vw,26px); font-weight:700; letter-spacing:2px; padding-top:4px; }
+.m-h2{ font-size:11px; color:var(--dim); margin-top:3px; }
+
+/* ---------- lista misji ---------- */
+.m-list{ display:flex; flex-direction:column; gap:7px; text-align:left; }
+.m-row{ display:flex; align-items:center; gap:12px; font-family:inherit; text-align:left;
+  background:#12181a; border:1px solid var(--gridHi); border-left:3px solid var(--gridHi);
+  border-radius:4px; padding:11px 13px; cursor:pointer; color:var(--txt); width:100%; }
+.m-row:active{ background:var(--panelHi); }
+.m-row.done{ border-left-color:var(--ok); }
+.m-row.lock{ opacity:.42; cursor:default; }
+.m-n{ font-size:22px; font-weight:700; color:var(--dim); min-width:24px; }
+.m-row.done .m-n{ color:var(--ok); }
+.m-col{ display:flex; flex-direction:column; flex:1; min-width:0; }
+.m-code{ font-size:14px; font-weight:700; letter-spacing:1px; }
+.m-teach{ font-size:10px; color:var(--dim); margin-top:2px; }
+.m-badge{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+.m-rate{ font-size:10px; font-weight:700; letter-spacing:1px; }
+.m-rate.best{ color:var(--ok); } .m-rate.good{ color:var(--warn); }
+.m-rate.hard{ color:var(--bad); } .m-rate.next{ color:var(--blue); }
+.m-rnum{ font-size:9px; color:var(--dim); }
+
+/* ---------- odprawa ---------- */
+.m-brief{ display:flex; gap:14px; text-align:left; align-items:flex-start;
+  background:#10171a; border:1px solid var(--gridHi); border-radius:4px; padding:14px; }
+.m-portrait{ flex:0 0 84px; height:104px; background:#0a0f11 center/cover no-repeat;
+  background-image:url('assets/portrait/gen.png'); border:1px solid var(--gridHi);
+  display:flex; align-items:center; justify-content:center; color:#2b3538; font-size:30px; }
+.m-portrait span{ opacity:.5; }
+.m-say{ flex:1; min-width:0; }
+.m-quote{ font-size:14px; color:var(--warn); line-height:1.35; }
+.m-lines{ margin:10px 0 0; padding-left:16px; }
+.m-lines li{ font-size:11px; color:var(--dim); line-height:1.55; }
+.m-goal{ margin-top:12px; font-size:11px; color:var(--dim); letter-spacing:1px; }
+.m-goal b{ color:var(--warn); }
+
+/* ---------- ocena sztabu (§5 — słowo i dwie–trzy liczby, nie gwiazdki) ---------- */
+.m-word{ font-size:clamp(30px,9vw,52px); font-weight:700; letter-spacing:4px; margin-top:8px; }
+.m-word.best{ color:var(--ok); } .m-word.good{ color:var(--warn); }
+.m-word.hard{ color:var(--warn); } .m-word.lose{ color:var(--bad); }
+.m-line{ font-size:12px; color:var(--dim); letter-spacing:1px; margin-top:6px; }
+.m-won{ font-size:12px; color:var(--ok); letter-spacing:1px; margin:4px 0 6px; }
+
+/* ---------- telefon ---------- */
+@media (max-width:720px){
+  #objective{ width:150px; top:70px; padding:5px 7px; }
+  #obj-txt{ font-size:10px; }
+  #lanes{ bottom:calc(222px + var(--safe-b)); }
+  .lane-btn{ min-width:74px; font-size:9px; padding:6px 7px; }
+  .m-brief{ flex-direction:column; }
+  .m-portrait{ flex:0 0 auto; width:100%; height:78px; background-size:contain; }
+}
+
+/* HUD gaśnie razem z polem, gdy na wierzchu jest menu */
+.off{ opacity:0 !important; pointer-events:none !important; }
+
+/* ---------- minimapa (duża, przewijana mapa na jednym pasku) ---------- */
+#minimap{ left:calc(8px + var(--safe-l));
+  width:calc(100% - 16px - var(--safe-l) - var(--safe-r));
+  bottom:calc(146px + var(--safe-b)); height:30px; display:block;
+  background:#0a0f10; border:1px solid var(--gridHi); border-radius:3px;
+  cursor:crosshair; touch-action:none; }
+.btn.cam{ color:var(--dim); }
+.btn.cam.on{ border-color:var(--ok); color:var(--ok); }
+
+@media (max-width:720px){
+  #minimap{ bottom:calc(192px + var(--safe-b)); height:24px; }
+  /* Na telefonie przyciski kamery zostają ikonami — pasek górny i tak jest ciasny,
+     a dwa dodatkowe napisy zawijały go w drugi wiersz na panel wywiadu. */
+  .btn.cam .btxt{ display:none; }
+  .btn.cam{ padding:6px 8px; }
+  /* wywiad i cel obok siebie POD paskiem górnym, nie na nim */
+  #intel{ right:calc(156px + var(--safe-r)); }
+  #objective{ width:140px; }
+  #obj-lbl{ font-size:8px; }
+  #ready{ bottom:calc(228px + var(--safe-b)); }
+  #log-toggle{ bottom:calc(228px + var(--safe-b)); }
+  #log{ bottom:calc(228px + var(--safe-b)); }
+}
+
+/* ---------- rozkaz drogowy: nazwa drogi + jej cele ---------- */
+.lane-btn{ display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+  min-width:116px; line-height:1.15; text-align:left; }
+.lane-btn .ln-n{ font-weight:700; font-size:10px; }
+.lane-btn .ln-s{ font-size:9px; color:#5a6467; letter-spacing:1px; }
+.lane-btn.on .ln-s{ color:var(--warn); }
+.lane-btn.done{ border-color:var(--ok); }
+.lane-btn.done .ln-n{ color:var(--ok); }
+@media (max-width:720px){
+  .lane-btn{ min-width:92px; }
+  .lane-btn .ln-n{ font-size:9px; } .lane-btn .ln-s{ font-size:8px; }
+}
+
+/* ---------- PRZESUŃ: budynek na inną kratkę za ułamek wartości ---------- */
+.tile.move{ background:#12161b; border-color:#2a3340; }
+.tile.move.on{ border-color:var(--warn); }

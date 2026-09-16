@@ -40,9 +40,15 @@ export const MANIFEST = {
   // Do zadziałania wrzuć plik assets/units/inf.png (arkusz z magentowym tłem).
   // Dopóki pliku nie ma, gra rysuje glif jak dotąd (jeden warn w konsoli).
   inf: 'assets/units/inf.png',
-  // przykład — odkomentuj po wrzuceniu pliku:
-  // tank:    'assets/units/tank.png',
-  // b_hq:    'assets/buildings/hq.png',
+  // --- grafika od grafika: wrzuć plik i odkomentuj wiersz ---------------
+  // Statyczny sprite (bez arkusza) wystarczy — brak wpisu w SHEETS znaczy
+  // „jedna klatka", render skaluje ją do `sz` jednostki i odbija dla wroga.
+  // inf:     'assets/units/inf.png',          // pojedynczy żołnierz (zamiast arkusza)
+  // b_hq:      'assets/buildings/hq.png',
+  // b_barracks:'assets/buildings/barracks.png',
+  // b_power:   'assets/buildings/power.png',
+  // b_refinery:'assets/buildings/refinery.png',
+  // b_bunker:  'assets/buildings/bunker.png',
   // bastion: 'assets/scene/bastion.png',
 };
 
@@ -76,8 +82,40 @@ export const SHEETS = {
   },
 };
 
+/* ---------------------------- KAFLE TERENU -------------------------------
+   Jeden PNG na świat: kilka rodzajów gruntu, każdy jako blok wariantów, plus
+   pasek „znaczników" (lej po pocisku, ruda). Render losuje wariant po pozycji
+   kratki, więc pole nie jest tapetą z jednego kafla.
+
+   Świat zmienia się PODMIANĄ KAFLI I KOLORU, nie nową mapą (FRONT.md §4.6) —
+   dlatego to jest tabela, a nie kod: nowy świat = nowy wpis i nowy plik.
+
+   Jak wrzucić arkusz od grafika:
+     1. assets/tiles/ziemia.png
+     2. sprawdź `tile` (bok kafla w pikselach) i współrzędne bloków niżej —
+        podane są w KAFLACH, nie pikselach, więc przy innej rozdzielczości
+        zmieniasz jedną liczbę `tile`.
+     3. odśwież. Bez pliku gra rysuje jak dotąd — płaskie wypełnienie.       */
+export const TILESETS = {
+  ziemia: {
+    url:'assets/tiles/ziemia.png',
+    tile:64,                       // bok pojedynczego kafla w pliku
+    vary:3,                        // blok wariantów: 3×3 = 9 odmian
+    sets:{                         // nazwa -> [kolumna, wiersz] lewego-górnego kafla bloku
+      skala:  [0, 1],              // szara skała
+      trawa:  [3, 1],              // ziemia z zielenią
+      ziemia: [6, 1],              // goła ziemia
+    },
+    marks:{                        // pojedyncze kafle z górnego paska
+      lej:  [4.5, 0],              // lej po pocisku
+      ruda: [5.5, 0],              // bryły rudy
+    },
+  },
+};
+
 const loaded = {};   // name -> Texture (pełny obraz / reprezentatywna klatka)
 const sheets = {};   // name -> { fw, fh, clips:{name:[Texture,...]+meta}, anchor }
+const tiles  = {};   // tileset -> { sets:{nazwa:[Texture,...]}, marks:{nazwa:Texture} }
 
 // Wczytaj obrazek jako <img> (do keyingu przez canvas). Odrzuca przy braku pliku.
 function loadImage(url){
@@ -143,6 +181,26 @@ async function loadSheet(name, url, sh){
   loaded[name] = clips[Object.keys(sh.clips)[0]][0];
 }
 
+// Potnij arkusz kafli na tekstury. Brak pliku = brak wpisu w `tiles`, a render
+// spada do płaskiego wypełnienia — tak jak dotąd, bez błędu.
+async function loadTileset(name, ts){
+  const base = await PIXI.Assets.load(ts.url);
+  base.source.scaleMode = 'nearest';
+  const T = ts.tile, V = ts.vary || 1;
+  const cut = (cx, cy, w, h) => new PIXI.Texture({
+    source: base.source,
+    frame: new PIXI.Rectangle(Math.round(cx*T), Math.round(cy*T), Math.round((w||1)*T), Math.round((h||1)*T)),
+  });
+  const out = { sets:{}, marks:{}, tile:T };
+  for (const [k, [cx, cy]] of Object.entries(ts.sets||{})){
+    const arr = [];
+    for (let r=0;r<V;r++) for (let c=0;c<V;c++) arr.push(cut(cx+c, cy+r));
+    out.sets[k] = arr;
+  }
+  for (const [k, [cx, cy]] of Object.entries(ts.marks||{})) out.marks[k] = cut(cx, cy);
+  tiles[name] = out;
+}
+
 // Wczytaj tylko to, co jawnie wpisano w MANIFEST. Brak wpisu = glif proceduralny.
 export async function loadAssets() {
   for (const n of Object.keys(MANIFEST)) {
@@ -152,8 +210,24 @@ export async function loadAssets() {
     }
     catch (e) { console.warn('[assets] pominięto (brak/pusty):', MANIFEST[n]); }
   }
+  for (const [n, ts] of Object.entries(TILESETS)) {
+    try { await loadTileset(n, ts); }
+    catch (e) { console.warn('[assets] brak kafli:', ts.url, '— pole rysuje się płasko'); }
+  }
   return Object.keys(loaded);
 }
+
+/* --- kafle: wariant dobierany DETERMINISTYCZNIE po pozycji, żeby pole nie
+       migotało przy każdej klatce i wyglądało tak samo po powrocie z menu --- */
+export function hasTiles(set){ const t=tiles.ziemia; return !!(t && t.sets[set]); }
+export function tileTex(set, gx, gy){
+  const t = tiles.ziemia; if (!t || !t.sets[set]) return null;
+  const a = t.sets[set];
+  const h = ((gx*73856093) ^ (gy*19349663)) >>> 0;
+  return a[h % a.length];
+}
+export function markTex(name){ const t=tiles.ziemia; return (t && t.marks[name]) || null; }
+export const tilePx = () => (tiles.ziemia ? tiles.ziemia.tile : 64);
 
 export function tex(name)      { return loaded[name] || null; }
 export function hasTex(name)   { return !!loaded[name]; }
