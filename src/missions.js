@@ -164,11 +164,18 @@ export const MISSIONS = {
     // da się odkręcić za 25% wkładu, ale budynek jest 3 s martwy.
     // Siatka ROŚNIE przez całą kampanię i NIGDY się nie kurczy (6×3 → 6×4 →
     // 6×5→7×5 → 7×5→7×6). Misja 2 dokłada wiersz, nie zabiera kolumny.
-    grid:[6,4], shape:'1', len:1300, money:450,
-    ore:['..##..',
+    /* SIATKA TAKA SAMA JAK W MISJI 1 — i to jest treść tej misji, nie oszczędność.
+       Na 6×4 mieściła się JEDNOCZEŚNIE pełna ekonomia i ściana dział, więc
+       „wybierasz, nie dokładasz" było napisem na odprawie, a nie decyzją
+       (pomiar: 24 kratki, ruda bierze 3, sztab 4 → dziesięć kratek na budynki
+       bojowe po opłaceniu prądu i rafinerii). Na 6×3 zostaje ich pięć.
+       Plansza rośnie dopiero w misji 3 — jako NAGRODA ZA TEREN, nie z rozpędu. */
+    grid:[6,3], shape:'1', len:1300, money:450,
+    // Dwa ROZŁĄCZNE miejsca na rafinerię: kolumny 2–3 i 4–5 w wierszach 1–2,
+    // każde stykające się z żyłą w wierszu 0. Jedna pomyłka nie zamyka misji.
+    ore:['..#.##',
          '......',
-         '......',
-         '....#.'],
+         '......'],
     /* DZIESIĘĆ FAL ZE SZPICAMI I ODDECHAMI — i to jest cała kalibracja tej misji.
 
        Pomiar pokazał, że sama MASA nie robi wyzwania: przy potrójnej liczbie
