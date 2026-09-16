@@ -17,7 +17,7 @@ import { buildTex, unitTex, unitSheet, tex, tileTex, markTex, hasTiles } from '.
 import { shellMark } from './sim.js';
 import { radarLvl, canUp, maxLvl, fits, canMove, fitsMoved, moveCost } from './buildings.js';
 import { eTerrCtrl } from './sectors.js';
-import { bEff, eHoldX } from './enemy.js';
+import { bEff, eHoldX, wavePlan } from './enemy.js';
 
 export const app = new PIXI.Application();
 // Prostokąt świata — LICZONY PER MISJA (measureWorld), nie stała. Mapa jest
@@ -182,7 +182,15 @@ function measureWorld(){
   const bot = Math.max(BASE_Y + ROWS*CELL + 28, LANE_Y + fh + 44);
   WV.x = BASE_X - 28;
   WV.y = top;
-  WV.w = Math.max(400, fieldEnd() - WV.x);
+  /* MISJA BEZ FAL KOŃCZY ŚWIAT ZARAZ ZA BAZĄ. W misji 1 korytarz jest pusty
+     i nic z niego nie przyjdzie, więc pozwalanie kamerze jechać przez 1300 px
+     czerni to zapraszanie do szukania czegoś, czego nie ma. Świat kończy się
+     kawałek za drutem — do odjazdu na front (outroStep) i tak liczymy zEnd
+     osobno, więc finał misji dalej pokazuje całe pole.                       */
+  const plan = wavePlan();
+  const pusto = plan && plan.length === 0 && !S.outro;   // w odjeździe świat wraca pełny
+  const kraniec = pusto ? BASE_R + 140 : fieldEnd();
+  WV.w = Math.max(400, kraniec - WV.x);
   WV.h = Math.max(200, bot - top);
 }
 
@@ -273,7 +281,9 @@ export function autoFollowFront(){ if (cam.follow==='base') setFollow('front'); 
 let outroZ0 = null;
 export function outroStep(p){
   const {sw, top, bandH}=bandRect();
-  if (outroZ0 == null){ outroZ0 = cam.zoom; cam.follow=''; }
+  // Świat w misji bez fal kończy się zaraz za bazą — na czas odjazdu trzeba go
+  // przeliczyć na pełny, inaczej clampCam trzyma kamerę przy drucie.
+  if (outroZ0 == null){ outroZ0 = cam.zoom; cam.follow=''; measureWorld(); }
   const zEnd = Math.min(bandH / WV.h, sw / TAC_W);
   const e = p*p*(3-2*p);                                   // smoothstep — bez szarpnięcia
   cam.zoom = outroZ0 + (zEnd - outroZ0) * e;
@@ -561,6 +571,15 @@ function drawBastion(){
     bastionView.eff.anchor.set(0.5); bastionView.addChild(bastionView.eff);
   }
   const b=S.bastion, g=bastionView.g; g.clear();
+  /* MISJA BEZ FAL NIE MA PRZYCZÓŁKA. Misja 1 to sama rozbudowa bazy — nikt
+     stamtąd nie wyjdzie, więc czerwony słup z napisem „ICH PRZYCZÓŁEK" na
+     końcu korytarza zapowiada przeciwnika, którego w tej misji nie ma. */
+  const plan = wavePlan();
+  if (plan && plan.length === 0 && !b.target){
+    bastionView.hp.visible=false; bastionView.eff.text='';
+    if (bastionView.spr) bastionView.spr.visible=false;
+    return;
+  }
   if (b.dead){
     g.rect(b.x-26,b.y-90,52,180).fill('#1a2620');
     g.rect(b.x-26.5,b.y-90.5,53,181).stroke({width:1,color:CO.crtDim});
