@@ -3,26 +3,21 @@
    klawiatura. Tap na kratkę = buduj / ulepsz / rozbierz (zależnie od trybu).
    ========================================================================= */
 
-import { B, CELL, BASE_X, BASE_Y, ROWS, COLS, CO, SELL_BACK, REPAIR_FRAC, SALV_CAP, HQ_COST, BAL, cellAt, cellsOf, clamp } from './config.js';
+import { B, CELL, BASE_X, BASE_Y, ROWS, COLS, CO, SELL_BACK, REPAIR_FRAC, SALV_CAP, BAL, cellAt, cellsOf, clamp } from './config.js';
 import { S, say } from './state.js';
 import { boom, resumeAudio, setMuted, isMuted } from './audio.js';
 import { explode } from './effects.js';
-import { app, cam, clampCam, screenToWorld } from './render.js';
-import { fits, unlocked, canUp, upCost, mkBuilding, recalcPower, clearCells } from './buildings.js';
-import { setStance, toggleStance } from './sim.js';
+import { app, cam, clampCam, screenToWorld, freeCam, setFollow } from './render.js';
+import { fits, unlocked, canUp, upCost, mkBuilding, recalcPower, clearCells,
+         canMove, moveCost, moveBuilding, investedIn, fitsMoved } from './buildings.js';
+import { setStance, toggleStance, setArmyLane } from './sim.js';
+import { isCampaign } from './campaign.js';
+import { showMenu } from './menu.js';
 import { takeCard } from './cards.js';
 import { toast, syncOverlays } from './hud.js';
 import { newRun } from './game.js';
 
 const qs = id => document.getElementById(id);
-
-// wartość włożona w budynek (koszt + ulepszenia) — baza dla złomu i naprawy.
-// Sztab ma koszt 0, więc liczymy go po HQ_COST (jak jego ulepszenia).
-function investedOf(b){
-  const unit = b.type==='hq' ? HQ_COST : B[b.type].cost;
-  let put=unit; for (let l=1;l<b.lvl;l++) put+=unit*l;
-  return put;
-}
 
 // ulepszenie budynku — wołane z drugiego tapnięcia i z przycisku ULEPSZ w panelu
 function doUpgrade(b){
@@ -39,8 +34,34 @@ function worldTap(px,py){
   if (S.state!=='play') return;
   const w=screenToWorld(px,py);
   const cell=cellAt(w.x,w.y);
-  if (!cell) return;
+  if (!cell){ if (S.sel==='MOVE') S.moveSel=null; return; }
   const {c,r}=cell, g=S.grid[r][c];
+
+  /* PRZESUŃ — dwa tapnięcia: chwyć budynek, wskaż kratkę. Ciasna siatka ma
+     wymuszać PLANOWANIE, ale nie karać za pomyłkę bardziej niż za złą
+     strategię: jedna elektrownia w złym miejscu potrafiła zamknąć jedyne
+     miejsce na rafinerię i zakleszczyć całą misję.                          */
+  if (S.sel==='MOVE'){
+    if (!S.moveSel){
+      const b=g.b;
+      if (!b) return;
+      if (!canMove(b)){ toast(b.type==='hq' ? 'SZTABU NIE PRZESUNIESZ' : 'W BUDOWIE'); return; }
+      S.moveSel=b; say('CHWYTASZ — '+B[b.type].name+' · wskaż kratkę · '+moveCost(b)+' kr.','warn');
+      return;
+    }
+    const b=S.moveSel, cost=moveCost(b);
+    // Odkładamy TYLKO po tapnięciu w kratkę-kotwicę. „Dowolna własna kratka”
+    // zjadała przesunięcie o jedno pole — a to najczęstsza korekta, jaka jest.
+    if (c===b.c && r===b.r){ S.moveSel=null; return; }
+    if (S.money<cost){ toast('BRAK ŚRODKÓW — '+cost+' kr.'); return; }
+    if (!fitsMoved(b,c,r)){ toast('TU SIĘ NIE ZMIEŚCI'); return; }
+    S.money-=cost;
+    moveBuilding(b,c,r);
+    say('PRZENIESIONO — '+B[b.type].name+' · −'+cost+' kr.','good');
+    explode(b.x,b.y,12,B[b.type].col); boom(0.12);
+    S.moveSel=null;
+    return;
+  }
 
   if (S.sel==='SELL'){
     if (!g.b && g.seam){
@@ -53,7 +74,7 @@ function worldTap(px,py){
     const b=g.b; if (!b) return;
     if (b.type==='hq'){ say('SZTABU NIE SPRZEDASZ','warn'); toast('SZTABU NIE SPRZEDASZ'); return; }
     const frac=clamp(b.hp/b.maxHp,0,1);          // uszkodzony budynek wart mniej przy rozbiórce: 50% z WARTOŚCI, nie z pełnego kosztu
-    const back=Math.floor(investedOf(b)*SELL_BACK*frac); S.money+=back; if (S.stat) S.stat.inc.zlom+=back;
+    const back=Math.floor(investedIn(b)*SELL_BACK*frac); S.money+=back; if (S.stat) S.stat.inc.zlom+=back;
     const underC=(b.build||0)>0;
     say((underC?'ANULOWANO BUDOWĘ — ':'ROZEBRANO — ')+B[b.type].name+' · +'+back+' kr.','good');
     if (b._view){ b._view.destroy({children:true}); b._view=null; }
@@ -66,7 +87,7 @@ function worldTap(px,py){
     if ((b.build||0)>0){ toast('W BUDOWIE'); return; }
     if (b.hp>=b.maxHp){ toast('PEŁNE HP'); return; }
     const miss=1-clamp(b.hp/b.maxHp,0,1);
-    const cost=Math.ceil(investedOf(b)*miss*REPAIR_FRAC);   // im bardziej uszkodzony, tym drożej
+    const cost=Math.ceil(investedIn(b)*miss*REPAIR_FRAC);   // im bardziej uszkodzony, tym drożej
     if (S.money<cost){ say('BRAK ŚRODKÓW — '+cost+' kr.','warn'); toast('BRAK ŚRODKÓW — '+cost+' kr.'); return; }
     S.money-=cost; b.hp=b.maxHp; b.flash=1;
     say('NAPRAWIONO — '+B[b.type].name+' · −'+cost+' kr.','good');
@@ -112,6 +133,7 @@ function initPointer(){
     const w=screenToWorld(e.offsetX,e.offsetY);
     S.wmouse.x=w.x; S.wmouse.y=w.y; S.wmouse.over=true;
     if (mode==='pinch' && pts.size>=2){
+      freeCam();                       // gracz chwycił pole — kamera przestaje prowadzić
       const [a,b]=[...pts.values()]; const nd=dist(a,b);
       const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
       const wBefore=screenToWorld(mid.x,mid.y);
@@ -123,7 +145,7 @@ function initPointer(){
     }
     if (mode==='maybe' || mode==='pan'){
       const dx=e.offsetX-startX, dy=e.offsetY-startY;
-      if (!moved && Math.hypot(dx,dy)>8){ moved=true; mode='pan'; }
+      if (!moved && Math.hypot(dx,dy)>8){ moved=true; mode='pan'; freeCam(); }
       if (mode==='pan'){ cam.panX+=e.movementX||0; cam.panY+=e.movementY||0; clampCam(); }
     }
   });
@@ -138,6 +160,7 @@ function initPointer(){
   el.addEventListener('pointerleave', ()=>{ S.wmouse.over=false; });
   el.addEventListener('wheel', e=>{
     e.preventDefault();
+    freeCam();
     const wBefore=screenToWorld(e.offsetX,e.offsetY);
     cam.zoom=clamp(cam.zoom*(e.deltaY<0?1.12:0.89), cam.min, cam.max);
     cam.panX=e.offsetX-wBefore.x*cam.zoom; cam.panY=e.offsetY-wBefore.y*cam.zoom; clampCam();
@@ -147,8 +170,20 @@ function initPointer(){
 function initButtons(){
   qs('stance-btn').addEventListener('click', ()=>{ resumeAudio(); toggleStance(); });
   qs('speed-btn').addEventListener('click', ()=>{ S.speed = S.speed>=3?1:S.speed+1; });
+  // Na dużej, przewijanej mapie baza jest po lewej, a walka po prawej — bez tych
+  // dwóch przycisków gracz przewijałby w tę i we w tę przy każdej fali.
+  qs('cam-front').addEventListener('click', ()=>{ setFollow(cam.follow==='front'?'':'front'); });
+  qs('cam-base').addEventListener('click',  ()=>{ setFollow(cam.follow==='base' ?'':'base');  });
   qs('mute-btn').addEventListener('click', ()=>{ setMuted(!isMuted()); });
-  qs('new-btn').addEventListener('click', ()=>{ if (S.state!=='play'||S.newArm>0) newRun(); else S.newArm=3; });
+  // W kampanii ten przycisk wraca DO MENU (skąd widać postęp i można powtórzyć
+  // misję od punktu kontrolnego); w grze dowolnej zostaje „NOWA" z potwierdzeniem.
+  qs('new-btn').addEventListener('click', ()=>{
+    if (isCampaign()){ showMenu(); return; }
+    if (S.state!=='play'||S.newArm>0) newRun(); else S.newArm=3;
+  });
+  // rozkaz torowy — rozdziel siły albo ściągnij wszystko na jeden tor
+  for (const b of qs('lanes').children)
+    b.addEventListener('click', ()=>{ resumeAudio(); setArmyLane(+b.dataset.lane); });
   qs('ready').addEventListener('click', ()=>{ resumeAudio(); S.ready=true; syncOverlays(); });
   qs('end-btn').addEventListener('click', ()=>newRun());
   qs('end-copy').addEventListener('click', ()=>{
@@ -167,9 +202,13 @@ function initButtons(){
       if (i!==undefined && S.draft && S.draft[i]) takeCard(S.draft[i]);
       return;
     }
-    if (e.code==='Escape'){ S.sel=null; S.upSel=null; }
+    if (e.code==='Escape'){
+      if (!S.sel && !S.upSel && S.state==='play'){ showMenu(); return; }
+      S.sel=null; S.upSel=null;
+    }
     if (e.code==='Space'){ e.preventDefault();
-      if (S.state!=='play'){ newRun(); return; }
+      if (S.state==='menu') return;
+      if (S.state!=='play'){ if (!isCampaign()) newRun(); return; }
       if (!S.ready){ S.ready=true; syncOverlays(); return; }
       toggleStance(); return; }
     if (S.state!=='play') return;
@@ -179,6 +218,12 @@ function initButtons(){
     if (e.code==='ArrowLeft')  setStance(S.si-1);
     const n=+({Digit1:1,Digit2:2,Digit3:3,Digit4:4,Digit5:5}[e.code]||0);
     if (n) setStance(n-1);
+    // tory: Q/W/E kierują całość na tor, R rozdziela po równo
+    const L={KeyQ:0, KeyW:1, KeyE:2, KeyR:-1}[e.code];
+    if (L!==undefined) setArmyLane(L);
+    // kamera: F = za frontem, B = na bazę (duża mapa, dwa punkty zainteresowania)
+    if (e.code==='KeyF') setFollow(cam.follow==='front'?'':'front');
+    if (e.code==='KeyB') setFollow(cam.follow==='base' ?'':'base');
   });
 }
 

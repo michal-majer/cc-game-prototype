@@ -4,9 +4,12 @@
 
 import {
   B, U, CO, BASE_X, BASE_Y, CELL, COLS, ROWS, MAXLVL, NOUP, HQ_COST, ORE_RATE,
+  MOVE_FRAC, MOVE_SEC,
   BUILD_DIV, BUILD_MIN, BUILD_MAX, BAL, clamp, cellsOf, ringOf, fpOf, plObj
 } from './config.js';
 import { S, say } from './state.js';
+import { allows, missionReq } from './campaign.js';
+import { sectSupply, sectRadar } from './sectors.js';
 import { boom } from './audio.js';
 import { explode } from './effects.js';
 
@@ -14,9 +17,19 @@ import { explode } from './effects.js';
 export const hasTech  = t => S.buildings.some(b=>b.type===t && b.powered);
 // MGŁA WOJNY (wariant): S.run.fogged tnie radar do poziomu I — pełnej widoczności
 // (radar II) nie da się osiągnąć, skład fali poznasz dopiero w zwarciu.
-export const radarLvl = () => { let m=0; for (const b of S.buildings) if (b.type==='radar' && b.powered) m=Math.max(m,b.lvl); return Math.min(S.run&&S.run.fogged?1:2,m); };
-export const unlocked = t => (B[t].req||[]).every(hasTech);
-export const reqText  = t => (B[t].req||[]).map(x=>B[x].name).join(' + ');
+// Radar: najwyzszy poziom z wlasnych radarow PLUS poziomy z zajetych WIEZ na
+// drogach — dlatego „wieza na gornej drodze" jest realna alternatywa dla radaru
+// za 350 kr., a nie ozdoba.
+export const radarLvl = () => {
+  let m=0; for (const b of S.buildings) if (b.type==='radar' && b.powered) m=Math.max(m,b.lvl);
+  m += sectRadar();
+  return Math.min(S.run&&S.run.fogged?1:2, m);
+};
+// Odblokowanie budynku = RAMKA MISJI + technika. Kampania rozkłada odblokowania
+// na cały świat (FRONT.md §4.5 — dziś 13 budynków i 17 kart od razu); w grze
+// dowolnej `allows` przepuszcza wszystko i zostaje samo drzewko `req`.
+export const unlocked = t => allows(t) && missionReq(t).every(hasTech);
+export const reqText  = t => missionReq(t).map(x=>B[x].name).join(' + ');
 export const maxLvl   = () => hasTech('lab') ? MAXLVL+1 : MAXLVL;
 
 export const bSup   = b => B[b.type].sup ? B[b.type].sup + (b.lvl-1)*4 : 0;
@@ -62,16 +75,64 @@ export function roomFor(t){
 }
 
 // --- stawianie / usuwanie ---
+// Licznik id budynków. Migawka (campaign.snapshot) zapisuje `id`, a kratka
+// wskazuje budynek po id, nie po referencji — inaczej po JSON.stringify
+// i wczytaniu dostajesz DWIE KOPIE tego samego budynku (FRONT.md §10, mina 1).
+let BID = 1;
+export const resetIds = () => { BID = 1; };
 export function mkBuilding(type,c,r,instant=false){
   const d=B[type], [w,h]=d.fp;
   const bt = instant ? 0 : buildSec(type);   // sztab i darowizny z kart stają natychmiast
-  const b={type,c,r,lvl:1, x:BASE_X+(c+w/2)*CELL, y:BASE_Y+(r+h/2)*CELL,
+  const b={type,c,r,lvl:1, id:BID++, x:BASE_X+(c+w/2)*CELL, y:BASE_Y+(r+h/2)*CELL,
            hp:d.hp,maxHp:d.hp, brown:false, powered:false, cd:0, side:'p', flash:0,
            build:bt, buildMax:bt};
   for (const [cc,rr] of cellsOf(type,c,r)){ S.grid[rr][cc].b=b; S.grid[rr][cc].seam=false; }
   if (S.stat && type!=='hq'){ S.stat.built[type]=(S.stat.built[type]||0)+1; S.stat.builtTotal++; }   // metryka runu
   S.buildings.push(b); return b;
 }
+
+/* --------------------------- PRZENIESIENIE -------------------------------
+   Budynek da się PRZESUNĄĆ na inną kratkę za ułamek wartości. Bez tego ciasna
+   siatka karze za pomyłkę bardziej niż za złą strategię: jedna elektrownia
+   w złym miejscu potrafiła zamknąć jedyne miejsce na rafinerię. Przeniesienie
+   zachowuje poziom i HP, ale budynek na czas przeprowadzki jest MARTWY
+   (bez mocy, ognia i produkcji), więc przestawianie w trakcie fali boli.     */
+export function canMove(b){ return !!b && b.type!=='hq' && bReady(b); }
+export const moveCost = b => Math.ceil(investedIn(b) * MOVE_FRAC);
+// wartość włożona w budynek (koszt + ulepszenia) — wspólna dla złomu, naprawy
+// i przeniesienia, żeby trzy miejsca nie liczyły tego samego trzema wzorami
+export function investedIn(b){
+  const unit = b.type==='hq' ? HQ_COST : B[b.type].cost;
+  let put = unit;
+  for (let l=1; l<b.lvl; l++) put += unit*l;
+  return put;
+}
+/* Test kratki docelowej MUSI pomijać własne kratki budynku — inaczej rafineria
+   2×2 nie przesunie się o jedną kolumnę („tu się nie zmieści", bo zderza się
+   sama ze sobą), a to jest najczęstsza korekta, jaką się w ogóle robi.        */
+export function fitsMoved(b, c, r){
+  if (!b) return false;
+  const [w,h]=fpOf(b.type);
+  if (c<0||r<0||c+w>COLS||r+h>ROWS) return false;
+  for (const [cc,rr] of cellsOf(b.type,c,r)){
+    const g=S.grid[rr][cc];
+    if (g.ore>0 || (g.b && g.b!==b)) return false;   // własne kratki wolno nadpisać
+  }
+  return true;
+}
+export function moveBuilding(b, c, r){
+  if (!canMove(b) || !fitsMoved(b, c, r)) return false;
+  clearCells(b);
+  b.c=c; b.r=r;
+  const [w,h]=B[b.type].fp;
+  b.x = BASE_X+(c+w/2)*CELL; b.y = BASE_Y+(r+h/2)*CELL;
+  for (const [cc,rr] of cellsOf(b.type,c,r)){ S.grid[rr][cc].b=b; S.grid[rr][cc].seam=false; }
+  b.build = MOVE_SEC; b.buildMax = MOVE_SEC;      // przeprowadzka = budynek chwilowo martwy
+  b.flash = 1;
+  recalcPower();
+  return true;
+}
+
 export function clearCells(b){ for (const [cc,rr] of cellsOf(b.type,b.c,b.r)) S.grid[rr][cc].b=null; }
 
 export function killBuilding(b){
@@ -96,7 +157,7 @@ export function killBuilding(b){
 // Moc = czysty budżet. Brak → gasną obiekty najdalsze od sztabu.
 export function recalcPower(){
   // budynki w budowie są poza siecią: nie dają mocy, nie ciągną, nie zapalają się
-  S.supply=0;
+  S.supply=sectSupply();          // MOSTY na drogach wpinaja sie do sieci jak elektrownie
   for (const b of S.buildings) if (bReady(b)) S.supply += bSup(b);
   const cand = S.buildings.filter(b=>bReady(b) && bDrn(b)>0);
   const dHQ = b => Math.abs(b.c-S.hq.c)+Math.abs(b.r-S.hq.r);

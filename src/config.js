@@ -13,13 +13,319 @@ export const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
 // --- wymiary / geometria ---
 export const W = 1200, H = 680;
-export const COLS = 7, ROWS = 6, CELL = 52;
+export const CELL = 52;
+// Siatka bazy to DANE MISJI (misja 1 gra na mniejszej, misja 2 na ciaśniejszej).
+// `let` + eksport = zywe wiazanie: importerzy widza zmiane bez zadnej przerobki.
+// GRID_MAX pilnuje, zeby GEOMETRIA KORYTARZA (BASE_R, linie, sektory) NIE ruszala
+// sie razem z siatka — mniejsza siatka to mniej kratek w tej samej bazie, nie inne pole.
+export const GRID_MAX_COLS = 7, GRID_MAX_ROWS = 6;
+export let COLS = GRID_MAX_COLS, ROWS = GRID_MAX_ROWS;
 export const BASE_X = 40, BASE_Y = 176;
-export const BASE_R = BASE_X + COLS*CELL;            // 404
-export const LANE_Y = 332, LANE_HALF = 130;
-export const BAS_X = 1150;
-export const FRONT_MIN = BASE_R, FRONT_MAX = BAS_X - 30;
-export const EHOLD_X = BAS_X - 110;
+export const BASE_R = BASE_X + GRID_MAX_COLS*CELL;   // 404 — stale, niezalezne od COLS
+export const LANE_Y = 332;
+export const FRONT_MIN = BASE_R;
+
+/* ============================ ŚWIAT / KORYTARZ ===========================
+   MAPA JEST DUŻO WIĘKSZA OD EKRANU I PRZEWIJANA. Dlatego długość korytarza
+   NIE jest stałą — jest DANĄ MISJI (`len` w missions.js), a wszystkie punkty
+   na korytarzu podane są UŁAMKAMI jego długości, nie pikselami.
+
+   Bez tego każda zmiana rozmiaru mapy znaczyłaby ręczne przeliczanie stanic,
+   sektorów, progów kształtu, linii wroga i kamery — czyli pięciu miejsc
+   naraz, za każdym razem. Teraz jest jedna liczba w danych misji.
+
+   Co jest UŁAMKIEM (skaluje się z mapą):
+     · stanice (STANCES.f) · progi kształtu (SHAPES[].f) · pozycje sektorów
+     · promień przejmowania (CAP_R) · smycz łowcy (HUNT_LEASH)
+   Co zostaje W PIKSELACH (warstwa taktyczna, NIE skalujemy):
+     · zasięgi broni i rozmiary jednostek — w nich zakodowane są KONTRY
+       (patrz komentarz przy tabeli U); przeskalowanie ich rozjechałoby
+       wszystkie luki między jednostkami
+     · ENGAGE_BAND, CONTACT, BAS_RANGE — liczone względem zasięgów
+
+   `let` + eksport = żywe wiązanie: importerzy widzą nowe wartości bez żadnej
+   przeróbki, a setField() jest jedynym miejscem, które je liczy.            */
+
+const LEN_REF  = 760;    // dawna długość pola — odniesienie dla skal poniżej
+const HALF_REF = 130;    // dawna połowa wysokości korytarza
+
+export let FIELD_LEN = LEN_REF;      // długość korytarza w px (dana misji)
+export let LANE_HALF = HALF_REF;     // połowa wysokości korytarza
+export let BAS_X     = BASE_R + FIELD_LEN - 46;
+export let FRONT_MAX = BAS_X - 30;
+export let EHOLD_X   = BAS_X - 110;
+export let CAP_R     = 118;          // promień przejmowania mini-sztabu
+export let HUNT_LEASH = 150;         // jak daleko za linię łowca goni zwierzynę
+export let LANE_SHIFT = 90;          // px/s przy przerzucie MIĘDZY torami
+export let SPD_MUL   = 1;            // mnożnik marszu — patrz niżej
+
+// Punkt na korytarzu z ułamka jego długości (0 = skraj bazy, 1 = bastion).
+export const atF = f => BASE_R + FIELD_LEN * f;
+export const fieldX1 = () => BASE_R + FIELD_LEN;
+
+/* SPD_MUL — mnożnik PRĘDKOŚCI MARSZU, nie zasięgów.
+   Na dużo większej mapie sam przemarsz zjadłby misję: przy dawnych 26 px/s
+   piechota szłaby przez pole misji 6 blisko dwie minuty w jedną stronę.
+   Skalujemy WSZYSTKIE jednostki JEDNAKOWO, więc relacje między nimi (łazik
+   najszybszy, artyleria najwolniejsza) i wszystkie kontry zostają nietknięte —
+   zmienia się wyłącznie czas dojścia.
+
+   Wykładnik PODLINIOWY (0.6), nie 1.0, i to jest sedno: przy 1.0 czas przejścia
+   byłby identyczny jak na starej mapie, czyli większa mapa nie dawałaby NICZEGO
+   poza ładniejszym widokiem. Przy 0.6 pole ×4 daje marsz ~1,7× dłuższy — mapa
+   realnie JEST większa, a nie jest slalomem przez pustkę.
+   To jest pokrętło tempa: podnieś do 1.0 = krótsze marsze, zejdź do 0.3 = dłuższe. */
+const SPD_EXP = 0.6;
+
+// Wysokosc WSPOLNEGO korytarza. Nie zalezy juz od liczby drog: drogi maja
+// wlasna szerokosc (ROAD_W) i wlasne osie (ROAD_GAP), a gardlo i lej sa ciasne
+// z definicji — to one bramkuja wejscie.
+export const halfForShape = () => 150;
+
+export function setField(len, halfH){
+  FIELD_LEN = clamp(len|0, 400, 20000);
+  LANE_HALF = clamp(halfH|0 || HALF_REF, 80, 900);
+  BAS_X     = BASE_R + FIELD_LEN - 46;
+  FRONT_MAX = BAS_X - 30;
+  EHOLD_X   = BAS_X - 110;
+  const kLen  = FIELD_LEN / LEN_REF;
+  const kHalf = LANE_HALF / HALF_REF;
+  // Promień mini-sztabu rośnie PODLINIOWO i ma sufit: przy skali liniowej na polu
+  // 3 200 px wychodziło 420 px, czyli strefa na trzecią część mapy — sąsiednie
+  // sektory zachodziłyby na siebie i „stanie w sektorze" przestałoby być miejscem.
+  CAP_R      = Math.round(clamp(118 * Math.pow(kLen, 0.6), 90, 240));
+  HUNT_LEASH = Math.round(150 * Math.pow(kLen, 0.6));
+  LANE_SHIFT = Math.round(110 * Math.max(1, ROAD_GAP/300));
+  SPD_MUL    = +Math.pow(kLen, SPD_EXP).toFixed(3);
+  // progi kształtu liczą się z ułamków — jedno miejsce, jeden raz
+  for (const zs of Object.values(SHAPES)) for (const z of zs) z.x = atF(z.f);
+  // Stanice: najpierw ułamkowe, potem liczone OD BASTIONU, na końcu środek.
+  for (const st of STANCES) if (st.f != null) st.x = atF(st.f);
+  // „Artyleria dosięga bastionu" — z ZASIĘGU artylerii, z marginesem na to, że
+  // jednostka stoi trochę za linią. Bierzemy wartość z tabeli U, więc jeśli
+  // kiedyś ruszysz U.arty.range, stanica pojedzie razem z nią.
+  const reach = Math.max(60, ((U && U.arty ? U.arty.range : 175) - 25));
+  for (const st of STANCES){
+    if (st.fromEnd === 0)   st.x = BAS_X;
+    else if (st.fromEnd)    st.x = Math.max(atF(0.3), BAS_X - reach);
+  }
+  const iMid = STANCES.findIndex(st=>st.mid);
+  if (iMid > 0) STANCES[iMid].x = (STANCES[iMid-1].x + STANCES[iMid+1].x)/2;
+}
+
+export function setGrid(cols, rows){
+  COLS = clamp(cols|0, 2, GRID_MAX_COLS);
+  ROWS = clamp(rows|0, 2, GRID_MAX_ROWS);
+}
+
+/* Stanice. Dwie pierwsze to UŁAMKI korytarza, dwie ostatnie liczą się OD BASTIONU
+   — i to nie jest niekonsekwencja, tylko jedyny sposób, żeby ich nazwy nie kłamały.
+
+   NACISK znaczy „artyleria dosięga BASTIONU". To jest ODLEGŁOŚĆ, nie miejsce:
+   zasięg artylerii (175 px) jest warstwą taktyczną i NIE skaluje się z mapą.
+   Przy ułamku 0.77 na polu 760 px wychodziło 129 px do bastionu (dosięgała),
+   ale na polu 3 600 px już 782 px — artyleria nie dosięgała niczego, opis stanicy
+   był nieprawdą, a razem z nim znikała odpowiedź na zakorkowany lej w misji 6.
+
+   ŚRODEK liczy się jako PUNKT MIĘDZY PRZEDPOLEM A NACISKIEM, żeby na długiej
+   mapie nie zostawał martwy odcinek między trzecim i czwartym stopniem suwaka. */
+export const STANCES = [
+  {n:'OBRONA',    f:0.08, x:0, d:'pod bunkrami · stos rośnie'},
+  {n:'PRZEDPOLE', f:0.25, x:0, d:'1/4 — poza osłoną'},
+  {n:'ŚRODEK',    mid:true, x:0, d:'neutralny grunt'},
+  {n:'NACISK',    fromEnd:true, x:0, d:'artyleria dosięga BASTIONU'},
+  {n:'NATARCIE',  fromEnd:0, x:0, d:'wszystko na bastion'},
+];
+
+/* ============================ DROGI (tory) ===============================
+   Korytarz nie jest jedna rura z pasami. To KILKA NIEZALEZNYCH DROG, ktore
+   rozchodza sie za waskim gardlem przy bazie i zbiegaja w leju przed bastionem:
+
+          /-- DROGA GORNA ---- [MOST] --------- [BATERIA] --\
+   BAZA -|--- DROGA SRODKOWA ------- [SKLAD] ---------------|-- LEJ -- BASTION
+          \-- DROGA DOLNA -- [RAFINERIA] -- [WIEZA] -------/
+
+   Trzy rzeczy, ktore to musi spelniac — i one wymuszaja caly ten model:
+
+   1. KAZDA DROGA MA SWOJE CELE. Gorna i dolna maja INNE budynki do zajecia,
+      z innym zyskiem (kredyty / moc / kratki / radar / oslabienie bastionu).
+      Bez tego wybor drogi jest wyborem geometrii, a nie decyzja.
+   2. DROGI SA OD SIEBIE ODDALONE. Nie trzy cienkie pasy w jednym pasie, a
+      osobne trakty z pustka miedzy nimi (ROAD_GAP). Walka na gornej NIE
+      przelewa sie na dolna — inaczej „rozdziel sily" nic nie znaczy.
+   3. DROGI MOGA BYC ROZNEJ DLUGOSCI. Luk (`bow`) wybrzusza droge na zewnatrz,
+      wiec przemarsz nia jest realnie dluzszy: dluzsza droga za lepszy cel to
+      koszt alternatywny, a nie tylko inny kolor.
+
+   PRZYDZIAL DO DROGI JEST ROZKAZEM. u.lane to numer drogi i gracz zmienia go
+   dowolnie, w kazdej chwili: rozdziela armie po rowno, sciaga wszystko na
+   jedna, przerzuca w trakcie walki. To jest ta sama klasa decyzji co suwak
+   linii — tyle ze w poprzek, nie w glab.
+
+   Przy jednej drodze wszystko to jest no-opem i symulacja chodzi jak dotad.  */
+
+// f = prog strefy jako ULAMEK dlugosci korytarza · n = ile drog
+// h = polowa wysokosci WSPOLNEGO korytarza (gardlo/lej) jako ulamek LANE_HALF.
+// h < 1 to LEJ: przewagi liczebnej nie da sie wprowadzic naraz. PRZEPUSTOWOSC
+// LEJA to glowne pokretlo misji 6 — HP bastionu rusza sie OSTATNIE.
+export const SHAPES = {
+  '1':     [{ f: 1.1,  n: 1, h: 1,    x:0 }],               // jedna droga na calej dlugosci (Swiat II)
+  '1-3-1': [{ f: 0.18, n: 1, h: 0.62, x:0 },                // przy bazie — waskie gardlo
+            { f: 0.82, n: 3, h: 1,    x:0 },                // rozwidlenie — trzy osobne drogi
+            { f: 1.1,  n: 1, h: 0.38, x:0 }],               // LEJ przed bastionem
+  '1-2-1': [{ f: 0.18, n: 1, h: 0.62, x:0 },                // rezerwa: ksztalt drugiego swiata
+            { f: 0.82, n: 2, h: 1,    x:0 },
+            { f: 1.1,  n: 1, h: 0.38, x:0 }],
+};
+let SHAPE = '1';
+export const shapeId = () => SHAPE;
+export function setShape(id){ SHAPE = SHAPES[id] ? id : '1'; }
+
+/* Opis drog bieżącej misji. Ustawia campaign.applyRoads z danych misji.
+     n    — nazwa (trafia na przyciski rozkazu i minimape)
+     y    — przesuniecie od osi w jednostkach ROAD_GAP (-1 / 0 / +1)
+     bow  — luk na zewnatrz w ulamku ROAD_GAP (0 = prosto, 0.4 = spory objazd)
+     sect — cele NA TEJ DRODZE: {kind, f} gdzie f to ulamek DLUGOSCI DROGI     */
+export let ROADS = [{ n:'KORYTARZ', y:0, bow:0, sect:[] }];
+export let ROAD_GAP = 300;      // odstep miedzy osiami drog (px)
+export let ROAD_W   = 150;      // szerokosc jednej drogi (px)
+export function setRoads(list, gap, w){
+  ROADS = (list && list.length) ? list : [{ n:'KORYTARZ', y:0, bow:0, sect:[] }];
+  ROAD_GAP = clamp(gap|0 || 300, 120, 900);
+  ROAD_W   = clamp(w|0   || 150, 60,  500);
+}
+export const roadCount = () => ROADS.length;
+export const roadName  = i => (ROADS[i] ? ROADS[i].n : 'KORYTARZ');
+
+// strefa ksztaltu obejmujaca x (pierwszy prog wiekszy od x wygrywa)
+export function zoneAt(x){
+  const zs = SHAPES[SHAPE];
+  for (const z of zs) if (x < z.x) return z;
+  return zs[zs.length-1];
+}
+export const lanesAt = x => zoneAt(x).n;
+export const maxLanes = () => Math.max(roadCount(), SHAPES[SHAPE].reduce((m,z)=>Math.max(m,z.n), 1));
+
+/* ROZWIDLENIE i ZBIEG — gdzie drogi sie rozchodza i gdzie wracaja do jednego
+   korytarza. To progi ksztaltu, wiec „gdzie sie rozdziela" i „gdzie jest lej"
+   to jedna dana, nie dwie, ktore moglyby sie rozjechac.                       */
+export function splitX(){
+  const zs = SHAPES[SHAPE];
+  for (let i=0;i<zs.length;i++) if (zs[i].n > 1) return i>0 ? zs[i-1].x : BASE_R;
+  return Infinity;                       // jedna droga — nie ma rozwidlenia
+}
+export function mergeX(){
+  const zs = SHAPES[SHAPE];
+  for (let i=0;i<zs.length;i++) if (zs[i].n > 1) return zs[i].x;
+  return Infinity;
+}
+/* Gdzie zaczyna sie LEJ — prog pierwszej strefy WEZSZEJ od poprzedniej.
+   Uzywa tego AI wroga: bez tego wrog masowal sie w samym gardle i robil KOREK,
+   ktorego nie da sie przebic (pomiar: fala 46, bastion 0%). Lej ma bramkowac
+   wejscie GRACZA, a nie byc darmowa twierdza wroga.                           */
+export function narrowStart(){
+  const zs = SHAPES[SHAPE];
+  for (let i=1;i<zs.length;i++){
+    const h = zs[i].h == null ? 1 : zs[i].h, hp = zs[i-1].h == null ? 1 : zs[i-1].h;
+    if (h < hp) return zs[i-1].x;
+  }
+  return Infinity;
+}
+
+/* Polowa wysokosci WSPOLNEGO korytarza (gardlo przy bazie i lej przed
+   bastionem). ZWEZENIE JEST STOPNIOWE, nie skokowe: liczba drog jest
+   dyskretna, ale szerokosc przechodzi lagodnie przez pas TAPER — lej ma
+   sciskac coraz mocniej w miare podchodzenia, a nie ciac pole pionowa sciana.
+   Gracz czyta z pola, ile jeszcze ma miejsca, i to JEST mechanika misji 6.    */
+const TAPER_F = 0.07;
+export function corridorHalf(x){
+  const zs = SHAPES[SHAPE];
+  let i = zs.length - 1;
+  for (let k = 0; k < zs.length; k++) if (x < zs[k].x){ i = k; break; }
+  const h  = zs[i].h == null ? 1 : zs[i].h;
+  if (i === 0) return LANE_HALF * h;
+  const hPrev = zs[i-1].h == null ? 1 : zs[i-1].h;
+  if (hPrev === h) return LANE_HALF * h;
+  const start = zs[i-1].x, band = FIELD_LEN * TAPER_F;
+  const t = clamp((x - start) / band, 0, 1);
+  return LANE_HALF * (hPrev + (h - hPrev) * t);
+}
+
+/* Os drogi `i` w miejscu x.
+
+   W gardle i w leju wszystkie drogi sa TA SAMA osia (LANE_Y) — tam jest jeden
+   korytarz. Miedzy rozwidleniem a zbiegiem rozchodza sie na swoje wysokosci,
+   a luk (`bow`) wypycha je jeszcze dalej w polowie drogi. Rozejscie i zbieg
+   sa WYGLADZONE (sinus), zeby droga byla traktem, a nie zlamana kreska —
+   jednostka ma nia jechac, a nie skakac na progach.                           */
+export function roadY(i, x){
+  const r = ROADS[i] || ROADS[0];
+  if (!r || !r.y && !r.bow) return LANE_Y;
+  const x0 = splitX(), x1 = mergeX();
+  if (!isFinite(x0) || x <= x0 || x >= x1) return LANE_Y;
+  const t = clamp((x - x0) / Math.max(1, x1 - x0), 0, 1);
+  const open = Math.sin(t * Math.PI);            // 0 na koncach, 1 w srodku
+  const ramp = Math.min(1, open * 2.2);          // szybkie rozejscie, potem plaskowyz
+  const dir  = r.y === 0 ? (r.bow >= 0 ? 1 : -1) : Math.sign(r.y);
+  return LANE_Y + (r.y * ROAD_GAP) * ramp + dir * (r.bow || 0) * ROAD_GAP * open;
+}
+// Polowa szerokosci PRZEJEZDNEJ drogi w miejscu x. Poza rozwidleniem to
+// wspolny korytarz (gardlo/lej), wiec liczy sie corridorHalf.
+export function roadHalf(x){
+  const x0 = splitX(), x1 = mergeX();
+  if (!isFinite(x0) || x <= x0 || x >= x1) return corridorHalf(x);
+  // Wygladzone wejscie i wyjscie: droga rozszerza sie z gardla i zwiera w lej,
+  // zeby trakt nie zaczynal sie pionowym progiem.
+  const band = Math.max(40, (x1-x0)*0.10);
+  const t = Math.min(1, Math.min(x-x0, x1-x)/band);
+  return corridorHalf(x) + (ROAD_W/2 - corridorHalf(x)) * t;
+}
+// Calkowity pionowy zasieg pola (do kamery, renderu i minimapy).
+export function fieldHalf(){
+  let m = LANE_HALF;
+  for (let i=0;i<ROADS.length;i++){
+    const r = ROADS[i];
+    const reach = Math.abs(r.y||0)*ROAD_GAP + Math.abs(r.bow||0)*ROAD_GAP + ROAD_W/2;
+    if (reach > m) m = reach;
+  }
+  return m + 20;
+}
+// Punkt na DRODZE z ulamka jej dlugosci (0 = rozwidlenie, 1 = zbieg w leju).
+export function roadPointX(f){
+  const x0 = splitX(), x1 = mergeX();
+  if (!isFinite(x0)) return atF(clamp(f,0,1));
+  return x0 + (x1 - x0) * clamp(f, 0, 1);
+}
+
+// --- zgodność: dawne nazwy używane przez render/sim ---
+export const laneCY   = (lane, n, x) => roadY(lane, x);
+export const laneHalf = (n, x) => roadHalf(x);
+
+// Przerzut MIEDZY drogami (LANE_SHIFT) skaluje sie z odstepem drog — dalsza
+// droga to dluzsza przeprawa w poprzek, ale ten sam koszt w sekundach.
+
+/* ======================== CELE NA DROGACH ================================
+   „Gorna i dolna droga maja INNE budynki do zajecia" — wiec cel nie jest jednym
+   rodzajem punktu, ktory zawsze placi kredytami. Kazdy rodzaj daje CO INNEGO,
+   i to dopiero czyni wybor drogi decyzja, a nie wyborem koloru:
+
+     kredyty  — najprostszy zysk, skaluje wszystko
+     moc      — odblokowuje budynki, ktore inaczej nie zmieszcza sie w sieci
+     kratki   — jedyny sposob na wiecej miejsca w bazie (zlew na kredyty)
+     radar    — widzisz sklad fal, czyli mozesz kontrowac zamiast reagowac
+     oslabia  — tnie produkcje wroga; jedyna rzecz, ktora zmniejsza nacisk
+
+   Dzieki temu „rozdziel sily" i „skup sie na jednej drodze" sa realnymi,
+   roznymi planami: dwie drogi po kredyty to inna partia niz jedna po radar
+   i oslabienie. Nowy rodzaj celu to wpis tutaj + jedna gałąź w sectors.js.  */
+export const SECT_KINDS = {
+  sztab:   { name:'MINI-SZTAB', ico:'★', col:'#e8b23a', give:'kredyty', val:5,    desc:'+5 kr./s' },
+  most:    { name:'MOST',       ico:'╬', col:'#4dd0d0', give:'moc',     val:10,   desc:'+10 mocy' },
+  sklad:   { name:'SKŁAD',      ico:'▣', col:'#5fd18a', give:'kratki',  val:1,    desc:'+2 kolumny kratek' },
+  wieza:   { name:'WIEŻA',      ico:'◉', col:'#c9a2e8', give:'radar',   val:1,    desc:'+1 poziom radaru' },
+  bateria: { name:'BATERIA',    ico:'A', col:'#d98a4d', give:'oslabia', val:0.25, desc:'ich fale −25%' },
+};
+export const sectKind = k => SECT_KINDS[k] || SECT_KINDS.sztab;
 
 // --- AI wroga ---
 export const EARTY_CAP = 3;
@@ -39,14 +345,6 @@ export const ECOUNTER_FROM = 5;
 export const ETHINK    = 2;
 export const ECOMMIT   = 26;
 export const ESHELLED  = 55;
-
-export const STANCES = [
-  {n:'OBRONA',    x:BASE_R+60,  d:'pod bunkrami · stos rośnie'},
-  {n:'PRZEDPOLE', x:BASE_R+186, d:'1/4 — poza osłoną'},
-  {n:'ŚRODEK',    x:BASE_R+373, d:'1/2 — neutralny grunt'},
-  {n:'NACISK',    x:BASE_R+576, d:'3/4 — artyleria dosięga BASTIONU'},
-  {n:'NATARCIE',  x:BAS_X,      d:'wszystko na bastion'},
-];
 
 export const CO = {
   bg:'#0f1315', dirt:'#1a2022', grid:'#232c2f', gridHi:'#2f3b3f', laneEdge:'#39474b',
@@ -102,6 +400,23 @@ export const ETERR_SEC = 120;
 // z szybszą rozbudową z sektorów nie dawała się odbić. Chcesz zdusić bonus — odbij sztab.
 export const ETERR_ATK = 1;
 export const SELL_BACK = 0.5;
+// PRZESUNIĘCIE budynku: ułamek wartości i tyle sekund budowy. Ma być tanie
+// względem rozbiórki (50% straty) i drogie względem darmowego cofnięcia —
+// planowanie zostaje decyzją, ale pomyłka nie jest wyrokiem na całą misję.
+export const MOVE_FRAC = 0.25, MOVE_SEC = 3;
+/* ----------------------------- FORMACJA ----------------------------------
+   UKŁAD BARAKÓW W BAZIE = SZYK ODDZIAŁU W POLU. Kolumna baraku mówi, jak
+   GŁĘBOKO stoi jego żołnierz (prawa kolumna = pierwsza linia), wiersz — gdzie
+   w poprzek drogi. Dzięki temu „2 – 1" znaczy coś naprawdę: wysunięty żołnierz
+   jest najbliżej wroga, więc to on zbiera ogień (wybór celu bierze NAJBLIŻSZEGO),
+   a dwóch z tyłu strzela zza niego.
+
+   Obie liczby są SUFITAMI, nie krokiem na kratkę: szyk ma czytać się tak samo
+   na siatce 6×3 (misja 1) i 7×6 (finał), a przede wszystkim ma mieścić się
+   w zasięgach broni. 34 px głębokości przy zasięgu piechoty 39 znaczy, że
+   tylny żołnierz wciąż dosięga tego, z kim bije się przedni — ale ma zapas
+   mniejszy niż on. Większa głębokość zamieniłaby tylne baraki w bezużyteczne. */
+export const FORM_DEPTH = 34, FORM_SPREAD = 40;
 // Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
 // Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
 // późną grą to STAŁY sink: utrzymanie ostrzeliwanego frontu kosztuje kredyty.
@@ -118,8 +433,8 @@ export const MAXLVL    = 3;
 export const RAID_PAY  = 0.4;
 export const HQ_COST   = 350;
 export const START_MONEY = 250;  // = koszt rafinerii: zawsze stać na jedną (karty otwarcia nadpisują)
-export const CAP_R     = 118;
 export const CAP_RATE  = 6;   // wolniejsze przejmowanie (~17 s) → sektor to trwały bój, nie pstryknięcie
+// CAP_R (promień mini-sztabu) skaluje się z długością pola — patrz setField.
 
 // --- BALANS RUCHOMY (karty + resetTables) ---
 // EBUILD_EVERY: co ile fal wróg dokłada budynek. Niżej = szybsza eskalacja.
@@ -145,8 +460,14 @@ export const B = {
   // a nie być domyślnym otwarciem na wszystko.
   rocket:  {name:'WYRZUTNIA',    short:'WYRZ.', fp:[1,2], cost:340, hp:180,  col:'#9b7fd4', ico:'r', drn:2, req:[],
             unit:'rkt', count:1, desc:'rakiety przebijają pancerz · ×2 do czołgów'},
+  // DZIAŁKO jest CZĘŚCIĄ BAZY — stoi na kratce i konkuruje o miejsce z rafinerią
+  // i barakiem. To jest cała jego cena: nie kredyty, a plan. Osobne stanowiska
+  // przed bazą (próbowane 15.09) zdejmowały tę decyzję i zostawiały samo
+  // „kliknij, gdy masz 180 kredytów". Zamiast nich jest PRZESUŃ (patrz input.js):
+  // planujesz, a pomyłkę da się poprawić za część wartości.
   bunker:  {name:'GNIAZDO RAK.',  short:'GNIAZ.',fp:[1,1], cost:180, hp:350,  col:'#8fa3a8', ico:'▲', drn:1, req:['rocket'],
-            desc:'rakiety 230 px · przebija pancerz', atk:{dmg:15, range:230, rate:1.0, ap:true}},
+            desc:'rakiety 230 px · przebija pancerz',
+            atk:{dmg:15, range:230, rate:1.0, ap:true}},
   workshop:{name:'WARSZTAT',     short:'WARSZ.',fp:[2,1], cost:200, hp:220,  col:'#d9a04d', ico:'w', drn:2, req:[],
             unit:'lazik', count:1},
   factory: {name:'FABRYKA',      short:'FABR.', fp:[2,2], cost:400, hp:300,  col:'#4d9de0', ico:'T', drn:3, req:['radar'],
@@ -207,7 +528,6 @@ export const U = {
   kolos:{name:'Kolos',       hp:430, dmg:32, range:66,  spd:21, rate:1.1,  sz:11, strong:['inf'], arm:6},
 };
 export const COUNTER   = 2.0;
-export const HUNT_LEASH = 150;
 // Pasmo walki: jak daleko ZA LINIĄ trzymana jednostka podejdzie, by dosięgnąć
 // wroga strzałem, zamiast stać jak słup pod ostrzałem dłuższego zasięgu. Kryje
 // zwarcie z pancernymi (czołg 54, kolos 66 px), ale NIE pozwala gonić kitera
@@ -286,11 +606,15 @@ export function ringOf(t,c,r){
 // `light` wyłącza tę karę mimo pancerza — łazik jest opancerzony, ale wciąż to
 // szybki wóz rozpoznawczy, który MA móc odskoczyć (kit łowcy artylerii).
 export const isHeavy = d => !d.light && !!(d.arm || d.minR);
-export function plObj(n){
-  if (n===1) return 'OBIEKT';
-  const d=n%10, s=n%100;
-  return (d>=2&&d<=4&&!(s>=12&&s<=14)) ? 'OBIEKTY' : 'OBIEKTÓW';
+/* Polska liczba mnoga: 1 → forma pojedyncza, 2–4 → „few", reszta → „many",
+   z wyjątkiem 12–14, które idą jak „many". Bez tego panel celu pisał
+   „UTRZYMAJ 2 DRÓG PRZEZ 4 FAL", co czyta się jak tłumaczenie maszynowe.     */
+export function pl(n, one, few, many){
+  if (n === 1) return one;
+  const d = n % 10, s = n % 100;
+  return (d >= 2 && d <= 4 && !(s >= 12 && s <= 14)) ? few : many;
 }
+export const plObj = n => pl(n, 'OBIEKT', 'OBIEKTY', 'OBIEKTÓW');
 export function cellAt(px,py){
   const c=Math.floor((px-BASE_X)/CELL), r=Math.floor((py-BASE_Y)/CELL);
   return (c>=0&&c<COLS&&r>=0&&r<ROWS)?{c,r}:null;

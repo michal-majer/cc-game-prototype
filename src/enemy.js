@@ -5,12 +5,13 @@
 
 import {
   U, B, EB, EARTY_CAP, EPUSH_R, EHOLD_R, EPATIENCE, EPAT_MASS, ESCOUT,
-  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X, EPUSH_MIN, ECOUNTER_FROM
+  ETHINK, ECOMMIT, ESHELLED, BAS_HP, EHOLD_X, EPUSH_MIN, ECOUNTER_FROM, narrowStart
 } from './config.js';
 import { S, SECT, say, lineX } from './state.js';
+import { MIS } from './campaign.js';
 import { boom, siren } from './audio.js';
 import { bDmg, radarLvl } from './buildings.js';
-import { terrCtrl } from './sectors.js';
+import { terrCtrl, sectWeaken } from './sectors.js';
 
 // siła = Σ (HP + DPS×10), liczona tym samym wzorem po obu stronach
 export function force(side){
@@ -57,20 +58,53 @@ export function eRatio(){
 // nadziewać się na obronę gracza.
 //   · podłoga = linia gracza (bez szturmu nie wejdzie za jego front),
 //   · sufit   = EHOLD_X (nigdy nie zostawia bastionu bez osłony).
+// Sufit linii wroga = tuż przed JEGO przyczółkiem, a nie sztywne EHOLD_X liczone
+// od bastionu gry dowolnej. Bez tego w misji 1 (przyczółek na 800) wróg maszerował
+// na 1040 — poza pole misji, w pustkę za własnym spawnem.
+/* Sufit linii wroga. Trzy ograniczenia, każde z innego powodu:
+   · EHOLD_X        — nigdy nie zostawia bastionu bez osłony,
+   · przyczółek −60 — nie wychodzi za własny punkt startu fal,
+   · GARDŁO LEJA    — NIE wchodzi w zwężenie. Bez tego wróg masował 150 jednostek
+     w pasie 182 px wysokości i robił korek, którego gracz nie przebijał przez
+     dwadzieścia minut (pomiar bota: fala 46, 1277 zabitych, bastion 0%). Lej ma
+     bramkować wejście GRACZA, a nie być darmową twierdzą wroga — wróg broni się
+     PRZED lejem, na szerokim froncie, gdzie da się go rozegrać. */
+const eCap = () => {
+  const mouth = narrowStart();
+  return Math.min(EHOLD_X,
+                  (S.espawn ? S.espawn.x : EHOLD_X) - 60,
+                  mouth === Infinity ? Infinity : mouth - 40);
+};
 export function eHoldX(){
+  // Bez sektorów (misje 1–2) nie ma czego kontestować — wróg trzyma się
+  // pod własnym przyczółkiem i idzie dopiero, gdy zdecyduje o szturmie.
+  if (!SECT.length) return Math.max(eCap(), lineX());
   let x = null;
   for (let i = SECT.length-1; i >= 0; i--){  // od bazy wroga (prawa) ku frontowi (lewa)
     const q = SECT[i];
     if (q.own !== -1){ x = q.x; break; }      // pierwszy sektor od TYŁU jeszcze nie ich = cel
   }
   if (x === null) x = SECT[0].x;              // trzymają wszystkie → broń najdalej wysuniętego
-  return Math.min(EHOLD_X, Math.max(x, lineX()));
+  return Math.min(eCap(), Math.max(x, lineX()));
 }
 export function eDecide(){
   const r = eRatio(), n = S.units.filter(u=>u.side==='e').length;
   const shelled = S.eDmgWave > ESHELLED;
   S.eDmgWave = 0;
   if (!n){ S.eStance='hold'; S.eHoldT=0; return; }
+  /* SZTURM vs FRONT — dwie różne sytuacje, a dotąd był tylko jeden kod.
+     Domyślna logika modeluje FRONT: wróg trzyma linię, kontestuje teren
+     i naciera dopiero, gdy uzbiera przewagę. W misji OBRONNEJ to znaczy, że
+     przy porządnej obronie NIE NACIERA NIGDY — stoi tysiąc pikseli od bazy,
+     pole się nie czyści i „odeprzyj 8 fal" nie kończy się nawet po dwudziestu
+     dwóch (pomiar: 12:27 w misji liczonej na pięć minut).
+     `enemy.assault` mówi: oni tu przyszli SZTURMOWAĆ. Idą i już.
+     Tak samo po OSTATNIEJ fali skończonego szturmu — nie mają na co czekać. */
+  const E = MIS().enemy || {};
+  if (E.assault || (E.waves && S.wave > E.waves)){
+    if (S.eStance!=='push'){ S.eStance='push'; S.ePush=ECOMMIT; }
+    return;
+  }
   // Ostrzał wyzwala szarżę „nie damy się ostrzeliwać" — ale TYLKO gdy wróg nie jest
   // wyraźnie słabszy (r >= EHOLD_R). Bezwarunkowo (jak dawniej) wystarczyło łupnąć
   // artylerią w garstkę, by rzuciła się na bazę i zginęła bez sensu — najkrótsza droga
@@ -111,9 +145,48 @@ export function eDecide(){
   }
 }
 // Bastion JEST ich bazą: uszkodzony trwale osłabia produkcję (podłoga 0.45).
-export const bEff = () => S.bastion.dead ? 0 : Math.max(0, 0.45 + 0.55*(S.bastion.hp/BAS_HP));
+// W misjach, w których bastion nie jest celem (S.bastion.target === false), stoi
+// jako punkt startu fal i nie da się go bić — produkcja idzie wtedy pełna.
+export const bEff = () => S.bastion.dead ? 0
+  : !S.bastion.target ? 1
+  : Math.max(0, 0.45 + 0.55*(S.bastion.hp/S.bastion.maxHp));
+/* ============================ PLAN FAL ===================================
+   Misja kampanii ma AUTORSKI plan fal: każda fala z ręki, z własnym składem
+   i własnym odstępem. Fale składane proceduralnie z bazy wroga znaczą, że
+   ta sama misja za każdym razem naciska inaczej — a wtedy nie da się jej
+   zbalansować ani zmierzyć. „Fale 1–3 przyjmiesz działkami, od czwartej
+   potrzebujesz ludzi" jest obietnicą, której procedura nie umie dotrzymać.
+
+   Format w danych misji:
+       waves:[ {t:40, inf:2}, {t:34, inf:3}, {t:30, inf:3, lazik:1}, … ]
+   `t` — sekundy DO tej fali · reszta kluczy to typy jednostek i ich liczba.
+   Po ostatniej fali szturm się KOŃCZY (misja obronna ma mieć koniec).
+
+   Bez `waves` wszystko zostaje po staremu: skład z bazy wroga, rozbudowa,
+   doktryny, eskalacja. To jest tryb gry dowolnej.                            */
+export const wavePlan = () => MIS().waves || null;
+// skład fali NUMER n (1-based), z planu albo proceduralnie
+export function eCompN(n){
+  const plan = wavePlan();
+  if (!plan) return eComp();
+  const w = plan[n-1];
+  if (!w) return {};                       // po planie nie ma już nic
+  const out = {};
+  for (const k in w) if (k !== 't' && U[k]) out[k] = w[k];
+  // BATERIE tną także fale autorskie — inaczej cel „ich fale −25%" kłamałby
+  const cut = 1 - sectWeaken();
+  if (cut < 1) for (const k in out){ out[k] = Math.round(out[k]*cut); if (!out[k]) delete out[k]; }
+  return out;
+}
 export function eComp(){
-  const out={}, eff=bEff();
+  // Podgląd dla wywiadu: NASTĘPNA fala. Przy planie autorskim to po prostu
+  // kolejna pozycja z listy — radar pokazuje wtedy dokładnie to, co przyjdzie.
+  const plan = wavePlan();
+  if (plan) return eCompN(S.wave + 1);
+  // Zajete BATERIE tna sklad fali — jedyna rzecz w grze, ktora ZMNIEJSZA nacisk
+  // wroga zamiast tylko zwiekszac Twoj. Dlatego droga z bateria jest osobnym
+  // planem, nie wariantem tego samego.
+  const out={}, eff=bEff()*(1-sectWeaken());
   for (const t of S.eBase){ const d=EB[t]; out[d.unit]=(out[d.unit]||0)+d.count; }
   for (const k of Object.keys(out)){
     out[k]=Math.round(out[k]*eff);
