@@ -521,9 +521,14 @@ export const B = {
      i płasko: na piechotę świetne, na łazika (pancerz 3) już ledwo — więc
      łazik w misji 2 naprawdę coś znaczy, a rakiety przychodzą wtedy, kiedy
      jest na co (patrz rnest).                                                */
+  // SERIA MAŁYCH POCISKÓW, nie jeden duży — i to jest cała różnica między
+  // gniazdem KM a rakietowym. Pancerz jest PŁASKĄ redukcją (dmgTo), więc tnie
+  // najmocniej broń bijącą często i słabo: 7 → 4 na łaziku (pancerz 3), 7 → 2
+  // na czołgu (5). Na piechotę KM jest najlepszym, co masz, na pancerz —
+  // najgorszym. Dlatego pierwszy łazik w misji 2 naprawdę coś znaczy.
   bunker:  {name:'GNIAZDO KM',    short:'GNIAZ.',fp:[1,1], cost:180, hp:350,  col:'#8fa3a8', ico:'▲', drn:1, req:[],
-            desc:'szybki ogień 200 px · na piechotę',
-            atk:{dmg:11, range:200, rate:0.55}},
+            desc:'seria 200 px · kosi piechotę, pancerz ledwo drapie',
+            atk:{dmg:7, range:200, rate:0.28}},
   rnest:   {name:'GNIAZDO RAK.',  short:'G.RAK.',fp:[1,1], cost:260, hp:300,  col:'#9b7fd4', ico:'▲', drn:2, req:['rocket'],
             desc:'rakiety 250 px · przebija pancerz',
             atk:{dmg:26, range:250, rate:1.6, ap:true}},
