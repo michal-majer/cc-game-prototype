@@ -40,16 +40,25 @@ export const MANIFEST = {
   // Do zadziałania wrzuć plik assets/units/inf.png (arkusz z magentowym tłem).
   // Dopóki pliku nie ma, gra rysuje glif jak dotąd (jeden warn w konsoli).
   inf: 'assets/units/inf.png',
-  // --- grafika od grafika: wrzuć plik i odkomentuj wiersz ---------------
-  // Statyczny sprite (bez arkusza) wystarczy — brak wpisu w SHEETS znaczy
-  // „jedna klatka", render skaluje ją do `sz` jednostki i odbija dla wroga.
-  // inf:     'assets/units/inf.png',          // pojedynczy żołnierz (zamiast arkusza)
-  // b_hq:      'assets/buildings/hq.png',
-  // b_barracks:'assets/buildings/barracks.png',
-  // b_power:   'assets/buildings/power.png',
-  // b_refinery:'assets/buildings/refinery.png',
-  // b_bunker:  'assets/buildings/bunker.png',
-  // bastion: 'assets/scene/bastion.png',
+  // --- bryły bazy (wycięte z assets/raw/beton.png przez tools/kafle.py) ------
+  // Sprite skalowany jest do prostokąta kratek przez min(szer, wys), więc bryły
+  // dobrane są pod PROPORCJE fp z tabeli B: wieża kratownicowa na rocket [1,2],
+  // długi kontener na workshop [2,1], sześciany na jednokratkowe.
+  b_hq:       'assets/buildings/hq.png',
+  b_power:    'assets/buildings/power.png',
+  b_refinery: 'assets/buildings/refinery.png',
+  b_barracks: 'assets/buildings/barracks.png',
+  b_bunker:   'assets/buildings/bunker.png',
+  b_workshop: 'assets/buildings/workshop.png',
+  b_radar:    'assets/buildings/radar.png',
+  b_rocket:   'assets/buildings/rocket.png',
+  b_factory:  'assets/buildings/factory.png',
+  b_reactor:  'assets/buildings/reactor.png',
+  b_lab:      'assets/buildings/lab.png',
+  b_arty:     'assets/buildings/arty.png',
+  // b_heavy — bez grafiki, rysuje się proceduralnie (arkusz nie ma już bryły,
+  // która odróżniałaby się od fabryki; w scenariuszu I wchodzi i tak po lab).
+  bastion: 'assets/scene/bastion.png',
 };
 
 // Opis arkuszy klatek. Klucz = ta sama nazwa co w MANIFEST.
@@ -102,20 +111,44 @@ export const TILESETS = {
     tile:64,                       // bok pojedynczego kafla w pliku
     vary:3,                        // blok wariantów: 3×3 = 9 odmian
     sets:{                         // nazwa -> [kolumna, wiersz] lewego-górnego kafla bloku
-      skala:  [0, 1],              // szara skała
-      trawa:  [3, 1],              // ziemia z zielenią
-      ziemia: [6, 1],              // goła ziemia
+      skala:  [0, 1],              // betonowa płyta — placyk pod siatką bazy
+      trawa:  [3, 1],              // grunt pobocza
+      ziemia: [6, 1],              // goła ziemia — trakt, po którym się chodzi
+      // Pobocze to nie tło, tylko MAPA: te trzy zestawy plamią je kępami.
+      las:    [0, 4],              // zwarty drzewostan
+      kamien: [3, 4],              // wychodnie skalne
+      krzaki: [6, 4],              // zarośla, przejście między trawą a lasem
     },
-    marks:{                        // pojedyncze kafle z górnego paska
-      lej:  [4.5, 0],              // lej po pocisku
-      ruda: [5.5, 0],              // bryły rudy
+    marks:{                        // pojedyncze kafle z górnego paska (rozsypywane, nie kaflowane)
+      lej:   [0, 0],               // lej po pocisku
+      ruda:  [1, 0],               // bryły rudy
+      wrak:  [2, 0],               // rozbity sprzęt
+      ogien: [3, 0],               // pożar
     },
   },
+};
+
+/* ---------------------------- OZDOBY -------------------------------------
+   Osobny arkusz obiektów z przezroczystością: krzaki, głazy, zapory, złom.
+
+   Po co osobno, skoro są kafle terenu: kafel z generatora to SCENKA ze
+   skomponowanym środkiem, a scenka powtórzona przez całe pole zawsze będzie
+   tapetą. Grunt ma być gładki i powtarzalny, a to, co przyciąga oko, ma leżeć
+   NA nim pojedynczo — z własną skalą i przesunięciem w kratce, żeby nie
+   układało się w rytm siatki.
+
+   Wiersz arkusza = rodzaj, kolumna = odmiana. Brak pliku = brak ozdób i tyle. */
+export const DECORSET = {
+  url:'assets/tiles/decor.png',
+  tile:64,
+  rows:{ krzak:0, glaz:1, zapora:2, zlom:3 },   // rodzaj -> wiersz
+  count:{ krzak:3, glaz:4, zapora:6, zlom:6 },  // ile odmian w wierszu
 };
 
 const loaded = {};   // name -> Texture (pełny obraz / reprezentatywna klatka)
 const sheets = {};   // name -> { fw, fh, clips:{name:[Texture,...]+meta}, anchor }
 const tiles  = {};   // tileset -> { sets:{nazwa:[Texture,...]}, marks:{nazwa:Texture} }
+const decor  = {};   // rodzaj -> [Texture,...]
 
 // Wczytaj obrazek jako <img> (do keyingu przez canvas). Odrzuca przy braku pliku.
 function loadImage(url){
@@ -201,6 +234,20 @@ async function loadTileset(name, ts){
   tiles[name] = out;
 }
 
+// Potnij arkusz ozdób na obiekty. Brak pliku = pusta tabela, render pomija warstwę.
+async function loadDecor(){
+  const base = await PIXI.Assets.load(DECORSET.url);
+  base.source.scaleMode = 'nearest';
+  const T = DECORSET.tile;
+  for (const [name, row] of Object.entries(DECORSET.rows)){
+    const arr = [];
+    for (let i=0;i<(DECORSET.count[name]||0);i++)
+      arr.push(new PIXI.Texture({ source: base.source,
+        frame: new PIXI.Rectangle(i*T, row*T, T, T) }));
+    decor[name] = arr;
+  }
+}
+
 // Wczytaj tylko to, co jawnie wpisano w MANIFEST. Brak wpisu = glif proceduralny.
 export async function loadAssets() {
   for (const n of Object.keys(MANIFEST)) {
@@ -214,6 +261,8 @@ export async function loadAssets() {
     try { await loadTileset(n, ts); }
     catch (e) { console.warn('[assets] brak kafli:', ts.url, '— pole rysuje się płasko'); }
   }
+  try { await loadDecor(); }
+  catch (e) { console.warn('[assets] brak ozdób:', DECORSET.url, '— pole bez obiektów'); }
   return Object.keys(loaded);
 }
 
@@ -228,6 +277,12 @@ export function tileTex(set, gx, gy){
 }
 export function markTex(name){ const t=tiles.ziemia; return (t && t.marks[name]) || null; }
 export const tilePx = () => (tiles.ziemia ? tiles.ziemia.tile : 64);
+
+export function decorTex(name, i){
+  const a = decor[name];
+  return (a && a.length) ? a[i % a.length] : null;
+}
+export const hasDecor = name => !!(decor[name] && decor[name].length);
 
 export function tex(name)      { return loaded[name] || null; }
 export function hasTex(name)   { return !!loaded[name]; }

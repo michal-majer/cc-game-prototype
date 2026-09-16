@@ -10,7 +10,8 @@ grafika nigdy nie blokuje rozgrywki** — to jest zasada, nie przypadek.
 
 | Plik | Co to | Uwagi |
 |---|---|---|
-| `assets/tiles/ziemia.png` | **arkusz kafli terenu** | trzy bloki 3×3 (skała / trawa / ziemia) + górny pasek ze znacznikami (lej, ruda) |
+| `assets/tiles/ziemia.png` | **arkusz kafli terenu** | sześć bloków 3×3 (beton / trawa / ziemia / las / kamień / zarośla) + górny pasek znaczników (lej, ruda, wrak, pożar) |
+| `assets/tiles/decor.png` | **ozdoby** | wiersz = rodzaj (krzak, głaz, zapora, złom), kolumna = odmiana; tło przezroczyste |
 | `assets/units/inf.png` | żołnierz | arkusz klatek **albo** pojedynczy sprite |
 | `assets/buildings/<typ>.png` | budynki | `hq`, `power`, `refinery`, `barracks`, `bunker`, … |
 | `assets/scene/bastion.png` | bastion wroga | |
@@ -18,6 +19,82 @@ grafika nigdy nie blokuje rozgrywki** — to jest zasada, nie przypadek.
 
 Po wrzuceniu pliku **odkomentuj odpowiedni wiersz w `MANIFEST`** (`src/assets.js`).
 Kafle terenu wczytują się same z `TILESETS` — wystarczy plik.
+
+---
+
+## Jak wrzucić plik do repo
+
+**PNG commituje się TYLKO wewnątrz `assets/`.** Globalny `.gitignore` ma `*.png`,
+a wyjątki (`!assets/**`) dotyczą wyłącznie tego drzewa — plik położony w korzeniu
+repo albo w `docs/` git po cichu pominie i nikt się nie zorientuje.
+
+Sprawdzenie, gdy coś „nie widać":
+
+```sh
+git check-ignore -v <ścieżka>     # cisza albo reguła z „!" = plik wejdzie; reguła bez „!" = ignorowany
+git status --short --untracked-files=all | grep png
+```
+
+Z linii poleceń:
+
+```sh
+git checkout claude/funny-cray-81sz6f
+cp ~/Downloads/arkusz.png assets/raw/ziemia-teren-2026-09-16.png
+git add assets/raw/ziemia-teren-2026-09-16.png
+git commit -m "Assety: surowy arkusz terenu z AI"
+git push -u origin claude/funny-cray-81sz6f
+```
+
+Przez stronę GitHuba (bez terminala): wejdź w katalog `assets/raw` na gałęzi
+roboczej → **Add file › Upload files** → przeciągnij PNG → *Commit changes*.
+Katalog musi istnieć w drzewie (stąd ten `README.md` obok) — GitHub nie pozwala
+wgrać pliku do katalogu, którego nie ma.
+
+---
+
+## Arkusz z AI — krok pośredni
+
+Generator zwraca **planszę poglądową**, nie tileset. Trzy wady są tu istotne
+i każda wymaga innej poprawki:
+
+| Wada | Co robi w grze | Lek |
+|---|---|---|
+| rozstaw kafli faluje (98–114 px) | paski sąsiadów w każdym kaflu | cięcie po **zmierzonych szwach**, nie równą siatką |
+| kafel ma wrysowaną ramkę i cień | widoczna krata | głębsze cięcie + wyrównanie tonu krawędzi |
+| kafel jest **scenką**, nie fakturą | tapeta z powtórzonego drzewa | scenki idą do warstwy ozdób, gruntem zostaje to, co płaskie |
+
+Cięcie robi **`tools/kafle.py`** (`pip install pillow numpy`, potem
+`python3 tools/kafle.py`). Wszystko, co się dobiera ręcznie, siedzi w tabelach
+na górze pliku: zmierzone szwy arkuszy, wybór kafli na każdy grunt, prostokąty
+budynków i ozdób, dopasowanie do palety. Po dogenerowaniu nowej grafiki
+poprawiasz tabelę, nie kod.
+
+Narzędzie zapisuje:
+
+- `assets/tiles/ziemia.png` — grunty i znaczniki (układ z `TILESETS`),
+- `assets/tiles/decor.png` — ozdoby z przezroczystością (układ z `DECORSET`),
+- `assets/buildings/*.png`, `assets/scene/bastion.png` — bryły.
+
+### Czemu grunt jest osobno od obiektów
+
+Bo płaskiego gruntu, który wolno powtarzać, jest w arkuszu terenu **cztery
+kafle**. Reszta to scenki ze skomponowanym środkiem — drzewo, głaz, lej —
+a scenka powtórzona przez całe pole zawsze będzie tapetą. Dlatego podłoże jest
+gładkie (ścięty kontrast, zdjęta wielkoskalowa plama), a to, co przyciąga oko,
+leży na nim jako pojedyncze obiekty z własną skalą i przesunięciem.
+
+Trzy rzeczy, które usuwają widoczną kratę, i żadna nie zastępuje pozostałych:
+
+1. **wspólny ton krawędzi** w obrębie całej rodziny terenu — inaczej każdy styk
+   typów rysuje własną linię. Korekta mnożnikowa i wąska; wtapianie w płaski
+   kolor robi wokół kafla gładką ramkę, czyli tę samą kratę;
+2. **filtr górnoprzepustowy** — kafel ma w środku jaśniejszą i ciemniejszą
+   połowę, a taka plama powtórzona co 52 px daje szachownicę nawet przy idealnie
+   zgranych brzegach;
+3. **obrót i odbicie** kafla po pozycji — dziewięć wariantów w równym rytmie
+   ma rozpoznawalny deseń; osiem ułożeń robi z nich 72 widoki.
+
+Obiekty ozdób są odbijane, ale **nie obracane** — beczka ma pion.
 
 ---
 
