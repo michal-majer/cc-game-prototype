@@ -312,24 +312,32 @@ export const MISSIONS = {
 
        Wróg rozkłada każdą falę PO DROGACH (round-robin w sim.js), więc trzecia
        część fali to wciąż realna siła na każdym trakcie. Czołgi wchodzą w ósmej
-       fali — dokładnie wtedy, gdy zaczyna się liczyć utrzymanie.              */
+       fali — dokładnie wtedy, gdy zaczyna się liczyć utrzymanie.
+
+       MASA WYBRANA POMIAREM, z trzech krzywych o tym samym rytmie:
+         ×3 (szczyt 55 jedn.) · 0/3 · sztab  7% — plan, który brzmiał groźnie
+         ×1 (szczyt 24 jedn.) · 3/3 · sztab 100% · 0 strat — nie ma o co grać
+         TA  (szczyt 32 jedn.) · 1/3 · sztab 37% · 16 straconych obiektów
+       Środkowa nie jest kompromisem, tylko jedyną, przy której misja w ogóle
+       coś kosztuje: przy cienkiej bot wygrywa dokładnie na fali 8, czyli
+       bramka `after` kończy misję, zanim cokolwiek się wydarzy.               */
     waves:[
-      { t:48, inf:4 },                            // po jednym na drogę — rozpoznanie
+      { t:46, inf:4 },                            // po jednym na drogę — rozpoznanie
       { t:38, inf:6 },
-      { t:34, inf:9,  lazik:1 },
-      { t:30, inf:12, lazik:2 },
-      { t:26, inf:16, lazik:3 },                  // ▲ SZPIC — pierwszy raz na trzech naraz
-      { t:42, inf:9,  lazik:1 },                  // ▼ oddech
-      { t:32, inf:15, lazik:3 },
-      { t:30, inf:18, lazik:4, tank:1 },          // pierwszy czołg — i pierwsza bramka celu
-      { t:25, inf:24, lazik:5, tank:2 },          // ▲ SZPIC
-      { t:44, inf:12, lazik:2 },                  // ▼ oddech
-      { t:31, inf:21, lazik:5, tank:2 },
-      { t:29, inf:24, lazik:6, tank:3 },
-      { t:24, inf:30, lazik:7, tank:4 },          // ▲ SZPIC — ostatnia przed terminem
-      { t:40, inf:15, lazik:3, tank:1 },          // ▼ oddech
-      { t:26, inf:36, lazik:8, tank:5 },          // te dwie lecą, gdy nie zdążyłeś
-      { t:30, inf:40, lazik:9, tank:6 },
+      { t:34, inf:7,  lazik:1 },
+      { t:30, inf:8,  lazik:2 },
+      { t:26, inf:11, lazik:3 },                  // ▲ SZPIC — pierwszy raz na trzech naraz
+      { t:42, inf:6,  lazik:1 },                  // ▼ oddech
+      { t:32, inf:10, lazik:3 },
+      { t:30, inf:12, lazik:3, tank:1 },          // pierwszy czołg — i pierwsza bramka celu
+      { t:25, inf:15, lazik:4, tank:2 },          // ▲ SZPIC
+      { t:44, inf:8,  lazik:2 },                  // ▼ oddech
+      { t:31, inf:12, lazik:4, tank:2 },
+      { t:29, inf:14, lazik:4, tank:2 },
+      { t:24, inf:18, lazik:5, tank:3 },          // ▲ SZPIC — ostatnia przed terminem
+      { t:40, inf:9,  lazik:3, tank:1 },          // ▼ oddech
+      { t:26, inf:20, lazik:5, tank:4 },          // te dwie lecą, gdy nie zdążyłeś
+      { t:30, inf:22, lazik:6, tank:4 },
     ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory'],
     feats:feats({ stance:4, sectors:3, radar:2, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
@@ -463,24 +471,33 @@ export const MISSIONS = {
 
        Świadomie BEZ terminu: finał ma być o przełamaniu gardła, nie o zegarze.
        Przegrać wciąż można normalnie — bastion ostrzeliwuje, a szczyt fal
-       potrafi zjeść bazę.                                                     */
+       potrafi zjeść bazę.
+
+       MASA WYBRANA POMIAREM i tu różnica jest największa w całej kampanii:
+         ×2 (szczyt 67 jedn. na polu) · sztab 13% · bastion 100% · cele 0/3
+         TA (szczyt 23 jedn. na polu) · sztab 100% · BASTION 65% · cele 2/3
+       Przy cięższej krzywej armia w ogóle nie dochodzi do gardła — to ten sam
+       wynik, co przed planem. Przy tej dochodzi, bierze dwa cele i zaczyna
+       gryźć bastion; misja trwa ~16 minut, czyli dokładnie tyle, ile finał
+       miał trwać. Lekka krzywa NIE jest tu ułatwieniem: to jedyna, przy której
+       finał w ogóle się wydarza.                                              */
     waves:[
       { t:50, inf:5 },
-      { t:40, inf:8,  lazik:1 },
-      { t:36, inf:12, lazik:2 },
-      { t:32, inf:16, lazik:3, tank:1 },
-      { t:28, inf:20, lazik:4, tank:2 },              // ▲
-      { t:46, inf:10, lazik:2 },                      // ▼ oddech
-      { t:32, inf:22, lazik:5, tank:2, rkt:2 },
-      { t:29, inf:26, lazik:6, tank:3, rkt:3 },
-      { t:25, inf:32, lazik:7, tank:4, rkt:4 },       // ▲ SZCZYT ICH SIŁY
-      { t:48, inf:12, lazik:2, tank:1 },              // ▼ OKNO — tędy wchodzi się w lej
-      { t:34, inf:24, lazik:5, tank:3, rkt:3 },       // ostatnie porządne uderzenie
-      { t:34, inf:18, lazik:4, tank:2, rkt:2 },       // ▼ ich rezerwy się kończą
-      { t:36, inf:14, lazik:3, tank:2 },
-      { t:38, inf:10, lazik:2, tank:1 },
-      { t:40, inf:7,  lazik:1 },
-      { t:44, inf:5 },                                // dalej bastion broni się sam
+      { t:40, inf:6,  lazik:1 },
+      { t:36, inf:7,  lazik:2 },
+      { t:32, inf:9,  lazik:2, tank:1 },
+      { t:28, inf:11, lazik:3, tank:2 },              // ▲
+      { t:46, inf:6,  lazik:2 },                      // ▼ oddech
+      { t:32, inf:8,  lazik:3, tank:1, rkt:2 },
+      { t:29, inf:10, lazik:3, tank:2, rkt:2 },
+      { t:25, inf:14, lazik:4, tank:3, rkt:2 },       // ▲ SZCZYT ICH SIŁY
+      { t:48, inf:6,  lazik:2, tank:1 },              // ▼ OKNO — tędy wchodzi się w lej
+      { t:34, inf:9,  lazik:3, tank:2, rkt:1 },       // ostatnie porządne uderzenie
+      { t:34, inf:7,  lazik:2, tank:1, rkt:1 },       // ▼ ich rezerwy się kończą
+      { t:36, inf:5,  lazik:2, tank:1 },
+      { t:38, inf:4,  lazik:1, tank:1 },
+      { t:40, inf:3,  lazik:1 },
+      { t:44, inf:3 },                                // dalej bastion broni się sam
     ],
     feats:feats({ stance:5, sectors:3, radar:2, cards:true, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'bastion' },

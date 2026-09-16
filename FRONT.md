@@ -347,6 +347,17 @@ misji, dopóki nie przyjdzie nacisk, który każe dróg BRONIĆ) i `before: 14`
 o tym wprost: przy spełnionym celu przed czasem pokazuje „ZALICZY SIĘ OD FALI 8",
 bo reguła, o której gracz dowiaduje się po fakcie, nie jest regułą.
 
+Masa fal wybrana pomiarem, trzy krzywe o tym samym rytmie:
+
+| szczyt planu | wygrane | sztab min | stracone obiekty |
+|---|---|---|---|
+| 55 jedn. | 0/3 | 7 % | 21 |
+| 24 jedn. | 3/3 | 100 % | **0** |
+| **32 jedn.** | **1/3** | **37 %** | **16** |
+
+Środkowa nie jest kompromisem: przy cienkiej bot wygrywa dokładnie na fali 8,
+czyli bramka `after` kończy misję, zanim cokolwiek się wydarzy.
+
 ### Misja 5 — POD OSTRZAŁEM
 
 **Uczy:** utrzymanie jest trudniejsze niż zdobycie. Przygotowanie do finału.
@@ -434,6 +445,24 @@ się kończą. Bastion zostaje sam dokładnie wtedy, gdy kolejność wejścia w 
 zaczyna cokolwiek znaczyć. Finał świadomie **bez terminu** — ma być o przełamaniu
 gardła, nie o zegarze; przegrać wciąż można normalnie, bo bastion ostrzeliwuje,
 a szczyt fal potrafi zjeść bazę.
+
+**I tu jest najważniejsza liczba całej kalibracji.** Ta sama misja, ten sam
+rytm, dwie masy fal:
+
+| szczyt wroga na polu | sztab min | cele | bastion | czas |
+|---|---|---|---|---|
+| 67 jedn. | 13 % | 0/3 | **100 %** | 6:04, porażka na 10. fali |
+| **23 jedn.** | 100 % | **2/3** | **65 %** | **15:49**, plan wyczerpany |
+
+Przy cięższej krzywej wynik jest **identyczny jak przed planem**: armia nie
+dochodzi do gardła, bastionu nie widzi. Przy lżejszej dochodzi, bierze dwa cele
+i zaczyna go gryźć — a misja trwa szesnaście minut, czyli dokładnie tyle, ile
+finał miał trwać (cel 12–18 min).
+
+Lekka krzywa **nie jest tu ułatwieniem**. Jest jedynym ustawieniem, przy którym
+finał w ogóle się wydarza — bo w tej grze front przesuwa się tylko przez
+lokalne wygrywanie starć, a przy młynce nie przesuwa się wcale. To nie jest
+„mniej wroga", tylko „wróg, którego DA SIĘ przepchnąć".
 
 Zostaje otwarte (Twoje liczby, nie moje):
 · skrócenie łańcucha radar → fabryka → laboratorium → artyleria w misji 6 —
