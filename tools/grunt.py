@@ -179,19 +179,54 @@ def wczytaj(nazwa, cfg, plik, wzor):
     return a, 'szum'
 
 
+def zloz(warstwy, seed):
+    """Zmieszaj odmiany w JEDNĄ płachtę, o boku dwa razy większym niż źródła.
+
+    Mieszanie robione było wcześniej w silniku — maskami na osobnych warstwach.
+    Działało, ale wymuszało wypiek całego podłoża do tekstury (maski liczą się
+    co klatkę na obwiedni maskowanego obiektu, czyli na całej mapie), a wypiek
+    szedł w połowie rozdzielczości i ROZMAZYWAŁ trawę. Przy proceduralnym szumie
+    to nie miało znaczenia, przy płachcie z fotografii owszem.
+
+    Zrobione tutaj, offline, nie kosztuje nic w czasie gry i zostawia teksturę
+    ostrą. Bok jest podwojony, więc okres powtarzania też się podwaja — a to
+    właśnie długość okresu, nie jakość styków, decyduje o widocznej kracie.
+
+    Bezszwowość zachowana: każde źródło kafluje się samo, a wagi mieszania biorą
+    się z szumu zawijanego na tym samym boku."""
+    n = len(warstwy)
+    if n == 1: return warstwy[0]
+    h, w, _ = warstwy[0].shape
+    H, W = h*2, w*2
+    global SIZE
+    stare, SIZE = SIZE, H
+    rng = np.random.default_rng(seed)
+    wagi = [pole(rng, 0.5) for _ in range(n)]          # po jednej mapie wag na odmianę
+    SIZE = stare
+    wagi = [np.clip((x - 0.35) * 2.2, 0, 1) + 0.12 for x in wagi]
+    suma = np.sum(wagi, axis=0)
+    out = np.zeros((H, W, 3), dtype=np.float32)
+    for a, g in zip(warstwy, wagi):
+        kafel = np.tile(a, (H//h + 1, W//w + 1, 1))[:H, :W]
+        out += kafel * (g / suma)[..., None]
+    return out
+
+
 def zrob(nazwa, cfg, seed):
     zrodla = ZRODLA.get(nazwa) or ['']
     if isinstance(zrodla, str): zrodla = [zrodla]
-    wzor = None
-    for i, plik in enumerate(zrodla):
+    odmiany, skady, wzor = [], [], None
+    for plik in zrodla:
         a, skad = wczytaj(nazwa, cfg, plik, wzor)
-        if i == 0: wzor = a
-        sufiks = '' if i == 0 else f'-{i+1}'
-        out = os.path.join(ROOT, WYJSCIE, f'grunt-{nazwa}{sufiks}.png')
-        os.makedirs(os.path.dirname(out), exist_ok=True)
-        Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(out)
-        print('zapisano', os.path.relpath(out, ROOT),
-              f'{a.shape[1]}×{a.shape[0]}', '·', skad)
+        if wzor is None: wzor = a
+        odmiany.append(a); skady.append(skad)
+        if skad == 'szum': break          # bez płacht nie ma czego mieszać
+    a = zloz(odmiany, seed)
+    out = os.path.join(ROOT, WYJSCIE, f'grunt-{nazwa}.png')
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(out)
+    print('zapisano', os.path.relpath(out, ROOT), f'{a.shape[1]}×{a.shape[0]}',
+          '·', ' + '.join(skady))
 
 
 def plamy():
@@ -218,29 +253,8 @@ def plamy():
     print('zapisano', os.path.relpath(out, ROOT), f'{SIZE}×{SIZE}', '· wolna zmienność')
 
 
-def maski(ile=2):
-    """Maski mieszające odmiany gruntu — przezroczystość z wolnego szumu.
-
-    Okres masek jest inny niż okres gruntu i inny między sobą, więc wspólny rytm
-    wszystkich warstw wypada dużo dłuższy niż ekran. To jest właściwy sposób na
-    powtarzalność: nie ukrywanie styków, tylko wydłużenie okresu."""
-    for i in range(ile):
-        rng = np.random.default_rng(900 + i*37)
-        f = (szum(rng, 4)*0.60 + szum(rng, 8)*0.28 + szum(rng, 16)*0.12)
-        f = (f - f.min()) / max(1e-6, float(np.ptp(f)))
-        f = np.clip((f - 0.42) * 2.6, 0, 1)        # kontrast: kępy, nie mgła
-        a = np.zeros((SIZE, SIZE, 4), dtype=np.uint8)
-        a[:, :, :3] = 255
-        a[:, :, 3] = (f*255).astype(np.uint8)
-        out = os.path.join(ROOT, WYJSCIE, f'grunt-maska{i+1}.png')
-        Image.fromarray(a).save(out)
-        print('zapisano', os.path.relpath(out, ROOT), f'{SIZE}×{SIZE}',
-              '· maska mieszania', i+1)
-
-
 if __name__ == '__main__':
     os.makedirs(os.path.join(ROOT, WYJSCIE), exist_ok=True)
     for i, (nazwa, cfg) in enumerate(MATERIALY.items()):
         zrob(nazwa, cfg, 1000 + i)
     plamy()
-    maski()

@@ -211,16 +211,23 @@ function buildGround(){
   const T = CELL;
   const wx = WV.x - T, wy = WV.y - T, ww = WV.w + 2*T, wh = WV.h + 2*T;
 
-  /* Warstwy podłoża składane są do POMOCNICZEGO kontenera i wypiekane w jedną
-     teksturę. Powód jest zmierzony: maski Pixi liczą się co klatkę na obwiedni
-     maskowanego obiektu, a ta obejmuje całą mapę — przy 4 000 px to render
-     wielkości czterech megapikseli na każdą klatkę i klatkaż spadł z 15 na 6.
-     Grunt jest statyczny przez całą misję, więc wystarczy raz.
+  /* WYPIEK — WSZYSTKIE warstwy podłoża składane raz na misję do jednej tekstury.
 
-     Wypiek idzie w połowie rozdzielczości: podłoże to same niskie częstotliwości,
-     a mapa 4 000 px wyszłaby poza limit tekstury. Ozdoby i ślady walki zostają
-     osobnymi sprite'ami NAD wypiekiem, bo one mają ostre krawędzie i połowa
-     rozdzielczości byłaby na nich widoczna.                                    */
+     Dwie rzeczy wymusiły dokładnie taki kształt, obie zmierzone:
+
+     1. Warstwy NIE MOGĄ iść na ekran na żywo. Trakt potrzebuje maski, a maska
+        Pixi liczy się co klatkę na obwiedni maskowanego obiektu, czyli na całej
+        mapie. Nawet bez masek trzy pełnoekranowe warstwy z mnożeniem kosztują
+        swoje: 15 fps z wypiekiem, 7-8 bez niego.
+
+     2. Wypiek MUSI iść w pełnej rozdzielczości. Pierwsza wersja szła w połowie,
+        bo podłoże było wtedy proceduralnym szumem o niskich częstotliwościach.
+        Gdy trawa zaczęła pochodzić z płachty fotograficznej, połowa zjadła jej
+        źdźbła i pole zrobiło się rozmazane.
+
+     Stąd `res`: jeden, obcinany tylko tyle, ile trzeba, żeby przy mapie 4 000 px
+     zmieścić się w limicie tekstury. Mieszanie odmian trawy zeszło do
+     tools/grunt.py, więc tutaj nie ma już ani jednej maski poza traktem.      */
   const warstwy = new PIXI.Container();
   const plachta = (nazwa, kratek, x, y, w, h, gdzie) => {
     const t = groundTex(nazwa); if (!t) return null;
@@ -232,19 +239,7 @@ function buildGround(){
     return sp;
   };
 
-  plachta('trawa', 14, wx, wy, ww, wh);                 // 1) pobocze na całą mapę
-
-  /* Odmiany trawy wtopione maskami o INNYM okresie niż sam grunt. To jest
-     właściwe lekarstwo na widoczną kratę: nie ukrywanie styków (zmierzony szew
-     płachty to 0,68 przy medianie szumu 0,71 — niewidoczny), tylko wydłużenie
-     okresu, po którym deseń wraca. Trzy trawy i dwie maski o różnych okresach
-     dają wspólny rytm dłuższy niż ekran, więc nie ma czego złapać.            */
-  for (const [odm, mska, kratek] of [['trawa2','maska1',11], ['trawa3','maska2',17]]){
-    const w = plachta(odm, kratek, wx, wy, ww, wh);
-    if (!w) continue;
-    const m = plachta(mska, 23, wx, wy, ww, wh);
-    if (m) { w.mask = m; } else { w.alpha = 0.5; }
-  }
+  plachta('trawa', 28, wx, wy, ww, wh);                 // 1) pobocze na całą mapę
 
   const ziemia = plachta('ziemia', 8, wx, wy, ww, wh);  // 2) trakt pod miękką maską
   if (ziemia){
@@ -259,14 +254,20 @@ function buildGround(){
   const pl = plachta('plamy', 34, wx, wy, ww, wh);
   if (pl) pl.blendMode = 'multiply';
 
+  const res = Math.min(1, 4000/Math.max(1, ww), 4000/Math.max(1, wh));
   const wypiek = app.renderer.generateTexture({
-    target: warstwy, resolution: 0.5,
+    target: warstwy, resolution: res,
     frame: new PIXI.Rectangle(wx, wy, ww, wh),
   });
   warstwy.destroy({ children: true });
   const podloze = new PIXI.Sprite(wypiek);
   podloze.x = wx; podloze.y = wy; podloze.width = ww; podloze.height = wh;
   groundLayer.addChild(podloze);
+
+  const polozWprost = (t, x, y, sz) => {
+    const sp = new PIXI.Sprite(t); sp.width = sz; sp.height = sz;
+    sp.x = x; sp.y = y; groundLayer.addChild(sp); return sp;
+  };
 
   /* 4) ŚLADY WALKI — leje, wraki i pożary na trakcie, gęściej ku bastionowi.
      To one mówią, że tędy się już przetaczało. Rozstawiane po kratce, więc
@@ -275,10 +276,6 @@ function buildGround(){
   const gy0 = Math.floor(wy/T), gy1 = Math.ceil((wy+wh)/T);
   const END = fieldEnd();
   const marks = [markTex('lej'), markTex('wrak'), markTex('ogien')].filter(Boolean);
-  const polozWprost = (t, x, y, sz) => {
-    const sp = new PIXI.Sprite(t); sp.width = sz; sp.height = sz;
-    sp.x = x; sp.y = y; groundLayer.addChild(sp); return sp;
-  };
   if (marks.length){
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++){
       const x = gx*T + T/2, y = gy*T + T/2;

@@ -158,11 +158,7 @@ export const DECORSET = {
 
    Płachty robi tools/grunt.py — z płachty generatora albo z szumu.            */
 export const GROUND = {
-  trawa:  'assets/tiles/grunt-trawa.png',
-  trawa2: 'assets/tiles/grunt-trawa-2.png',   // odmiany mieszane maskami —
-  trawa3: 'assets/tiles/grunt-trawa-3.png',   // patrz maska1/maska2 niżej
-  maska1: 'assets/tiles/grunt-maska1.png',
-  maska2: 'assets/tiles/grunt-maska2.png',
+  trawa:  'assets/tiles/grunt-trawa.png',     // odmiany są już w niej zmieszane
   ziemia: 'assets/tiles/grunt-ziemia.png',
   beton:  'assets/tiles/grunt-beton.png',
   plamy:  'assets/tiles/grunt-plamy.png',
