@@ -363,7 +363,7 @@ export const MISSIONS = {
       { t:26, inf:17, lazik:5, tank:3 },          // te dwie lecą, gdy nie zdążyłeś
       { t:30, inf:19, lazik:6, tank:3 },
     ],
-    unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory'],
+    unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','rnest','factory'],
     feats:feats({ stance:4, sectors:3, radar:2, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'roads', target:2, after:8, before:14 },
     // `base` i `grow` są przy planie fal MARTWE (sim.js nie woła eBuild) —
@@ -448,7 +448,7 @@ export const MISSIONS = {
       { t:26, inf:11, lazik:3, tank:3, rkt:2 },       // te dwie lecą, gdy nie zdążyłeś
       { t:28, inf:12, lazik:4, tank:3, rkt:2 },
     ],
-    unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory','reactor'],
+    unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','rnest','factory','reactor'],
     feats:feats({ stance:4, sectors:3, radar:2, cards:true, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'hold', target:2, waves:4, after:9, before:14 },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks','rocket'], grow:1,
@@ -489,7 +489,7 @@ export const MISSIONS = {
       { n:'ŚRODKOWA', y: 0, bow:0, sect:[{ kind:'sztab',   n:'WĘZEŁ',      f:0.55 }] },
       { n:'DOLNA',    y: 1, bow:0, sect:[{ kind:'bateria', n:'BATERIA PD.', f:0.62 }] },
     ],
-    unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory',
+    unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','rnest','factory',
             'reactor','lab','arty','heavy'],
     /* ARTYLERIA I KOLOSY BEZ LABORATORIUM — jedyna zmiana drzewka w całej
        kampanii i jedyna, którą pomiar wymusił wprost.

@@ -11,7 +11,7 @@ import {
   isHeavy, isSoldier, isArmored, BAL, BASE_INCOME,
   lanesAt, laneCY, laneHalf, corridorHalf, LANE_SHIFT, maxLanes, SPD_MUL,
   roadY, roadHalf, roadCount, roadName,
-  COLS, ROWS, FORM_DEPTH, FORM_SPREAD, TTK_MUL, clamp
+  COLS, ROWS, CELL, FORM_DEPTH, FORM_SPREAD, TTK_MUL, clamp
 } from './config.js';
 import { S, say, lineX } from './state.js';
 import { MIS, feat, goalDone, goalFailed } from './campaign.js';
@@ -88,6 +88,39 @@ export function dmgTo(t, amount, srcType, ap){
   if (t===S.bastion && !t.dead){ const pay=Math.max(0, Math.min(d, t.hp+d))*RAID_PAY; S.money+=pay; S.raidPay+=pay;
     if (S.stat){ S.stat.basDmg += Math.max(0, Math.min(d, t.hp+d)); S.stat.inc.lupy += pay; } }
   return m;
+}
+
+/* --------------------- ODLEGŁOŚĆ DO CELU, NIE DO ŚRODKA -------------------
+   Budynek nie jest punktem: sztab to 2×2 kratki, czyli 104 px w poprzek.
+   Mierzenie zasięgu do jego ŚRODKA znaczyło, że piechota (zasięg 39) musiała
+   wejść budynkowi NA DACH, żeby w ogóle zaczęła strzelać — i to dokładnie
+   widać było w grze. Do jednostek liczymy jak dotąd, w linii prostej; do
+   budynku — do najbliższego punktu jego OBRYSU.                              */
+export function halfOf(o){
+  const fp = (o && o.c != null && o.type && B[o.type]) ? B[o.type].fp : null;
+  return fp ? { w: fp[0]*CELL/2, h: fp[1]*CELL/2 } : null;
+}
+export function distTo(u, o){
+  const hf = halfOf(o);
+  if (!hf) return Math.hypot(o.x-u.x, o.y-u.y);
+  const dx = Math.max(Math.abs(o.x-u.x) - hf.w, 0);
+  const dy = Math.max(Math.abs(o.y-u.y) - hf.h, 0);
+  return Math.hypot(dx, dy);
+}
+/* Nikt nie stoi NA budynku. Sam limit zasięgu nie wystarczy — jednostkę wpycha
+   w obrys tłok, przerzut w poprzek i cofanie się na linię. Wypychamy po
+   PŁYTSZEJ osi, więc jednostka zsuwa się ze ściany, a nie przeskakuje budynek. */
+function pushOutOfBuildings(u){
+  const sz = U[u.type].sz;
+  for (const b of S.buildings){
+    if (b.hp <= 0) continue;
+    const hf = halfOf(b); if (!hf) continue;
+    const dx = u.x - b.x, dy = u.y - b.y;
+    const ox = hf.w + sz - Math.abs(dx), oy = hf.h + sz - Math.abs(dy);
+    if (ox <= 0 || oy <= 0) continue;                    // poza obrysem
+    if (ox < oy) u.x = b.x + Math.sign(dx || 1) * (hf.w + sz);
+    else         u.y = b.y + Math.sign(dy || 1) * (hf.h + sz);
+  }
 }
 
 /* Szyk z UKŁADU BAZY. Kolumna → głębokość (prawa kolumna, czyli najbliżej
@@ -324,7 +357,7 @@ export function update(dt){
     let near=null, nb=340;
     for (const o of list){
       if (o.hp<=0) continue;
-      const dist=Math.hypot(o.x-u.x,o.y-u.y);
+      const dist=distTo(u,o);
       if (dist<nb){ nb=dist; near=o; }
     }
     if (d.hunt){
@@ -337,7 +370,7 @@ export function update(dt){
       let hb=1e9, prey=null;
       for (const o of list){
         if (o.hp<=0 || o.type!==d.hunt) continue;
-        const dist=Math.hypot(o.x-u.x,o.y-u.y);
+        const dist=distTo(u,o);
         if (dist<hb){ hb=dist; prey=o; }
       }
       if (near && nb<=d.range){ t=near; bd=nb; }      // ktoś w zwarciu → strzelaj
@@ -384,11 +417,29 @@ export function update(dt){
       // zamrażał jednostkę DOKŁADNIE na linii — czołg parkował krok dalej niż jej
       // zasięg i farmił ją bezkarnie („piechota stoi, a czołg w nią strzela").
       let LIM = LIM0;
-      if (u.side==='p' && t && t.x > u.x && t.x <= LIM0 + ENGAGE_BAND)
-        LIM = Math.max(LIM0, t.x - d.range);
+      if (u.side==='p' && t && t.x > u.x && t.x <= LIM0 + ENGAGE_BAND){
+        /* ZASIĘG JEST OKRĘGIEM, NIE ODCINKIEM. Limit podejścia liczony po samym X
+           (`t.x - range`) stawiał żołnierza dokładnie `range` PRZED celem — a gdy
+           cel stał choć trochę z boku (szyk, oś drogi, tłok), w linii prostej
+           było to już WIĘCEJ niż zasięg. Żołnierz dochodził na swój limit i stał,
+           nie oddając strzału: „czasami mimo zasięgu nie strzelają". Pomiar: cel
+           20 px w bok — od wejścia w pole widzenia do pierwszego strzału 2,9 s,
+           z czego półtorej sekundy dreptania po samej krawędzi zasięgu.
+           Liczymy więc, ile wolno zostawić PO X, żeby okrąg zasięgu naprawdę objął
+           cel. Zapas (0.82) jest tu istotny: bez niego jednostka ląduje dokładnie
+           na krawędzi i tańczy „w zasięgu / poza zasięgiem" zamiast strzelać.    */
+        const bok = Math.abs(t.y - u.y), r = d.range * 0.82;
+        const poX = bok >= r ? 0 : Math.sqrt(r*r - bok*bok);
+        LIM = Math.max(LIM0, t.x - poX);
+      }
       if (u.side==='p'){
         if (u.x > LIM){ vx = -1; vy = 0; }
         else if (vx>0 && u.x + vx*d.spd*sMul*dt > LIM) vx = 0;
+        // Zejście BOKIEM na pełnej prędkości. Wektor „do celu" przy podejściu
+        // niemal czołowym ma składową pionową rzędu ułamka prędkości, więc
+        // dwadzieścia pikseli w bok zajmowało sekundy — pod ostrzałem i bez
+        // oddawania ognia. Gdy X stoi już na limicie, zostaje sam ruch w bok.
+        if (t && vx===0 && vy!==0) vy = Math.sign(vy);
       }
       if (u.side==='e' && S.eStance==='hold'){
         if (u.x < eHold){ vx = 1; vy = 0; }
@@ -422,6 +473,8 @@ export function update(dt){
         u.shift = ady > half*1.6 ? 0.25 : 0;      // w przerzucie — render to pokazuje
       } else if (u.shift>0) u.shift -= dt;
     }
+    // Tylko przy bazie — w polu nie ma budynków, po których można by chodzić.
+    if (u.x < BASE_R + 60) pushOutOfBuildings(u);
     if (u.flash>0) u.flash-=dt*6;
     if (u.fireT>0) u.fireT-=dt;
     if (u.moveT>0) u.moveT-=dt;

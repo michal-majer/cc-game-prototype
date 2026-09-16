@@ -209,6 +209,28 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 #objective.done{ border-left-color:var(--ok); }
 #objective.done #obj-num{ color:var(--ok); }
 
+/* ---------- plan szturmu ----------
+   Drabinka fal pod celem misji. Gracz ma WIEDZIEĆ, że szósta uderzy ciasno,
+   zanim uderzy — inaczej „rozbuduj się na czas" jest zagadką, nie decyzją. */
+#waveplan{ right:calc(8px + var(--safe-r)); top:calc(var(--top-h) + 108px); width:210px;
+  background:#0e1416ee; border:1px solid var(--gridHi); border-left:3px solid var(--dim);
+  border-radius:4px; padding:6px 9px; pointer-events:none; }
+#wp-lbl{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:3px; }
+.wp-row{ display:flex; align-items:center; gap:5px; font-size:9px; line-height:1.45;
+  color:var(--dim); white-space:nowrap; }
+.wp-row .wp-n{ width:12px; text-align:right; color:var(--dim); }
+.wp-row .wp-sila{ flex:0 0 34px; height:4px; background:#0a0d0e; border:1px solid var(--gridHi); }
+.wp-row .wp-sila i{ display:block; height:100%; background:var(--dim); }
+.wp-row .wp-txt{ overflow:hidden; text-overflow:ellipsis; }
+.wp-row.past{ opacity:.38; }
+.wp-row.past .wp-n{ color:var(--ok); }
+.wp-row.now{ color:var(--txt); font-weight:700; }
+.wp-row.now .wp-n, .wp-row.next .wp-n{ color:var(--warn); }
+.wp-row.now .wp-sila i, .wp-row.next .wp-sila i{ background:var(--warn); }
+.wp-row.next{ color:var(--txt); }
+.wp-row.spike .wp-sila i{ background:var(--bad); }
+.wp-row.spike .wp-n{ color:var(--bad); }
+
 /* ---------- rozkaz torowy ---------- */
 #lanes{ right:calc(8px + var(--safe-r)); bottom:calc(182px + var(--safe-b));
   display:flex; flex-direction:column; gap:4px; }
@@ -293,6 +315,9 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
 @media (max-width:720px){
   #objective{ width:150px; top:70px; padding:5px 7px; }
   #obj-txt{ font-size:10px; }
+  #waveplan{ width:150px; top:166px; padding:5px 7px; }
+  .wp-row{ font-size:8px; line-height:1.35; }
+  .wp-row .wp-sila{ flex-basis:22px; }
   #lanes{ bottom:calc(222px + var(--safe-b)); }
   .lane-btn{ min-width:74px; font-size:9px; padding:6px 7px; }
   .m-brief{ flex-direction:column; }
@@ -320,6 +345,7 @@ html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidd
   /* wywiad i cel obok siebie POD paskiem górnym, nie na nim */
   #intel{ right:calc(156px + var(--safe-r)); }
   #objective{ width:140px; }
+  #waveplan{ width:140px; }
   #obj-lbl{ font-size:8px; }
   #ready{ bottom:calc(228px + var(--safe-b)); }
   #log-toggle{ bottom:calc(228px + var(--safe-b)); }
