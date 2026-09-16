@@ -114,12 +114,23 @@
     </div>
   </div>
 
-  <!-- Cel misji (kampania) -->
-  <div id="objective" class="hud hidden">
-    <div id="obj-lbl">CEL</div>
-    <div id="obj-txt"></div>
-    <div class="obj-bar"><i id="obj-bar"></i></div>
-    <div id="obj-num"></div>
+  <!-- Prawa kolumna: cel misji i plan szturmu jeden pod drugim. Kolumna, a nie
+       dwa panele na sztywnych współrzędnych — inaczej dłuższy cel wchodzi
+       planowi na głowę. -->
+  <div id="rightcol" class="hud">
+    <!-- Cel misji (kampania) -->
+    <div id="objective" class="hidden">
+      <div id="obj-lbl">CEL</div>
+      <div id="obj-txt"></div>
+      <div class="obj-bar"><i id="obj-bar"></i></div>
+      <div id="obj-num"></div>
+    </div>
+
+    <!-- Plan szturmu: co przyjdzie i w jakiej kolejności (misje z autorskim planem) -->
+    <div id="waveplan" class="hidden">
+      <div id="wp-lbl">PLAN SZTURMU</div>
+      <div id="wp-rows"></div>
+    </div>
   </div>
 
   <!-- Rozkaz torowy (pole 1/3/1) -->

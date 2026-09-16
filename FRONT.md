@@ -293,7 +293,16 @@ miejsca na rafinerię.
 Pierwsza misja, w której da się przegrać.
 
 **Ciaśniejsza siatka, inne ukształtowanie** — ten sam zestaw budynków, inne pole.
-Czyta się jako obrona, nie ekspansja. Fale 1–3 działko wystarcza; 4–8 potrzebne baraki.
+Czyta się jako obrona, nie ekspansja. Pierwsze fale działko wystarcza; dalej potrzebne baraki.
+
+**Działkiem startowym jest GNIAZDO KM, nie rakietowe.** Przez chwilę jedynym
+gniazdem na pasku było GNIAZDO RAK. — gracz dostawał odpowiedź na pancerz,
+zanim zobaczył pierwszy pojazd, a „barak czy gniazdo?" było wyborem między
+piechotą a bronią przeciwpancerną, czyli nie tym wyborem, o który w tej misji
+chodzi. KM bije szybko i płasko, więc pancerz (płaska redukcja!) tnie mu
+obrażenia najmocniej: na piechotę jest świetny, na łazika ledwo wystarcza.
+Dzięki temu **pierwszy pojazd w fali trzeciej naprawdę coś znaczy** — i to jest
+moment, w którym misja przestaje być samym stawianiem działek.
 
 *Pułapka:* pokusa zrobienia tower defense na własnych zasadach. **Nie.** Cokolwiek tu
 wejdzie, musi mówić tym samym słownictwem co reszta gry — inaczej gracz nauczy się
@@ -655,6 +664,17 @@ i commit, i był to wybór na szumie, nie na pomiarze. Przy wskaźniku wygranych
 rzędu „jedna na trzy" trzy przebiegi nie odróżniają 1/6 od 1/2. Wybór krzywej
 idzie z **pięciu** przebiegów; trzy zostają do odrzucania rzeczy oczywistych
 (0/3 ze sztabem na 7 % to nie jest przypadek).
+
+**4. Krzywa zmierzona na zepsutej walce nie jest krzywą.** Limit podejścia
+jednostki liczył się po samej osi X, a zasięg jest 2D: cel przesunięty w bok
+o 10 px i więcej znaczył, że żołnierz dochodził na swój limit i **stał, nie
+strzelając**. Dotyczyło to WYŁĄCZNIE armii gracza (wróg nie ma limitu linii),
+więc każdy pomiar sprzed tej poprawki mierzył wojsko, które w połowie starć nie
+oddawało ognia. Ta sama krzywa misji 2 dawała przed nią **0/5 ze sztabem na 3 %**,
+po niej **5/5 ze sztabem na 100 %** — bez jednej zmiany w planie fal.
+Morał nie brzmi „pilnuj zasięgów": brzmi **najpierw sprawdź, czy jednostki w ogóle
+robią to, co myślisz, że robią, a dopiero potem strój liczby**. Odwrotna kolejność
+zbija krzywe do poziomu, przy którym gra jest zepsuta w drugą stronę.
 
 Dane autorskie są **sprawdzane, nie poprawiane**. `checkOreLayout`: brak miejsca
 na rafinerię to błąd w danych misji i ma krzyczeć w konsoli, a nie znikać pod
