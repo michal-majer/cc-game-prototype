@@ -126,7 +126,45 @@ z konkretnej rzeczy, która poszła źle za pierwszym razem.
 Do wklejenia bez zmian. Po angielsku, bo generatory trzymają się wtedy bliżej
 wymagań technicznych.
 
-### A1 — trawa
+### Wersja pod Midjourney (jedna linia, wklej i tyle)
+
+MJ **ignoruje `1024x1024` w treści** — rozdzielczość robi `--ar` i upscale.
+MJ **słabo reaguje na `NO tree, NO bush` w tekście** — od wykluczeń jest `--no`,
+a długie listy zaprzeczeń potrafią zadziałać odwrotnie i dorysować to, czego
+zakazujesz. Stąd dwa warianty każdego promptu: skrócony pod MJ i rozpisany pod
+generatory czatowe.
+
+**A1 trawa**
+
+```
+seamless tileable grass ground texture, top down orthographic, hand painted stylized 2D RTS game art, short dry grass, bare soil patches, small pebbles, moss, uniform flat even lighting, muted desaturated dark olive and grey brown, low contrast, fine consistent detail --tile --ar 1:1 --style raw --stylize 100 --no vignette, gradient, shadow, tree, bush, boulder, path, border, frame, text, watermark, focal point, composition
+```
+
+**A2 ziemia**
+
+```
+seamless tileable churned battlefield earth texture, top down orthographic, hand painted stylized 2D RTS game art, dried mud, shallow track ruts, loose gravel, cracked clay, scattered small stones, uniform flat even lighting, muted desaturated dark grey brown and dull ochre, low contrast, fine consistent detail --tile --ar 1:1 --style raw --stylize 100 --no vignette, gradient, shadow, crater, wreck, tree, path, border, frame, text, watermark, focal point, composition
+```
+
+**A3 piach**
+
+```
+seamless tileable dry sand ground texture, top down orthographic, hand painted stylized 2D RTS game art, fine wind ripples, scattered small pebbles, patches of coarse grit and dust, uniform flat even lighting, muted desaturated dull khaki and grey beige, low contrast, fine consistent detail --tile --ar 1:1 --style raw --stylize 100 --no vignette, gradient, shadow, dune, footprint, tree, border, frame, text, watermark, focal point, composition
+```
+
+**A4 beton**
+
+```
+seamless tileable worn concrete surface texture, top down orthographic, hand painted stylized 2D RTS game art, hairline cracks, oil and water stains, moss in the cracks, small chips and spalling, one continuous slab, uniform flat even lighting, muted desaturated cold dark grey with faint green grey staining, low contrast, fine consistent detail --tile --ar 1:1 --style raw --stylize 100 --no panel joints, expansion lines, tile pattern, painted markings, vignette, gradient, shadow, border, frame, text, watermark
+```
+
+**Obiektów (B, C) NIE dawaj do Midjourney.** Nie utrzyma jednolitego tła
+`#FF00FF` ani rozdzielenia obiektów — zrobi z tego scenę i wracamy do punktu
+wyjścia. Te dwa arkusze idą do generatora czatowego.
+
+### Wersja rozpisana (generatory czatowe)
+
+#### A1 — trawa
 
 ```
 Seamless tileable ground texture, top-down orthographic view, hand-painted
@@ -230,7 +268,15 @@ view, perspective, horizon, sky, character, vehicle, building
 
 ## 5. Jak sprawdzić dostawę, zanim trafi do repo
 
-Płachty (paczka A) — **zmruż oczy i spójrz na miniaturę**:
+Płachty (paczka A) — **zmierz, nie oceniaj na oko**:
+
+```sh
+python3 tools/plachta-test.py assets/raw/tex-trawa.png
+```
+
+Skrypt wypisuje gradient, szew, plamę i nasycenie z werdyktem, a obok pliku
+zapisuje podgląd płachty ułożonej 3×3. Jeśli na podglądzie widać kratę, to nie
+ma jej skąd zniknąć w grze. Do tego, ręcznie:
 
 - [ ] czy któryś róg jest wyraźnie jaśniejszy od pozostałych? → odrzuć, gradient
       zrobi szachownicę
