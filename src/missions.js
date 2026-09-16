@@ -367,6 +367,8 @@ export const MISSIONS = {
            'Ostrzał jest zapowiadany. Zdążysz ewakuować albo przyjąć i odbudować.',
            'Sztab przysyła rozkazy — pierwsze karty do wyboru.',
            'Cztery fale Z RZĘDU z dwiema drogami. Utrata zeruje licznik.',
+           'Pierwsze cztery fale są lekkie. Weź wtedy drogi — potem nie będzie kiedy.',
+           'Seria musi żyć jeszcze na dziewiątej fali. Ósma i dziewiąta biją mocno.',
            'Od siódmej fali sypią rakietowcami — pancerka przestaje wystarczać.'],
     grid:[7,6], shape:'1-3-1', len:3200, money:650,
     ore:['..##...',
@@ -393,28 +395,40 @@ export const MISSIONS = {
 
        Pomiar przed planem: 2/2 w 3:34, wszystkie pięć celów, ZERO strat,
        szczyt szesnastu wrogów. Ostrzał bastionu bez nacisku z pola jest tylko
-       podatkiem — bolało dopiero, gdy jest kogo w tym czasie odpierać.        */
+       podatkiem — boli dopiero, gdy jest kogo w tym czasie odpierać.
+
+       KRZYWA MA OSOBNY KSZTAŁT OD RESZTY KAMPANII: lekka na starcie, ciężka od
+       piątej fali. Nie z uprzejmości — cel `hold` rozstrzyga się w pierwszych
+       czterech falach. Jeśli wtedy nie da się zająć dróg, NIE MA CZEGO
+       utrzymywać, a żaden późniejszy nacisk tego nie odwraca. Pomiar pokazał
+       to jako skok, nie zbocze:
+         równomiernie ciężka · 0/5 · sztab 29% · cele 0/5 — ani jednej drogi
+         lekka i płaska      · 3/3 · sztab 100% · cele 5/5 — zajmuje wszystko
+         TA (lekko → ciężko) · 2/5 · sztab  93% · cele 1/5 · wróg przy bazie 3/5
+       Do tego bramka `after:9`: seria czterech fal musi żyć jeszcze na fali 9,
+       czyli przeżyć oba szpice (5 i 9). Bez niej wystarczyło zająć drogi na
+       starcie i doczekać — a to jest dokładnie to, czego ta misja nie uczy.   */
     waves:[
-      { t:44, inf:5 },
-      { t:36, inf:8,  lazik:1 },
-      { t:32, inf:12, lazik:2 },
-      { t:28, inf:15, lazik:3, tank:1 },
-      { t:24, inf:20, lazik:4, tank:1 },              // ▲ SZPIC
-      { t:42, inf:10, lazik:2 },                      // ▼ oddech
-      { t:30, inf:18, lazik:4, tank:2, rkt:2 },       // rakietowcy — kontra na pancerkę
-      { t:28, inf:22, lazik:5, tank:2, rkt:2 },
-      { t:23, inf:28, lazik:6, tank:3, rkt:3 },       // ▲ SZPIC
-      { t:44, inf:12, lazik:2, tank:1 },              // ▼ oddech — tu zwykle zaczyna się licznik
-      { t:30, inf:24, lazik:5, tank:3, rkt:3 },
-      { t:28, inf:27, lazik:6, tank:4, rkt:3 },
-      { t:23, inf:33, lazik:7, tank:5, rkt:4 },       // ▲ SZPIC — ostatnia przed terminem
-      { t:42, inf:15, lazik:3, tank:2 },              // ▼ oddech
-      { t:26, inf:38, lazik:8, tank:6, rkt:4 },
-      { t:28, inf:42, lazik:9, tank:6, rkt:5 },
+      { t:42, inf:4 },
+      { t:34, inf:4 },
+      { t:32, inf:4,  lazik:1 },
+      { t:30, inf:4,  lazik:1, tank:1 },              // do tej fali BIERZE SIĘ drogi
+      { t:24, inf:6,  lazik:2, tank:1 },              // ▲ SZPIC — pierwszy test serii
+      { t:40, inf:4,  lazik:1 },                      // ▼ oddech
+      { t:30, inf:6,  lazik:2, tank:1, rkt:1 },       // rakietowcy — kontra na pancerkę
+      { t:28, inf:7,  lazik:2, tank:2, rkt:1 },
+      { t:23, inf:10, lazik:3, tank:2, rkt:2 },       // ▲ SZPIC — bramka `after` jest tutaj
+      { t:42, inf:5,  lazik:2, tank:1 },              // ▼ oddech
+      { t:29, inf:8,  lazik:3, tank:2, rkt:1 },
+      { t:28, inf:9,  lazik:3, tank:2, rkt:2 },
+      { t:23, inf:12, lazik:4, tank:3, rkt:2 },       // ▲ SZPIC — ostatnia przed terminem
+      { t:40, inf:5,  lazik:2, tank:1, rkt:1 },       // ▼ oddech
+      { t:26, inf:11, lazik:3, tank:3, rkt:2 },       // te dwie lecą, gdy nie zdążyłeś
+      { t:28, inf:12, lazik:4, tank:3, rkt:2 },
     ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory','reactor'],
     feats:feats({ stance:4, sectors:3, radar:2, cards:true, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
-    goal:{ kind:'hold', target:2, waves:4, before:14 },
+    goal:{ kind:'hold', target:2, waves:4, after:9, before:14 },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks','rocket'], grow:1,
             spawnF:0.97, bastion:0, shell:{ every:26, warn:5, dmg:26, r:52 } },
     par:{ sec:600, loss:22 },

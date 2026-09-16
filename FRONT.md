@@ -385,6 +385,23 @@ Pomiar bez planu: **2/2 w 3:34, wszystkie pięć celów, zero strat.** Ostrzał
 bastionu bez nacisku z pola jest samym podatkiem; boli dopiero wtedy, gdy masz
 w tym czasie kogo odpierać.
 
+#### Krzywa tej misji ma inny kształt niż reszta kampanii
+
+Lekka na starcie, ciężka od piątej fali — i to nie jest uprzejmość. **Cel
+`hold` rozstrzyga się w pierwszych czterech falach:** jeśli wtedy nie da się
+zająć dróg, nie ma czego utrzymywać, a żaden późniejszy nacisk tego nie
+odwraca. Pomiar pokazał to jako skok, nie zbocze:
+
+| krzywa | wygrane | sztab min | cele | wróg przy bazie |
+|---|---|---|---|---|
+| równomiernie ciężka | 0/5 | 29 % | **0/5** | 5/5 |
+| lekka i płaska | 3/3 | 100 % | 5/5 | 0/3 |
+| **lekka → ciężka** | **2/5** | 93 % | 1/5 | **3/5** |
+
+Do tego bramka `after: 9` — seria czterech fal musi żyć jeszcze na fali 9,
+czyli przeżyć oba szpice (5 i 9). Bez niej wystarczyło zająć drogi na starcie
+i doczekać, a to jest dokładnie ta rozgrywka, której ta misja nie uczy.
+
 **Jeśli coś ma wypaść z zakresu — to ta misja.** Jej treść rozkłada się na 4 i 6.
 
 ### Misja 6 — LEJ
