@@ -21,6 +21,67 @@ Kafle terenu wczytują się same z `TILESETS` — wystarczy plik.
 
 ---
 
+## Jak wrzucić plik do repo
+
+**PNG commituje się TYLKO wewnątrz `assets/`.** Globalny `.gitignore` ma `*.png`,
+a wyjątki (`!assets/**`) dotyczą wyłącznie tego drzewa — plik położony w korzeniu
+repo albo w `docs/` git po cichu pominie i nikt się nie zorientuje.
+
+Sprawdzenie, gdy coś „nie widać":
+
+```sh
+git check-ignore -v <ścieżka>     # cisza albo reguła z „!" = plik wejdzie; reguła bez „!" = ignorowany
+git status --short --untracked-files=all | grep png
+```
+
+Z linii poleceń:
+
+```sh
+git checkout claude/funny-cray-81sz6f
+cp ~/Downloads/arkusz.png assets/raw/ziemia-teren-2026-09-16.png
+git add assets/raw/ziemia-teren-2026-09-16.png
+git commit -m "Assety: surowy arkusz terenu z AI"
+git push -u origin claude/funny-cray-81sz6f
+```
+
+Przez stronę GitHuba (bez terminala): wejdź w katalog `assets/raw` na gałęzi
+roboczej → **Add file › Upload files** → przeciągnij PNG → *Commit changes*.
+Katalog musi istnieć w drzewie (stąd ten `README.md` obok) — GitHub nie pozwala
+wgrać pliku do katalogu, którego nie ma.
+
+---
+
+## Arkusz z AI — krok pośredni
+
+Generator zwraca **planszę poglądową**, nie tileset: kafel wypada na ułamku
+piksela, wiersze są poprzesuwane, każde pole ma własną ciemną ramkę, a krawędzie
+nie schodzą się z sąsiadem. Loader tnie sztywną siatką (`tile` px), więc taki
+plik wrzucony wprost daje paski sąsiadów w każdym kaflu i widoczną kratę na polu.
+
+Droga jest więc dwuetapowa:
+
+1. surowy plik → `assets/raw/` (magazyn wsadu, gra go nie czyta),
+2. pocięcie i przełożenie na **czysty arkusz o równej siatce** → `assets/tiles/ziemia.png`.
+
+Czysty arkusz musi trafić w układ z `TILESETS` (niżej): bloki wariantów `vary×vary`
+pod współrzędnymi z `sets`, znaczniki w górnym pasku. Najprościej złożyć go tak,
+żeby pasował do domyślnego wpisu — wtedy w kodzie nie zmienia się nic.
+
+Co się nadaje na kafel gruntu, a co nie:
+
+| Nadaje się | Nie nadaje się |
+|---|---|
+| jednolity grunt bez ramki i bez mocnego środka kompozycji | kafel z wyraźną obwódką (po ułożeniu = krata) |
+| drobny, powtarzalny szum (żwir, trawa, spękania) | duży pojedynczy obiekt (drzewo, wrak) — to dekoracja, nie grunt |
+| krawędzie schodzące się z sąsiadem | kafel z cieniem wychodzącym poza pole |
+
+Obiekty (drzewa, wraki, beczki, mury) zostaw na później — **silnik nie ma jeszcze
+warstwy dekoracji**, rysuje wyłącznie grunt (`sets`). `marks` (lej, ruda) są już
+w tabeli i loader je tnie, ale `markTex()` nie jest jeszcze nigdzie wołane w
+`render.js` — rudę i leje rysują dotąd figury proceduralne.
+
+---
+
 ## Kafle terenu (`TILESETS` w `src/assets.js`)
 
 ```js
