@@ -347,16 +347,20 @@ misji, dopóki nie przyjdzie nacisk, który każe dróg BRONIĆ) i `before: 14`
 o tym wprost: przy spełnionym celu przed czasem pokazuje „ZALICZY SIĘ OD FALI 8",
 bo reguła, o której gracz dowiaduje się po fakcie, nie jest regułą.
 
-Masa fal wybrana pomiarem, trzy krzywe o tym samym rytmie:
+Masa fal, trzy krzywe o tym samym rytmie (po trzy przebiegi):
 
 | szczyt planu | wygrane | sztab min | stracone obiekty |
 |---|---|---|---|
 | 55 jedn. | 0/3 | 7 % | 21 |
 | 24 jedn. | 3/3 | 100 % | **0** |
-| **32 jedn.** | **1/3** | **37 %** | **16** |
+| 32 jedn. | **1/3, potem 0/3** | 37 % → 7 % | 16 → 24 |
 
-Środkowa nie jest kompromisem: przy cienkiej bot wygrywa dokładnie na fali 8,
-czyli bramka `after` kończy misję, zanim cokolwiek się wydarzy.
+Cienka nie jest łatwiejszą wersją misji, tylko żadną: bot wygrywa dokładnie na
+fali 8, czyli bramka `after` kończy misję, zanim cokolwiek się wydarzy.
+Ale **krzywa 32 dała dwa różne wyniki w dwóch seriach po trzy przebiegi** —
+i to jest lekcja nr 3 z §3b: przy takim wskaźniku wygranych trzy przebiegi nie
+odróżniają „na styk" od „nie do przejścia". Wybór idzie z pięciu przebiegów,
+na krzywej między 24 a 32.
 
 ### Misja 5 — POD OSTRZAŁEM
 
@@ -570,9 +574,9 @@ wyścigiem z zegarem, a nie progiem siły, więc rozstrzyga się o kilkanaście
 procent przejęcia. Pomiar pokazał bota na 87% w piątej fali i zmiecionego
 w szóstej — stąd szósta fala jest dziś oddechem, a nie drugim szpicem.
 
-### Dwie rzeczy, których nie da się zgadnąć, pisząc plan fal
+### Trzy rzeczy, których nie da się zgadnąć, pisząc plan fal
 
-Obie kosztowały mnie przebieg na ślepo, więc zapisane są tu, a nie w commicie.
+Każda kosztowała mnie przebieg na ślepo, więc zapisane są tu, a nie w commicie.
 
 **1. Skala planu to LICZBA BUDYNKÓW WROGA NA FALĘ, nie liczba, która brzmi
 groźnie.** Proceduralny wróg wystawia **jedną jednostkę na budynek na falę**
@@ -587,6 +591,13 @@ do czwórki wchodzi się z bazą z trójki. Pomiar od „sam sztab + 700 kredyt�
 mierzy gracza, który w tej grze nie istnieje, i każe zbijać krzywą do poziomu,
 przy którym prawdziwy gracz się nudzi. Harness dostał więc `PRE` — bazę
 przeniesioną, stawianą od razu i za darmo, osobną dla każdej misji.
+
+**3. Trzy przebiegi to za mało, żeby wybrać krzywą.** Ta sama krzywa misji 4
+dała **1/3 w jednej serii i 0/3 w następnej** — na tej pierwszej oparłem wybór
+i commit, i był to wybór na szumie, nie na pomiarze. Przy wskaźniku wygranych
+rzędu „jedna na trzy" trzy przebiegi nie odróżniają 1/6 od 1/2. Wybór krzywej
+idzie z **pięciu** przebiegów; trzy zostają do odrzucania rzeczy oczywistych
+(0/3 ze sztabem na 7 % to nie jest przypadek).
 
 Dane autorskie są **sprawdzane, nie poprawiane**. `checkOreLayout`: brak miejsca
 na rafinerię to błąd w danych misji i ma krzyczeć w konsoli, a nie znikać pod
