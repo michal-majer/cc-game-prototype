@@ -168,13 +168,16 @@ który brzmi groźnie, bywa trzykrotnie za ciężki. Krzywe z misji obronnych ni
 przenoszą się na polowe — tam armia jest rozciągnięta na trzy drogi i ma jeszcze
 nacierać.
 
-Krzywe są **kalibrowane botem**, nie na wyczucie. Stan (3 przebiegi na misję):
+Krzywe są **kalibrowane botem**, nie na wyczucie:
 
 | | wygrane | czas | sztab min | stracone obiekty |
 |---|---|---|---|---|
 | M1 | 3/3 | 2:14 | 100% | 0 |
 | M2 | 3/3 | 5:57 | 55% | 13 |
 | M3 | 1–2/3 | 3:03 | 100% | 0 |
+| M4 | 3/5 | 5:51 | 64% | 11 |
+| M5 | 2/5 | 6:25 | 81–93% | 14 |
+| M6 | **0/2 — nieprzechodnia** | 38:00 | 100% | 0 |
 
 Bot to dolna granica — nie kituje, nie rozgrywa suwaka, nie przesuwa budynków.
 Wyzwanie robi **rytm (szpice i oddechy), nie masa**: przy potrójnej liczbie

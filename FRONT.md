@@ -580,13 +580,24 @@ Uwaga na pułapkę: plan fal musi być DŁUŻSZY od limitu. Przy planie równym
 limitowi licznik fal przestaje rosnąć i przegrana nie odpala się wcale
 (pomiar: 10:41 zamiast 2:54). `goalFailed` ma na to bezpiecznik.
 
-### Zmierzone (bot, 3 przebiegi na misję, stan 15.09.2026)
+### Zmierzone (bot, stan 16.09.2026)
 
 | | wygrane | czas | sztab min | stracone obiekty |
 |---|---|---|---|---|
 | M1 | 3/3 | 2:14 | 100% | 0 |
 | M2 | **3/3** | 5:57 | **55%** | **13** |
 | M3 | **1–2/3** | 3:03 | 100% | 0 |
+| M4 | **3/5** | 5:51 | **64%** | **11** |
+| M5 | **2/5** | 6:25 | 81–93% | **14** |
+| M6 | **0/2 — nieprzechodnia** | 38:00 | 100% | 0 |
+
+Misje 4–6 mierzone z **przeniesioną bazą** (§3b, lekcja 2) i na **pięciu**
+przebiegach (lekcja 3). W czwórce i piątce wróg dochodzi do bazy w 2–3
+przebiegach na 5 — to jest ten „styk", o który chodziło.
+
+**Misja 6 zostaje nieprzechodnia i nie ma sensu tego zmiękczać.** Armia
+dochodzi do gardła i trzyma pole bez strat, ale bastion schodzi z 65 % do 62 %
+przez dwadzieścia dwie minuty. Szczegóły i co z tego wynika — wyżej, w §3.
 
 Bot to **dolna granica**: nie kituje, nie wycofuje się, nie rozgrywa suwaka,
 nie przesuwa budynków. Jeśli on przechodzi dwójkę ze sztabem na 55% i trzynastoma
