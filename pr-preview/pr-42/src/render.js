@@ -769,6 +769,19 @@ function drawGhost(){
     }
     return;
   }
+  /* SZYK — podgląd przy stawianiu budynku, który WYSTAWIA jednostki. Kolumna
+     kratki decyduje, jak głęboko stanie żołnierz, więc gracz musi to widzieć
+     PRZED postawieniem, a nie wyczytać z zachowania armii. Prawa kolumna
+     (najbliżej korytarza) świeci najmocniej i ma obwódkę: to pierwsza linia. */
+  if (S.sel && B[S.sel] && B[S.sel].unit){
+    for (let c=0;c<COLS;c++){
+      const przod = COLS>1 ? c/(COLS-1) : 1;          // 0 = tył, 1 = pierwsza linia
+      g.rect(BASE_X+c*CELL+1, BASE_Y+1, CELL-2, ROWS*CELL-2)
+       .fill({color:CO.blue, alpha:0.04+0.26*przod});
+    }
+    g.rect(BASE_X+(COLS-1)*CELL+1, BASE_Y+1, CELL-2, ROWS*CELL-2)
+     .stroke({width:2, color:CO.ok, alpha:0.75});
+  }
   if (S.sel && S.sel!=='SELL' && cell){
     const d=B[S.sel], [w,h]=d.fp;
     const ok = fits(S.sel,cell.c,cell.r) && S.money>=d.cost;
