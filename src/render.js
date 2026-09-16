@@ -201,7 +201,10 @@ export function resizeCam(){
   const zRoad = roadCount()>1 ? bandH / (ROAD_GAP*1.8 + ROAD_W) : zFill;
   cam.min = Math.min(zAll * 0.85, zFill);
   cam.max = Math.max(zFill * 2.8, 2.2);
-  if (!cam._init){ cam.zoom = Math.min(zRoad, sw / TAC_W); cam._init=true; }
+  // `camBase` — misja bez pola do oglądania (misja 1 to sama rozbudowa bazy).
+  // Domyślny zoom liczony pod korytarz zostawiał trzy czwarte ekranu pustego.
+  const zBase = bandH / (ROWS*CELL * 1.55);
+  if (!cam._init){ cam.zoom = S.camBase ? zBase : Math.min(zRoad, sw / TAC_W); cam._init=true; }
   cam.zoom = clamp(cam.zoom, cam.min, cam.max);
   clampCam();
 }
@@ -782,7 +785,10 @@ function drawGhost(){
     g.rect(BASE_X+(COLS-1)*CELL+1, BASE_Y+1, CELL-2, ROWS*CELL-2)
      .stroke({width:2, color:CO.ok, alpha:0.75});
   }
-  if (S.sel && S.sel!=='SELL' && cell){
+  /* Warunek MUSI pytać o `B[S.sel]`, nie wyliczać trybów po nazwie. Stało tu
+     `S.sel!=='SELL'`, więc przy włączonej NAPRAWIE (i każdym przyszłym trybie)
+     leciało `B['REPAIR'].fp` → TypeError CO KLATKĘ, czyli martwy render.       */
+  if (S.sel && B[S.sel] && cell){
     const d=B[S.sel], [w,h]=d.fp;
     const ok = fits(S.sel,cell.c,cell.r) && S.money>=d.cost;
     for (let rr=cell.r; rr<cell.r+h; rr++) for (let cc=cell.c; cc<cell.c+w; cc++){

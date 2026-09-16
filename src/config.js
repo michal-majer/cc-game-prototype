@@ -417,6 +417,14 @@ export const MOVE_FRAC = 0.25, MOVE_SEC = 3;
    tylny żołnierz wciąż dosięga tego, z kim bije się przedni — ale ma zapas
    mniejszy niż on. Większa głębokość zamieniłaby tylne baraki w bezużyteczne. */
 export const FORM_DEPTH = 34, FORM_SPREAD = 40;
+/* --------------------- ŻOŁD: kredyty MIĘDZY misjami ----------------------
+   Baza przechodzi między misjami w całości, KREDYTY nie. Pełny portfel robił
+   z następnej misji formalność: z misji 1 wychodziło się z ~1500 kredytów, za
+   które w pierwszej sekundzie misji 2 stawiało się cztery gniazda i ulepszenie
+   — i nie trzeba było już ekonomii, czyli dokładnie tego, czego misja uczy.
+   Zostaje ŻOŁD: ułamek oszczędności do sufitu, jako premia za gospodarność,
+   a nie jako przepustka. Właściwym startem jest `money` z danych misji.      */
+export const CARRY_FRAC = 0.15, CARRY_CAP = 150;
 // Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
 // Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
 // późną grą to STAŁY sink: utrzymanie ostrzeliwanego frontu kosztuje kredyty.

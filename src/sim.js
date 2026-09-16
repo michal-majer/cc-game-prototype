@@ -158,6 +158,11 @@ export function doWave(){
   siren(); S.shake=Math.max(S.shake,4);
   if (S.wave===1) autoFollowFront();     // koniec budowania w spokoju — patrz na front
   say('FALA '+S.wave, 'warn');
+  // Baner na środku pola. Flaga na S, nie wywołanie hud.js — sim.js nie importuje
+  // HUD-u (hud importuje sim), a cykl modułów dla jednego napisu to zła cena.
+  const skl = Object.entries(eCompN(S.wave)).filter(([,v])=>v>0)
+    .map(([k,v])=>v+'× '+U[k].name).join(' · ');
+  S.waveFlash = { n:S.wave, sub:skl };
   // Rozkaz co 3 fale (było 5): przy krótkiej grze karty — jedyny tor skalowania
   // armii — musiały pojawiać się częściej, inaczej run kończył się, nim tor dmg/pancerz
   // realnie urósł. openDraft dodatkowo GWARANTUJE kartę armii w każdym drafcie.
@@ -185,9 +190,42 @@ export function doWave(){
   while (S.eBuildDebt >= 1){ S.eBuildDebt -= 1; eBuild(); }
 }
 
+/* ------------------------- PODPOWIEDZI MISJI ------------------------------
+   Wyjaśnienie podawane WTEDY, kiedy jest o czym mówić, a nie ścianą tekstu na
+   odprawie. Treść siedzi w danych misji (`hints`), tutaj są tylko WARUNKI —
+   nazwane, żeby misja pozostała danymi. Każda podpowiedź leci raz, i najwyżej
+   jedna na krok, bo trzy naraz w dzienniku czyta się jak spam, nie jak kurs.  */
+function tutorTick(dt){
+  const hints = MIS().hints;
+  if (!hints || !hints.length) return;
+  S.hintT = (S.hintT||0) + dt;
+  if (!S.hintsDone) S.hintsDone = {};
+  const done = S.hintsDone, t = S.hintT;
+  const powered = ty => S.buildings.some(b=>b.type===ty && b.powered);
+  const tapped = seamsTapped();
+  const cond = {
+    start:   () => t > 1.5,
+    noPower: () => t > 8 && !powered('power'),
+    power:   () => powered('power'),
+    refDry:  () => t > 3 && powered('refinery') && tapped === 0,
+    mining:  () => tapped > 0,
+    mining2: () => done.mining != null && t - done.mining > 14,
+    oreLow:  () => S.oreStart && oreTotal() < S.oreStart * 0.45,
+  };
+  for (const h of hints){
+    if (done[h.when] != null) continue;
+    const f = cond[h.when];
+    if (!f || !f()) continue;
+    done[h.when] = t;
+    say(h.txt, h.kind || 'info');
+    break;                       // jedna na krok — dziennik ma uczyć, nie zalewać
+  }
+}
+
 export function update(dt){
   if (S.state!=='play') return;
   if (!S.ready) return;
+  tutorTick(dt);
   regrow(dt);
   updSect(dt);
   // budowa: budynki dochodzą do gotowości; ukończony włącza się do sieci (moc/ogień/produkcja)

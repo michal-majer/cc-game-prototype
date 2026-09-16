@@ -13,7 +13,7 @@ import { terrIncome } from './sectors.js';
 import { radarLvl, unlocked, reqText, canUp, upCost, upText } from './buildings.js';
 import { eComp, eRatio, wavePlan } from './enemy.js';
 import { takeCard } from './cards.js';
-import { setStance, setArmyLane } from './sim.js';
+import { setStance, setArmyLane, waveInterval } from './sim.js';
 import { MIS, feat, isCampaign, goalText, goalNow, goalDone } from './campaign.js';
 import { maxLanes, BASE_X, BASE_Y, BASE_R, CELL, COLS, ROWS, LANE_Y, LANE_HALF,
          fieldX1, CAP_R, roadCount, roadName, roadY, roadHalf, fieldHalf,
@@ -305,6 +305,15 @@ function updateLanes(){
 }
 
 /* ------------------------------- toast / log ----------------------------- */
+/* Baner nadejścia fali — duże „FALA n" na środku pola, z podpisem, co idzie.
+   Wywoływany z doWave, bo to jedyne miejsce, które wie, że fala WYSZŁA.      */
+export function waveBanner(n, sub){
+  const el=qs('wavebanner');
+  if (!el) return;
+  el.innerHTML = `<span class="wb-n">FALA ${n}</span>`+(sub?`<span class="wb-s">${sub}</span>`:'');
+  el.classList.remove('on'); void el.offsetWidth;    // restart animacji przy szybkich falach
+  el.classList.add('on');
+}
 export function toast(msg){
   const box=qs('toasts');
   const el=document.createElement('div'); el.className='toast'; el.textContent=msg;
@@ -383,7 +392,17 @@ export function updateHUD(){
   // autorskim planie jego baza nic nie znaczy, a liczba fal do końca wszystko.
   const plan = wavePlan();
   const koniec = plan && S.wave >= plan.length;
+  // Misja bez fal (misja 1 to sama rozbudowa bazy) nie pokazuje licznika fal —
+  // „0 / 0" i „kontakt 0:00" to napisy o czymś, czego w tej misji nie ma.
+  const bezFal = plan && plan.length === 0;
+  qs('wave-stat').classList.toggle('hidden', bezFal);
+  if (S.waveFlash){ waveBanner(S.waveFlash.n, S.waveFlash.sub); S.waveFlash=null; }
   qs('wave').textContent = plan ? S.wave+' / '+plan.length : S.wave;
+  // Pasek do następnej fali — „ile jeszcze mam" widać teraz wzrokiem, nie
+  // przez czytanie sekund obok czterech innych liczb.
+  const dt0 = waveInterval();
+  qs('wave-bar').style.width = (koniec ? 0 : Math.max(0, Math.min(1, 1 - S.timer/(dt0||1)))*100)+'%';
+  qs('wave-bar').style.background = S.timer < 6 ? CO.bad : CO.warn;
   qs('timer').textContent = koniec ? 'to była ostatnia'
     : 'kontakt 0:'+String(Math.max(0,Math.ceil(S.timer))).padStart(2,'0');
   qs('timer').style.color = koniec ? CO.ok : (S.timer<5?CO.bad:CO.dim);

@@ -76,18 +76,39 @@ const feats = o => ({ ...OFF, ...o });
 export const MISSIONS = {
 
   /* --- 1 — PIERWSZY DZIEŃ --------------------------------------------------
-     Uczy: EKONOMIA MA STAWKĘ. Cel jest ekonomiczny, ale zegar tyka i po nim
-     przychodzi fala. Nie musi być wyzwaniem — odpierasz ją działami sztabu —
-     ale gracz widzi, PO CO była ekonomia. Sama checklista („zbierz X, postaw
-     elektrownię") uczy interfejsu, nie gry.
-     Nie ma: suwaka, sektorów, kart, radaru, rozbiórki, ulepszania.           */
+     Uczy: SKĄD SIĘ BIORĄ KREDYTY. Nic więcej.
+
+     Wcześniej stały tu trzy fale wroga „żeby gracz widział, po co ekonomia".
+     Nie widział — sztab je zdejmował na podejściu (pomiar: 13 piechoty, sztab
+     na 100%), więc były dekoracją, która odciągała wzrok od jedynej rzeczy,
+     jakiej ta misja ma nauczyć. Misja 1 to teraz CZYSTA ROZBUDOWA BAZY: bez
+     wroga, bez zegara, z wyjaśnieniem wydobycia krok po kroku (`hints`).
+     Pierwszy przeciwnik jest w misji 2 — i tam od razu ma znaczenie.
+
+     Nie ma: suwaka, sektorów, kart, radaru, rozbiórki, PRZESUŃ.             */
   m1: {
     id:'m1', n:1, code:'PIERWSZY DZIEŃ',
-    teach:'Ekonomia ma stawkę.',
-    gen:'Prąd i ruda. Bez nich jesteś tu tylko celem.',
-    brief:['Sztab stoi. Reszta zależy od Ciebie.',
-           'Najpierw prąd. Rafineria bez niego nie ruszy.',
-           'Trzy fale. Działa sztabu je przyjmą — Ty masz zdążyć z kredytami.'],
+    teach:'Skąd się biorą kredyty.',
+    gen:'Prąd, rafineria, żyła. W tej kolejności.',
+    brief:['Dziś nikt nie nadejdzie. Masz rozstawić bazę i zrozumieć wydobycie.',
+           'SZTAB daje 4 mocy na start. Każdy budynek ją zjada.',
+           'Najpierw ELEKTROWNIA — rafineria bez prądu nie ruszy.',
+           'Potem RAFINERIA, ale PRZYLEGAJĄCA do żyły. Nie „gdziekolwiek".',
+           'Z rafinerii wyjeżdża harvester: jeździ do żyły i wozi rudę do bazy.'],
+    // Kamera startuje na samej bazie — w tej misji nie ma czego szukać w polu.
+    camBase:true,
+    /* WYJAŚNIENIE WYDOBYCIA, podawane wtedy, kiedy jest o czym mówić — nie
+       ścianą tekstu na odprawie. Warunki są nazwane (patrz tutorTick
+       w campaign.js), bo dane misji mają zostać danymi.                      */
+    hints:[
+      { when:'start',      txt:'Żółte kratki to ŻYŁY RUDY. Zostaw je wolne — rafineria ma stać OBOK, nie na nich.', kind:'warn' },
+      { when:'noPower',    txt:'Zacznij od ELEKTROWNI. Bez prądu rafineria stoi martwa.', kind:'warn' },
+      { when:'power',      txt:'Prąd jest. Teraz RAFINERIA — postaw ją tak, żeby DOTYKAŁA żyły.', kind:'good' },
+      { when:'refDry',     txt:'Ta rafineria nie dotyka żadnej żyły — harvester nie ma dokąd jechać.', kind:'bad' },
+      { when:'mining',     txt:'Harvester ruszył. Wozi rudę z żyły do bazy — to są Twoje kredyty.', kind:'good' },
+      { when:'mining2',    txt:'Jeden harvester = jedna żyła. Ulepszenie rafinerii dokłada następnego.', kind:'info' },
+      { when:'oreLow',     txt:'Żyła się wyczerpuje. Odrasta, ale wolno — bogate złoża są policzone.', kind:'warn' },
+    ],
     // NAJCIAŚNIEJ w całej kampanii: 18 kratek, z czego cztery bierze sztab,
     // a złoże kolejne dwa. Siatka rośnie z każdą misją razem z odsunięciem
     // frontu (m2 20, m3 25→35, m4 36→42) — miejsce jest NAGRODĄ ZA TEREN,
@@ -104,14 +125,9 @@ export const MISSIONS = {
     ore:['....#.',
          '......',
          '..#...'],
-    /* TRZY FALE, cel dopiero po trzeciej. Jedna fala i cel po pierwszej znaczyły,
-       że misja kończy się, ZANIM ktokolwiek dojdzie do bazy — gracz nie widział
-       nawet, po co była ekonomia. Teraz widzi ich pod płotem trzy razy.
-       Misja 1 JAKO JEDYNA nie jest „na styk" i to jest świadome: broni jej sam
-       sztab (zasięg 330 wobec 39 piechoty), więc wróg ginie na podejściu bez
-       względu na liczbę — pomiar: 13 piechoty i sztab wciąż na 100%. Stawka tu
-       jest z zegara i z tego, że fale rosną, a nie z ryzyka porażki. */
-    waves:[{ t:55, inf:4 }, { t:42, inf:6 }, { t:38, inf:8 }],
+    // ZERO FAL. Pusta lista to nie brak danych, tylko decyzja: `waveInterval`
+    // widzi plan bez pozycji i nie odpala nigdy żadnej fali.
+    waves:[],
     unlock:['power','refinery'],
     // Rafineria WYMAGA elektrowni. Bez tego misja o ekonomii przechodziła się
     // samą rafinerią: sztab daje 4 mocy, rafineria bierze 2, więc prąd był
@@ -119,14 +135,11 @@ export const MISSIONS = {
     // wymuszone, a kolejność „najpierw prąd" jest lekcją, nie ozdobą.
     reqAdd:{ refinery:['power'] },
     feats:feats({}),
-    // Cel liczy KREDYTY ZAROBIONE, nie saldo. Liczony po saldzie karałby za budowanie,
-    // czyli dokładnie za to, czego misja uczy — bot to pokazał: wygrywał dopiero
-    // w 5. fali, bo wydawał wszystko na bieżąco. `after:1` trzyma wygraną do pierwszej
-    // fali, żeby gracz zobaczył, PO CO była ekonomia: z prądem i rafinerią cel pada
-    // tuż PO odparciu fali, bez nich to cztery minuty i kilka fal — presja bez
-    // twardego limitu czasu.
-    goal:{ kind:'money', target:600, after:3 },
-    enemy:{ doc:'CZERWONA FALA', base:['barracks'], spawnF:0.97, bastion:0 },
+    // Cel liczy KREDYTY ZAROBIONE, nie saldo — saldo karałoby za budowanie,
+    // czyli za to, czego misja uczy. Bez `after`: nie ma fal, na które można by
+    // czekać, a misja kończy się wtedy, gdy wydobycie NAPRAWDĘ działa.
+    goal:{ kind:'money', target:600 },
+    enemy:{ doc:'CZERWONA FALA', spawnF:0.97, bastion:0 },
     par:{ sec:180, loss:0 },
   },
 

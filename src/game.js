@@ -16,7 +16,8 @@
    ========================================================================= */
 
 import { resetTables, DOCTRINES, BAS_HP, BAS_X, LANE_Y, START_MONEY,
-         FRONT_MIN, FRONT_MAX, COLS, ROWS, cellAt, setGrid, GRID_MAX_COLS } from './config.js';
+         FRONT_MIN, FRONT_MAX, COLS, ROWS, cellAt, setGrid, GRID_MAX_COLS,
+         CARRY_FRAC, CARRY_CAP } from './config.js';
 import { S, say, SECT } from './state.js';
 import { loadAssets } from './assets.js';
 import { genOre, oreFromMap, checkOreLayout, oreTotal, ensureRefinerySpot } from './economy.js';
@@ -75,6 +76,8 @@ function buildField(m, carry){
   S.deck=[...DECK]; S.draft=null;
   S.shake=0; S.state='play'; S.endReason=''; S.sel=null; S.upSel=null; S.moveSel=null; S.hadRadar=0; S.offBrown=0;
   S.alertCd=0; S.ecoCd=0; S.fieldDead=false; S.newArm=0; S.fullCd=0;
+  S.hintT=0; S.hintsDone={};                                 // podpowiedzi misji od nowa
+  S.camBase = !!m.camBase;                                   // kamera na samej bazie (misja 1)
   S.si = Math.min(1, Math.max(0, (m.feats.stance||1)-1));   // start na PRZEDPOLU, gdy suwak istnieje
   S.laneOrder = -1; S.pLaneRR = 0;                           // domyślnie: siły rozdzielone po torach
   S.raidPay=0; S.raidShow=0; S.harvBonus=0; S.pBonus={atkS:0,armS:0,atkA:0,armA:0};
@@ -96,9 +99,12 @@ function buildField(m, carry){
   // sztab — z migawki (z poziomem i HP) albo świeży
   if (carry && carry.base && carry.base.buildings.length){
     restoreBase(carry.base, mkBuilding);
-    S.money = Math.round(carry.base.money) + (m.grant || 0);
-    // §4.2: stały przydział kredytów na start misji, żeby słabsza baza mogła nadrobić
-    if (m.money != null) S.money = Math.max(S.money, m.money);
+    // §4.2: przydział kredytów z danych misji JEST startem, a z poprzedniej misji
+    // przechodzi tylko ŻOŁD — ułamek oszczędności do sufitu (patrz CARRY_FRAC).
+    // Pełny portfel zamieniał następną misję w zakupy w pierwszej sekundzie.
+    const zold = Math.min(Math.round((carry.base.money||0) * CARRY_FRAC), CARRY_CAP);
+    S.money = (m.money != null ? m.money : START_MONEY) + (m.grant || 0) + zold;
+    if (zold > 0) S.misZold = zold;
   }
   if (!S.hq || !S.buildings.includes(S.hq)) S.hq = mkBuilding('hq', 0, Math.min(2, ROWS-2), true);
   // DOPIERO TERAZ, ze sztabem na siatce. Układ autorski tylko SPRAWDZAMY
