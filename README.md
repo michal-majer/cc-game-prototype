@@ -160,7 +160,9 @@ Przy planie wróg się nie rozbudowuje, a szturm kończy się tam, gdzie kończy
 lista. Losowanie (ruda, doktryna, warianty pola, eskalacja) zostaje **grze dowolnej**.
 Wszystkie sześć misji ma dziś plan z ręki; `checkWavePlan` pilnuje trzech błędów
 w danych, których nie widać po liczbach (plan krótszy od terminu, `after` poza
-planem, odstęp fali ≥ 60 s).
+planem, odstęp fali ≥ 60 s). Misja może też **dopisać** wymaganie budynku
+(`reqAdd`) albo je **zdjąć** (`reqDrop`) — finał korzysta z drugiego, żeby
+bateria artylerii wymagała fabryki zamiast laboratorium.
 
 Skala planu to **liczba budynków wroga na falę**: proceduralny przeciwnik
 wystawia jedną jednostkę na budynek i rośnie o ~1 budynek na falę, więc plan,

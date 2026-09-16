@@ -488,19 +488,38 @@ budżetu) wyglądał jak przełamanie i tak go opisałem — dłuższy przebieg 
 że to plateau.
 
 Co z tego wynika: **plan fal naprawia DOJŚCIE do gardła, nie zabicie bastionu.**
-Drugi blokujący element jest osobny i §9.0 nazwał go trzy tygodnie temu —
-łańcuch radar → fabryka → laboratorium → artyleria jest tak długi, że pod
-naciskiem nikt go nie kończy, a bez artylerii (zasięg 175) nie ma czym bić
-w bastion z linii, na której armia realnie stoi. Piechota ma zasięg 39.
-W pomiarze leci teraz przebieg z GOTOWĄ artylerią — żeby rozstrzygnąć liczbą,
-czy to naprawdę ona jest brakującym ogniwem, czy problem leży gdzie indziej.
+
+#### Drugie ogniwo: artyleria, i to jest różnica kategoryczna
+
+| | bastion | czas | wynik |
+|---|---|---|---|
+| bez baterii | **62 %** | 38:00 | plateau, misja nie ma końca |
+| bez baterii, pełne laboratorium | 81 % | 94:50 | to samo, dłużej |
+| **jedna bateria** | **0 %** | **11:21** | **2/2, trzy cele z trzech, zero strat** |
+
+To nie jest różnica stopnia, tylko rodzaju. Powód siedzi w zasięgach: bateria
+ma **175 px**, piechota **39**. Armia stoi na linii, na którą ją posyłasz, i bije
+w najbliższego wroga — bez czegoś, co sięga dalej niż ona sama, bastion nie jest
+celem, tylko tłem.
+
+**Dlaczego nikt tej baterii nie stawiał.** Łańcuch radar → fabryka →
+laboratorium → bateria to 1750 kredytów i **dwanaście kratek na czterdziestu
+dwóch**, obok ekonomii, baraków i mocy. Bot grał 94 minuty z pełnym łańcuchem
+i baterii nie zmieścił ani razu — nie zabrakło mu kredytów, zabrakło MIEJSCA.
+§9.0 nazywał to „za długim łańcuchem"; pomiar mówi precyzyjniej: za szerokim.
+
+**Poprawka** to `reqDrop` — wymaganie ZDJĘTE przez misję, symetrycznie do
+istniejącego `reqAdd`. W szóstce bateria i kolosy wymagają fabryki zamiast
+laboratorium (−500 kredytów, −2 kratki). Laboratorium zostaje w misji jako
++1 poziom do wszystkiego, ale przestaje być bramką do rzeczy, o której odprawa
+mówi „jest Twoja". To jedyna zmiana drzewka techniki w całej kampanii i jedyna,
+którą pomiar wymusił wprost.
 
 Zostaje otwarte (Twoje liczby, nie moje):
-· skrócenie łańcucha radar → fabryka → laboratorium → artyleria w misji 6 —
-  pod naciskiem bot nie kończy go nigdy, więc zaprojektowana odpowiedź misji
-  (artyleria) nie trafia do gry
 · czy lej ma być długi (dziś 674 px = ułamek pola) czy krótki i taktyczny
   (~300 px = wielokrotność zasięgów) — dziś to ułamek, więc rośnie z mapą
+· czy finał ma zostać przy `reqDrop`, czy raczej dać artylerię w `unlock` od
+  startu misji 6 — pomiar mówi tylko, że bateria MUSI być osiągalna, nie jak
 
 ---
 

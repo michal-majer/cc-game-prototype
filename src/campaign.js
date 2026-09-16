@@ -78,7 +78,14 @@ export function missionReq(t){
   // bierze 2, więc prąd był zbędny. Dopisanie `refinery: ['power']` sprawia,
   // że oba budynki są NAPRAWDĘ wymuszone — bez ruszania globalnej tabeli B.
   const add = (MIS().reqAdd || {})[t] || [];
-  const req = [...(B[t].req || []), ...add];
+  // `reqDrop` — wymaganie ZDJĘTE przez misję, symetrycznie do `reqAdd`. Misja
+  // może skrócić drzewko tak samo, jak może je wydłużyć. Finał tego potrzebuje:
+  // łańcuch radar → fabryka → laboratorium → bateria to 1750 kredytów i DWANAŚCIE
+  // kratek na czterdziestu dwóch, obok ekonomii, baraków i mocy — pomiar pokazał
+  // bota, który przez 94 minuty nie zmieścił baterii ani razu. A bez niej (zasięg
+  // 175) nie ma czym bić w bastion z linii, na której armia realnie stoi.
+  const drop = (MIS().reqDrop || {})[t] || [];
+  const req = [...(B[t].req || []), ...add].filter(r => !drop.includes(r));
   return u ? req.filter(r => u.includes(r)) : req;
 }
 

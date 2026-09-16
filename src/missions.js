@@ -448,7 +448,7 @@ export const MISSIONS = {
     gen:'Wejście jest jedno. Kolejność ustalasz Ty.',
     brief:['Korytarz zwęża się przed bastionem. Wejdziecie po kilku.',
            'Bastion bije w gardło, nie w całe pole.',
-           'Artyleria i ciężka fabryka są Twoje. Reszta to kolejność.',
+           'Bateria artylerii wymaga tylko FABRYKI. Ona jedna sięga bastionu.',
            'Dziewiąta fala jest ich szczytem. Dziesiąta daje Ci okno.',
            'Ich rezerwy są policzone — od dwunastej fali zaczną się kończyć.'],
     grid:[7,6], shape:'1-3-1', len:3600, money:700,
@@ -469,6 +469,19 @@ export const MISSIONS = {
     ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory',
             'reactor','lab','arty','heavy'],
+    /* ARTYLERIA I KOLOSY BEZ LABORATORIUM — jedyna zmiana drzewka w całej
+       kampanii i jedyna, którą pomiar wymusił wprost.
+
+       Odprawa obiecuje „artyleria i ciężka fabryka są Twoje", a baza nie miała
+       ich gdzie zmieścić: łańcuch radar → fabryka → laboratorium → bateria to
+       1750 kredytów i 12 kratek na 42, obok ekonomii, baraków i mocy. Bot grał
+       94 minuty i nie postawił baterii ANI RAZU — a różnica jest kategoryczna:
+         bez baterii · bastion staje na 62–81% i nie schodzi niżej
+         z baterią   · 2/2, bastion 0%, 11:21, wszystkie trzy cele
+       Laboratorium zostaje w misji jako +1 poziom do wszystkiego, ale przestaje
+       być bramką do rzeczy, o której misja mówi, że jest Twoja.               */
+    reqDrop:{ arty:['lab'], heavy:['lab'] },
+    reqAdd: { arty:['factory'], heavy:['factory'] },
     /* SZESNAŚCIE FAL, KTÓRE ROSNĄ, A POTEM SIĘ KOŃCZĄ — i to jest cała naprawa
        finału, nie geometria leja.
 
