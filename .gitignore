@@ -11,3 +11,4 @@ package-lock.json
 
 # katalog roboczy testów (zrzuty ekranu, skrypty playwright)
 .tmp/
+__pycache__/
