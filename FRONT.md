@@ -347,20 +347,21 @@ misji, dopóki nie przyjdzie nacisk, który każe dróg BRONIĆ) i `before: 14`
 o tym wprost: przy spełnionym celu przed czasem pokazuje „ZALICZY SIĘ OD FALI 8",
 bo reguła, o której gracz dowiaduje się po fakcie, nie jest regułą.
 
-Masa fal, trzy krzywe o tym samym rytmie (po trzy przebiegi):
+Masa fal, cztery krzywe o tym samym rytmie:
 
 | szczyt planu | wygrane | sztab min | stracone obiekty |
 |---|---|---|---|
 | 55 jedn. | 0/3 | 7 % | 21 |
-| 24 jedn. | 3/3 | 100 % | **0** |
 | 32 jedn. | **1/3, potem 0/3** | 37 % → 7 % | 16 → 24 |
+| 24 jedn. | **5/5** | 100 % | **0** |
+| **28 jedn.** | **3/5** | **64 %** | **11** |
 
 Cienka nie jest łatwiejszą wersją misji, tylko żadną: bot wygrywa dokładnie na
 fali 8, czyli bramka `after` kończy misję, zanim cokolwiek się wydarzy.
-Ale **krzywa 32 dała dwa różne wyniki w dwóch seriach po trzy przebiegi** —
-i to jest lekcja nr 3 z §3b: przy takim wskaźniku wygranych trzy przebiegi nie
-odróżniają „na styk" od „nie do przejścia". Wybór idzie z pięciu przebiegów,
-na krzywej między 24 a 32.
+Krzywa 32 dała **dwa różne wyniki w dwóch seriach po trzy przebiegi** — to
+lekcja nr 3 z §3b i powód, dla którego wybór stanął dopiero na pięciu.
+Wybrana 28: wróg dochodzi do bazy w dwóch przebiegach na pięć, sztab schodzi
+do 64 %, jedenaście obiektów przepada — misja kosztuje, ale da się ją zagrać.
 
 ### Misja 5 — POD OSTRZAŁEM
 
@@ -450,23 +451,32 @@ zaczyna cokolwiek znaczyć. Finał świadomie **bez terminu** — ma być o prze
 gardła, nie o zegarze; przegrać wciąż można normalnie, bo bastion ostrzeliwuje,
 a szczyt fal potrafi zjeść bazę.
 
-**I tu jest najważniejsza liczba całej kalibracji.** Ta sama misja, ten sam
-rytm, dwie masy fal:
+**Plan fal załatwia POŁOWĘ problemu — i tę drugą połowę widać dopiero na
+długim przebiegu.** Ta sama misja, ten sam rytm, dwie masy fal:
 
 | szczyt wroga na polu | sztab min | cele | bastion | czas |
 |---|---|---|---|---|
 | 67 jedn. | 13 % | 0/3 | **100 %** | 6:04, porażka na 10. fali |
-| **23 jedn.** | 100 % | **2/3** | **65 %** | **15:49**, plan wyczerpany |
+| **23 jedn.** | 100 % | **2/3** | 65 % | 15:49 (budżet pomiaru) |
+| 23 jedn., dłuższy budżet | 100 % | 2/3 | **62 %** | **38:00** |
 
 Przy cięższej krzywej wynik jest **identyczny jak przed planem**: armia nie
-dochodzi do gardła, bastionu nie widzi. Przy lżejszej dochodzi, bierze dwa cele
-i zaczyna go gryźć — a misja trwa szesnaście minut, czyli dokładnie tyle, ile
-finał miał trwać (cel 12–18 min).
+dochodzi do gardła, bastionu nie widzi. Przy lżejszej **dochodzi** — trzyma pole
+ze sztabem na 100 %, zerem strat i dwoma celami z trzech.
 
-Lekka krzywa **nie jest tu ułatwieniem**. Jest jedynym ustawieniem, przy którym
-finał w ogóle się wydarza — bo w tej grze front przesuwa się tylko przez
-lokalne wygrywanie starć, a przy młynce nie przesuwa się wcale. To nie jest
-„mniej wroga", tylko „wróg, którego DA SIĘ przepchnąć".
+Ale bastion **nie umiera, tylko jest drapany**: 65 % po szesnastu minutach i
+62 % po trzydziestu ośmiu. To trzy procent na dwadzieścia dwie minuty, czyli
+stanie w miejscu, a nie powolne zwycięstwo. Pierwszy odczyt (te 65 % na końcu
+budżetu) wyglądał jak przełamanie i tak go opisałem — dłuższy przebieg pokazał,
+że to plateau.
+
+Co z tego wynika: **plan fal naprawia DOJŚCIE do gardła, nie zabicie bastionu.**
+Drugi blokujący element jest osobny i §9.0 nazwał go trzy tygodnie temu —
+łańcuch radar → fabryka → laboratorium → artyleria jest tak długi, że pod
+naciskiem nikt go nie kończy, a bez artylerii (zasięg 175) nie ma czym bić
+w bastion z linii, na której armia realnie stoi. Piechota ma zasięg 39.
+W pomiarze leci teraz przebieg z GOTOWĄ artylerią — żeby rozstrzygnąć liczbą,
+czy to naprawdę ona jest brakującym ogniwem, czy problem leży gdzie indziej.
 
 Zostaje otwarte (Twoje liczby, nie moje):
 · skrócenie łańcucha radar → fabryka → laboratorium → artyleria w misji 6 —

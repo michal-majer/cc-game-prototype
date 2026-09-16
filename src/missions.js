@@ -314,30 +314,32 @@ export const MISSIONS = {
        część fali to wciąż realna siła na każdym trakcie. Czołgi wchodzą w ósmej
        fali — dokładnie wtedy, gdy zaczyna się liczyć utrzymanie.
 
-       MASA WYBRANA POMIAREM, z trzech krzywych o tym samym rytmie:
-         ×3 (szczyt 55 jedn.) · 0/3 · sztab  7% — plan, który brzmiał groźnie
-         ×1 (szczyt 24 jedn.) · 3/3 · sztab 100% · 0 strat — nie ma o co grać
-         TA  (szczyt 32 jedn.) · 1/3 · sztab 37% · 16 straconych obiektów
-       Środkowa nie jest kompromisem, tylko jedyną, przy której misja w ogóle
-       coś kosztuje: przy cienkiej bot wygrywa dokładnie na fali 8, czyli
-       bramka `after` kończy misję, zanim cokolwiek się wydarzy.               */
+       MASA WYBRANA POMIAREM — i to na PIĘCIU przebiegach, bo na trzech ta sama
+       krzywa (szczyt 32) dała raz 1/3, a raz 0/3. Przy takim wskaźniku trzy
+       przebiegi nie odróżniają „na styk" od „nie do przejścia".
+         szczyt 55 jedn. · 0/3 · sztab   7% — plan, który tylko brzmiał groźnie
+         szczyt 24 jedn. · 5/5 · sztab 100% ·  0 strat — nie ma o co grać
+         szczyt 28 jedn. · 3/5 · sztab  64% · 11 straconych obiektów   ← TA
+       Cienka nie jest łatwiejszą wersją misji, tylko żadną: bot wygrywa
+       dokładnie na fali 8, czyli bramka `after` kończy rzecz, zanim cokolwiek
+       zdąży się wydarzyć. Przy tej wróg dochodzi do bazy w 2 przebiegach na 5. */
     waves:[
       { t:46, inf:4 },                            // po jednym na drogę — rozpoznanie
-      { t:38, inf:6 },
-      { t:34, inf:7,  lazik:1 },
-      { t:30, inf:8,  lazik:2 },
-      { t:26, inf:11, lazik:3 },                  // ▲ SZPIC — pierwszy raz na trzech naraz
-      { t:42, inf:6,  lazik:1 },                  // ▼ oddech
-      { t:32, inf:10, lazik:3 },
-      { t:30, inf:12, lazik:3, tank:1 },          // pierwszy czołg — i pierwsza bramka celu
-      { t:25, inf:15, lazik:4, tank:2 },          // ▲ SZPIC
-      { t:44, inf:8,  lazik:2 },                  // ▼ oddech
-      { t:31, inf:12, lazik:4, tank:2 },
-      { t:29, inf:14, lazik:4, tank:2 },
-      { t:24, inf:18, lazik:5, tank:3 },          // ▲ SZPIC — ostatnia przed terminem
-      { t:40, inf:9,  lazik:3, tank:1 },          // ▼ oddech
-      { t:26, inf:20, lazik:5, tank:4 },          // te dwie lecą, gdy nie zdążyłeś
-      { t:30, inf:22, lazik:6, tank:4 },
+      { t:38, inf:5 },
+      { t:34, inf:6,  lazik:1 },
+      { t:30, inf:7,  lazik:2 },
+      { t:26, inf:10, lazik:3 },                  // ▲ SZPIC — pierwszy raz na trzech naraz
+      { t:42, inf:5,  lazik:1 },                  // ▼ oddech
+      { t:32, inf:8,  lazik:3 },
+      { t:30, inf:10, lazik:3, tank:1 },          // pierwszy czołg — i pierwsza bramka celu
+      { t:25, inf:13, lazik:4, tank:2 },          // ▲ SZPIC
+      { t:44, inf:7,  lazik:2 },                  // ▼ oddech
+      { t:31, inf:10, lazik:3, tank:2 },
+      { t:29, inf:12, lazik:3, tank:2 },
+      { t:24, inf:15, lazik:5, tank:3 },          // ▲ SZPIC — ostatnia przed terminem
+      { t:40, inf:8,  lazik:2, tank:1 },          // ▼ oddech
+      { t:26, inf:17, lazik:5, tank:3 },          // te dwie lecą, gdy nie zdążyłeś
+      { t:30, inf:19, lazik:6, tank:3 },
     ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory'],
     feats:feats({ stance:4, sectors:3, radar:2, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
