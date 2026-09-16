@@ -3,7 +3,7 @@
 FRONT — podłoże generowane proceduralnie, nie przez AI.
 
     pip install pillow numpy
-    python3 tools/grunt.py            # -> assets/raw/tex-*.png
+    python3 tools/grunt.py            # assets/raw/tex-*.png -> assets/tiles/grunt-*.png
 
 DLACZEGO NIE Z GENERATORA OBRAZU
 
@@ -43,6 +43,8 @@ import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WEJSCIE = 'assets/raw'      # płachty z generatora — wsad, gra ich nie czyta
+WYJSCIE = 'assets/tiles'    # to, co wczytuje silnik
 SIZE = 512                      # bok płachty; 512 dzieli się przez każdą kratę niżej
 # Na ekranie płachta rozciągana jest na kilka kratek bazy, więc drobne oktawy
 # i tak się zgęszczają — stąd ziarno liczone jest z zapasem.
@@ -113,11 +115,34 @@ def rampa(f, kolory):
 TRYB = {'trawa': 'wprost'}
 
 ZRODLA = {
-  'trawa':  'tex-grass.png',
+  # lista = kilka odmian tego samego materiału. Silnik miesza je maskami
+  # o innym okresie niż sam grunt, więc wspólny rytm robi się dłuższy niż ekran
+  # i powtarzalność przestaje być do złapania. Pierwsza odmiana jest wzorcem
+  # barwy — kolejne dociągane są do niej histogramem, żeby nie było widać
+  # „łat" w innym odcieniu, choćby generator zwrócił jaśniejszą trawę.
+  'trawa':  ['tex-grass.png', 'tex-grass-2.png', 'tex-grass-3.png'],
   'ziemia': 'tex-dirt.png',
   'piach':  'tex-sand.png',
   'beton':  'tex-concrete.png',
 }
+
+
+def dociagnij(a, wzor):
+    """Dopasuj rozkład jasności kanał po kanale do wzorca (dopasowanie histogramu).
+
+    Bez tego druga i trzecia odmiana trawy kładą się na polu jako widoczne łaty
+    w innym odcieniu — a po to, żeby rozbić rytm, mają się różnić UKŁADEM plam,
+    nie barwą. Generator nie utrzyma palety między wywołaniami nawet z --sref,
+    więc egzekwujemy ją tutaj."""
+    out = np.empty_like(a)
+    for k in range(3):
+        src, ref = a[:, :, k].ravel(), wzor[:, :, k].ravel()
+        wart, poz, licz = np.unique(src, return_inverse=True, return_counts=True)
+        wart_r, licz_r = np.unique(ref, return_counts=True)
+        dys   = np.cumsum(licz).astype(np.float64);   dys   /= dys[-1]
+        dys_r = np.cumsum(licz_r).astype(np.float64); dys_r /= dys_r[-1]
+        out[:, :, k] = np.interp(dys, dys_r, wart_r)[poz].reshape(a.shape[:2])
+    return out
 
 
 def z_obrazu(sciezka, ramp):
@@ -134,30 +159,88 @@ def z_obrazu(sciezka, ramp):
     return rampa(f, ramp)
 
 
-def zrob(nazwa, cfg, seed):
-    rng = np.random.default_rng(seed)
-    zrodlo = os.path.join(ROOT, 'assets/raw', ZRODLA.get(nazwa, ''))
-    skad = 'szum'
-    if ZRODLA.get(nazwa) and os.path.exists(zrodlo):
+def wczytaj(nazwa, cfg, plik, wzor):
+    """Jedna odmiana materiału: z płachty (wprost albo przez rampę) lub z szumu."""
+    sciezka = os.path.join(ROOT, WEJSCIE, plik) if plik else ''
+    if plik and os.path.exists(sciezka):
         if TRYB.get(nazwa) == 'wprost':
-            a = np.asarray(Image.open(zrodlo).convert('RGB'), dtype=np.float32)
-            skad = 'wprost z ' + os.path.basename(zrodlo)
+            a = np.asarray(Image.open(sciezka).convert('RGB'), dtype=np.float32)
+            skad = 'wprost z ' + plik
         else:
-            a = z_obrazu(zrodlo, cfg['ramp'])
-            skad = 'struktura z ' + os.path.basename(zrodlo)
-    else:
-        a = rampa(pole(rng, cfg['plama']), cfg['ramp'])
-    # ziarno: drobne, wysokoczęstotliwościowe, żeby powierzchnia nie była gładka
-    # jak plastik — ale na tyle słabe, by nie wróciła papka.
-    if skad == 'szum':          # ziarno dokłada się tylko do szumu; płachta ma swoje
-        a += (rng.random(a.shape[:2]).astype(np.float32) - 0.5)[..., None] * cfg['ziarno'] * 2
-    out = os.path.join(ROOT, 'assets/raw', f'tex-{nazwa}.png')
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(out)
-    print('zapisano', os.path.relpath(out, ROOT),
-          f'{a.shape[1]}×{a.shape[0]}', '·', skad)
+            a = z_obrazu(sciezka, cfg['ramp'])
+            skad = 'struktura z ' + plik
+        if wzor is not None:
+            a = dociagnij(a, wzor)
+            skad += ' + histogram'
+        return a, skad
+    rng = np.random.default_rng(abs(hash(nazwa)) % 10000)
+    a = rampa(pole(rng, cfg['plama']), cfg['ramp'])
+    a += (rng.random(a.shape[:2]).astype(np.float32) - 0.5)[..., None] * cfg['ziarno'] * 2
+    return a, 'szum'
+
+
+def zrob(nazwa, cfg, seed):
+    zrodla = ZRODLA.get(nazwa) or ['']
+    if isinstance(zrodla, str): zrodla = [zrodla]
+    wzor = None
+    for i, plik in enumerate(zrodla):
+        a, skad = wczytaj(nazwa, cfg, plik, wzor)
+        if i == 0: wzor = a
+        sufiks = '' if i == 0 else f'-{i+1}'
+        out = os.path.join(ROOT, WYJSCIE, f'grunt-{nazwa}{sufiks}.png')
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(out)
+        print('zapisano', os.path.relpath(out, ROOT),
+              f'{a.shape[1]}×{a.shape[0]}', '·', skad)
+
+
+def plamy():
+    """Warstwa WOLNEJ ZMIENNOŚCI — osobna tekstura mnożona na grunt w silniku.
+
+    Kratka, którą widać na polu, nie bierze się ze szwów (zmierzony szew płachty
+    to 0,68 przy medianie szumu 0,71 — niewidoczny), tylko z POWTARZALNOŚCI: ten
+    sam charakterystyczny placek wraca w równym rytmie i oko skleja go w siatkę.
+    Jedna tekstura powtarzana regularnie zawsze to zrobi, choćby stykała się
+    idealnie.
+
+    Lekarstwo: druga warstwa o okresie kilkukrotnie dłuższym od kafla gruntu.
+    Wspólny okres obu robi się wtedy dłuższy niż ekran i rytm znika. Zakres
+    zaczyna się od bieli, więc warstwa wyłącznie PRZYCIEMNIA — mnożenie przez
+    biel nic nie zmienia, a plamy kładą cień. Rozjaśnianie wymagałoby drugiego
+    trybu mieszania i nie jest potrzebne.
+    """
+    rng = np.random.default_rng(4242)
+    f = (szum(rng, 4)*0.55 + szum(rng, 8)*0.30 + szum(rng, 16)*0.15)
+    f = (f - f.min()) / max(1e-6, float(np.ptp(f)))
+    a = 178 + f*77                                  # 178..255 — tylko przyciemnienie
+    out = os.path.join(ROOT, WYJSCIE, 'grunt-plamy.png')
+    Image.fromarray(np.clip(np.repeat(a[:,:,None],3,axis=2),0,255).astype(np.uint8)).save(out)
+    print('zapisano', os.path.relpath(out, ROOT), f'{SIZE}×{SIZE}', '· wolna zmienność')
+
+
+def maski(ile=2):
+    """Maski mieszające odmiany gruntu — przezroczystość z wolnego szumu.
+
+    Okres masek jest inny niż okres gruntu i inny między sobą, więc wspólny rytm
+    wszystkich warstw wypada dużo dłuższy niż ekran. To jest właściwy sposób na
+    powtarzalność: nie ukrywanie styków, tylko wydłużenie okresu."""
+    for i in range(ile):
+        rng = np.random.default_rng(900 + i*37)
+        f = (szum(rng, 4)*0.60 + szum(rng, 8)*0.28 + szum(rng, 16)*0.12)
+        f = (f - f.min()) / max(1e-6, float(np.ptp(f)))
+        f = np.clip((f - 0.42) * 2.6, 0, 1)        # kontrast: kępy, nie mgła
+        a = np.zeros((SIZE, SIZE, 4), dtype=np.uint8)
+        a[:, :, :3] = 255
+        a[:, :, 3] = (f*255).astype(np.uint8)
+        out = os.path.join(ROOT, WYJSCIE, f'grunt-maska{i+1}.png')
+        Image.fromarray(a).save(out)
+        print('zapisano', os.path.relpath(out, ROOT), f'{SIZE}×{SIZE}',
+              '· maska mieszania', i+1)
 
 
 if __name__ == '__main__':
+    os.makedirs(os.path.join(ROOT, WYJSCIE), exist_ok=True)
     for i, (nazwa, cfg) in enumerate(MATERIALY.items()):
         zrob(nazwa, cfg, 1000 + i)
+    plamy()
+    maski()

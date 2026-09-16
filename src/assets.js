@@ -145,6 +145,31 @@ export const DECORSET = {
   count:{ krzak:3, glaz:4, zapora:6, zlom:6 },  // ile odmian w wierszu
 };
 
+/* ---------------------------- PODŁOŻE ------------------------------------
+   Grunt NIE jest kaflowany po kratkach. Jedna tekstura rozciągana na kilkanaście
+   kratek i powtarzana przez PIXI.TilingSprite — bo krata, którą widać na polu,
+   nie bierze się ze szwów (zmierzony szew płachty to 0,68 przy medianie szumu
+   w polu 0,71, czyli niewidoczny), tylko z POWTARZALNOŚCI. Im rzadziej tekstura
+   wraca, tym trudniej ją złapać; przy kafelkowaniu co 52 px wraca kilkadziesiąt
+   razy na ekran i rytm jest nie do ukrycia.
+
+   `plamy` to druga warstwa o dużo dłuższym okresie, mnożona na grunt: wspólny
+   okres obu robi się dłuższy niż ekran i rytm znika.
+
+   Płachty robi tools/grunt.py — z płachty generatora albo z szumu.            */
+export const GROUND = {
+  trawa:  'assets/tiles/grunt-trawa.png',
+  trawa2: 'assets/tiles/grunt-trawa-2.png',   // odmiany mieszane maskami —
+  trawa3: 'assets/tiles/grunt-trawa-3.png',   // patrz maska1/maska2 niżej
+  maska1: 'assets/tiles/grunt-maska1.png',
+  maska2: 'assets/tiles/grunt-maska2.png',
+  ziemia: 'assets/tiles/grunt-ziemia.png',
+  beton:  'assets/tiles/grunt-beton.png',
+  plamy:  'assets/tiles/grunt-plamy.png',
+};
+
+const grunty = {};   // nazwa -> Texture
+
 const loaded = {};   // name -> Texture (pełny obraz / reprezentatywna klatka)
 const sheets = {};   // name -> { fw, fh, clips:{name:[Texture,...]+meta}, anchor }
 const tiles  = {};   // tileset -> { sets:{nazwa:[Texture,...]}, marks:{nazwa:Texture} }
@@ -234,6 +259,18 @@ async function loadTileset(name, ts){
   tiles[name] = out;
 }
 
+// Wczytaj płachty podłoża. Brak pliku = brak wpisu, render spada na kafle albo
+// na płaskie wypełnienie — grafika nigdy nie jest warunkiem grywalności.
+async function loadGround(){
+  for (const [n, url] of Object.entries(GROUND)){
+    try {
+      const t = await PIXI.Assets.load(url);
+      t.source.addressMode = 'repeat';     // TilingSprite musi móc zawijać
+      grunty[n] = t;
+    } catch (e) { console.warn('[assets] brak płachty:', url); }
+  }
+}
+
 // Potnij arkusz ozdób na obiekty. Brak pliku = pusta tabela, render pomija warstwę.
 async function loadDecor(){
   const base = await PIXI.Assets.load(DECORSET.url);
@@ -261,6 +298,7 @@ export async function loadAssets() {
     try { await loadTileset(n, ts); }
     catch (e) { console.warn('[assets] brak kafli:', ts.url, '— pole rysuje się płasko'); }
   }
+  await loadGround();
   try { await loadDecor(); }
   catch (e) { console.warn('[assets] brak ozdób:', DECORSET.url, '— pole bez obiektów'); }
   return Object.keys(loaded);
@@ -277,6 +315,9 @@ export function tileTex(set, gx, gy){
 }
 export function markTex(name){ const t=tiles.ziemia; return (t && t.marks[name]) || null; }
 export const tilePx = () => (tiles.ziemia ? tiles.ziemia.tile : 64);
+
+export const groundTex = name => grunty[name] || null;
+export const hasGround  = name => !!grunty[name];
 
 export function decorTex(name, i){
   const a = decor[name];

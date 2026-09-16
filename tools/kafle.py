@@ -243,6 +243,20 @@ def edge_mean_of(arrs, width):
         a[:,:width].reshape(-1,3), a[:,-width:].reshape(-1,3)]).mean(axis=0)
         for a in arrs], axis=0)
 
+def zmiekcz(t, margines=0.30):
+    """Wygaś krawędzie znacznika do przezroczystości.
+
+    Lej i wrak są WYCINKAMI gruntu z arkusza, więc mają własne, nieprzezroczyste
+    tło. Położone na ciągłej teksturze pola odcinały się jako kwadraty — widać
+    było nie lej, tylko kafel z lejem. Wygaszenie brzegów wtapia je w podłoże
+    niezależnie od tego, co pod nimi leży."""
+    a = np.asarray(t.convert('RGBA'), dtype=np.float32)
+    H, W, _ = a.shape
+    yy = np.minimum(np.arange(H), H-1-np.arange(H))[:, None] / (H*margines)
+    xx = np.minimum(np.arange(W), W-1-np.arange(W))[None, :] / (W*margines)
+    a[:, :, 3] = np.clip(np.minimum(yy, xx), 0, 1) * 255
+    return Image.fromarray(a.astype(np.uint8))
+
 def blend_edges(tiles, target=None, width=8):
     """Wyrównaj TON krawędzi kafli zestawu, nie zamalowuj ich.
 
@@ -405,7 +419,7 @@ def main():
         for i, t in enumerate(tiles):
             sheet.paste(t, ((cx + i % VARY)*TILE, (cy + i//VARY)*TILE))
     for i, (name, (src, (r, c))) in enumerate(MARKS.items()):
-        sheet.paste(grade(cut(src, r, c), 'mark'), (MARK_AT[name]*TILE, 0))
+        sheet.paste(zmiekcz(grade(cut(src, r, c), 'mark')), (MARK_AT[name]*TILE, 0), None)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     sheet.save(OUT)
     print('zapisano', os.path.relpath(OUT, ROOT), sheet.size)
