@@ -107,9 +107,12 @@ export function distTo(u, o){
   const dy = Math.max(Math.abs(o.y-u.y) - hf.h, 0);
   return Math.hypot(dx, dy);
 }
-/* Nikt nie stoi NA budynku. Sam limit zasięgu nie wystarczy — jednostkę wpycha
-   w obrys tłok, przerzut w poprzek i cofanie się na linię. Wypychamy po
-   PŁYTSZEJ osi, więc jednostka zsuwa się ze ściany, a nie przeskakuje budynek. */
+/* Nikt nie STOI na budynku. Sam limit zasięgu nie wystarczy — w obrys wpycha
+   jednostkę tłok, przerzut w poprzek i cofanie się na linię.
+   Wypychamy TYLKO stojących (patrz wywołanie): jednostka w marszu przechodzi
+   przez bazę jak dotąd. To nie jest oszczędność — wypychanie idącego zaklinuje
+   go na ścianie rafinerii i zostawi tam do końca misji, bo w bazie nie ma
+   szukania drogi. Stojący nigdzie nie idzie, więc nie ma czego zaklinować.   */
 function pushOutOfBuildings(u){
   const sz = U[u.type].sz;
   for (const b of S.buildings){
@@ -118,8 +121,9 @@ function pushOutOfBuildings(u){
     const dx = u.x - b.x, dy = u.y - b.y;
     const ox = hf.w + sz - Math.abs(dx), oy = hf.h + sz - Math.abs(dy);
     if (ox <= 0 || oy <= 0) continue;                    // poza obrysem
-    if (ox < oy) u.x = b.x + Math.sign(dx || 1) * (hf.w + sz);
-    else         u.y = b.y + Math.sign(dy || 1) * (hf.h + sz);
+    // po PŁYTSZEJ osi — jednostka zsuwa się z najbliższej ściany, nie przez budynek
+    if (ox < oy) u.x = b.x + (dx < 0 ? -1 : 1) * (hf.w + sz);
+    else         u.y = b.y + (dy < 0 ? -1 : 1) * (hf.h + sz);
   }
 }
 
@@ -410,7 +414,11 @@ export function update(dt){
       // SZYK: linia trzymania jest INDYWIDUALNA — żołnierz z tylnej kolumny bazy
       // staje głębiej niż ten z przedniej. Stąd „agro" nie potrzebuje osobnego
       // kodu: wybór celu bierze najbliższego, więc ogień zbiera ten wysunięty.
-      const LIM0 = lineX() - (u.side==='p' ? (u.formD||0) : 0) + (hunting ? HUNT_LEASH : 0);
+      // Nawet tylna kolumna szyku stoi PRZED drutem, nie na własnym baraku:
+      // OBRONA leży 16 px za krawędzią siatki, a głębokość szyku sięga 24 px,
+      // więc bez tego progu żołnierz z tyłu trzymałby linię wewnątrz bazy.
+      const LIM0 = Math.max(BASE_R + 8,
+        lineX() - (u.side==='p' ? (u.formD||0) : 0)) + (hunting ? HUNT_LEASH : 0);
       // Nie stój jak słup pod ostrzałem wroga o dłuższym zasięgu: jeśli cel jest
       // tuż za linią (w ENGAGE_BAND), podejdź na własną odległość strzału i oddaj
       // ogień. Poza pasmem trzymaj linię (bez pościgu za kiterem). Wcześniej clamp
@@ -473,8 +481,9 @@ export function update(dt){
         u.shift = ady > half*1.6 ? 0.25 : 0;      // w przerzucie — render to pokazuje
       } else if (u.shift>0) u.shift -= dt;
     }
-    // Tylko przy bazie — w polu nie ma budynków, po których można by chodzić.
-    if (u.x < BASE_R + 60) pushOutOfBuildings(u);
+    // Tylko przy bazie (w polu nie ma budynków) i tylko dla STOJĄCYCH: idący
+    // przez bazę ma przez nią przejść, a nie zakleszczyć się na ścianie.
+    if (u.x < BASE_R + 60 && Math.abs(u.x - u._sx) < 0.5) pushOutOfBuildings(u);
     if (u.flash>0) u.flash-=dt*6;
     if (u.fireT>0) u.fireT-=dt;
     if (u.moveT>0) u.moveT-=dt;

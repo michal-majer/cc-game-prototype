@@ -391,6 +391,14 @@ export function growGrid(){
       S.grid[r].unshift({ore:0,seam:false,pull:false,b:null,prevOre:0});
     }
   }
+  // Piksele budynku są liczone RAZ, przy stawianiu. Przeliczamy je po każdej
+  // zmianie siatki — przesunięcie indeksu i przesunięcie kotwicy znoszą się
+  // co do piksela, ale poleganie na tym byłoby poleganiem na przypadku.
+  for (const b of S.buildings){
+    const [w,h] = B[b.type].fp;
+    b.x = BASE_X + (b.c + w/2)*CELL;
+    b.y = BASE_Y + (b.r + h/2)*CELL;
+  }
   for (let r=0;r<ROWS;r++){
     if (!S.grid[r]) S.grid[r]=[];
     for (let c=0;c<COLS;c++)

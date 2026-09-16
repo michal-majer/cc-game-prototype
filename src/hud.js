@@ -325,9 +325,10 @@ function updateWavePlan(){
             `<span class="wp-sila"><i style="width:${Math.round(100*sily[i]/max)}%"></i></span>` +
             `<span class="wp-txt">${txt}</span></div>`;
   }
+  if (doI < N) html += `<div class="wp-row"><span class="wp-n">⋯</span>` +
+                       `<span class="wp-sila"></span><span class="wp-txt">i jeszcze ${N-doI}</span></div>`;
   if (html !== planShown){ qs('wp-rows').innerHTML = html; planShown = html; }
-  qs('wp-lbl').textContent = 'PLAN SZTURMU · ' + N + ' ' + pl(N,'FALA','FALE','FAL') +
-    (doI < N ? ' (dalej: +'+(N-doI)+')' : '');
+  qs('wp-lbl').textContent = 'PLAN SZTURMU · ' + N + ' ' + pl(N,'FALA','FALE','FAL');
 }
 
 /* Rozkaz DROGOWY. Pokazuje się tylko tam, gdzie dróg jest więcej niż jedna.
