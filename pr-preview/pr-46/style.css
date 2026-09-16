@@ -1,0 +1,373 @@
+/* =========================================================================
+   FRONT — HUD (DOM overlay nad canvasem Pixi)
+   Mobile-first. Pole walki rysuje Pixi; cały interfejs to DOM, żeby był
+   ostry i klikalny na telefonie.
+   ========================================================================= */
+:root{
+  --bg:#0b0e0f; --panel:#161c1e; --panelHi:#202a2d; --grid:#232c2f; --gridHi:#2f3b3f;
+  --txt:#c8d4d6; --dim:#66787c; --warn:#e8b23a; --ok:#5fd18a; --bad:#e05252;
+  --blue:#4d9de0; --ore:#c9a227; --power:#e8b23a; --intel:#c9a2e8; --crt:#7de08a;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
+  --top-h:66px;                     /* mierzona wysokość paska górnego (hud.js) */
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; padding:0; height:100%; background:var(--bg); overflow:hidden;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; color:var(--txt);
+  user-select:none; -webkit-user-select:none; touch-action:none; }
+#app{ position:fixed; inset:0; }
+#stage{ position:absolute; inset:0; }
+#stage canvas{ display:block; width:100%; height:100%; touch-action:none; }
+
+.hud{ position:absolute; z-index:5; }
+.hidden{ display:none !important; }
+.dim{ color:var(--dim); } .ok{ color:var(--ok); } .bad{ color:var(--bad); }
+.warn{ color:var(--warn); } .power{ color:var(--power); } .ore{ color:var(--ore); }
+.blue{ color:var(--blue); } .intel{ color:var(--intel); }
+
+/* ---------- górny pasek ---------- */
+#topbar{ top:0; left:0; right:0; display:flex; gap:10px; align-items:flex-start;
+  padding:6px calc(8px + var(--safe-r)) 6px calc(8px + var(--safe-l));
+  padding-top:calc(6px + var(--safe-t));
+  background:linear-gradient(#0e1416ee,#0e141600); flex-wrap:wrap; }
+.stat{ display:flex; flex-direction:column; min-width:64px; line-height:1.1; }
+.stat .lbl{ font-size:9px; color:var(--dim); letter-spacing:.5px; }
+.stat .big{ font-size:20px; font-weight:700; }
+.stat .sub{ font-size:9px; color:var(--dim); margin-top:1px; }
+.bar{ width:96px; height:7px; background:#0a0d0e; border:1px solid var(--gridHi);
+  margin-top:2px; overflow:hidden; }
+.bar i{ display:block; height:100%; width:0; background:currentColor; }
+.spacer{ flex:1 1 auto; }
+.ctrls{ display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
+.btn{ font-family:inherit; font-size:11px; font-weight:700; color:var(--txt);
+  background:#12181a; border:1px solid var(--gridHi); border-radius:4px;
+  padding:7px 9px; cursor:pointer; min-height:34px; }
+.btn:active{ background:var(--panelHi); }
+.btn.stance{ border-color:var(--ok); color:var(--ok); }
+.btn.stance.push{ border-color:var(--bad); color:var(--bad); animation:pulse 1s infinite; }
+.btn.on{ border-color:var(--warn); color:var(--warn); }
+@keyframes pulse{ 50%{ background:#2a1414; } }
+
+/* ---------- wywiad ---------- */
+#intel{ top:calc(var(--top-h) + 8px); left:calc(8px + var(--safe-l)); right:calc(8px + var(--safe-r));
+  font-size:11px; background:#0e1416cc; border:1px solid var(--gridHi);
+  border-radius:4px; padding:6px 8px; max-width:640px; pointer-events:none; }
+.intel-title{ color:var(--intel); font-weight:700; font-size:10px; }
+.intel-comp{ margin:3px 0; font-size:12px; color:var(--txt); }
+.intel-comp .u{ display:inline-block; margin-right:10px; }
+.intel-hint{ color:var(--warn); font-size:10px; }
+.intel-intent{ font-weight:700; font-size:11px; margin-top:2px; }
+.intel-army{ font-size:10px; color:var(--ok); margin-top:3px; }
+
+/* ---------- log ---------- */
+#log{ left:calc(8px + var(--safe-l)); bottom:calc(182px + var(--safe-b)); width:230px;
+  max-height:150px; overflow:hidden; background:#0a0f0bdd; border:1px solid #2f5c39;
+  border-radius:4px; padding:6px 8px; font-size:10px; line-height:1.35; pointer-events:none; }
+#log .ln{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#log-toggle{ display:none; left:calc(8px + var(--safe-l)); bottom:calc(182px + var(--safe-b));
+  font-size:10px; padding:5px 7px; background:#0a0f0bee; border:1px solid #2f5c39;
+  color:var(--crt); border-radius:4px; cursor:pointer; }
+
+/* ---------- suwak linii ---------- */
+#stance-slider{ left:calc(8px + var(--safe-l)); right:calc(8px + var(--safe-r));
+  bottom:calc(104px + var(--safe-b)); height:38px; display:flex; gap:4px;
+  background:#0e1416cc; border:1px solid var(--gridHi); border-radius:4px; padding:3px; }
+.seg{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border:1px solid var(--gridHi); border-radius:3px; background:#12181a; cursor:pointer;
+  font-size:9px; color:#4a5457; line-height:1.15; padding:2px; overflow:hidden; text-align:center; }
+.seg .sn{ font-weight:700; }
+.seg .sd{ font-size:7px; color:var(--dim); }
+.seg.on{ border-color:var(--ok); color:var(--ok); background:#142a1c; }
+.seg.on.push{ border-color:var(--bad); color:var(--bad); background:#2a1414; }
+
+/* ---------- pasek budowy ---------- */
+#buildbar{ left:0; right:0; bottom:calc(var(--safe-b)); height:100px;
+  display:flex; gap:5px; overflow-x:auto; overflow-y:hidden;
+  padding:6px calc(6px + var(--safe-r)) 6px calc(6px + var(--safe-l));
+  background:linear-gradient(#0e141600,#0e1416ee); -webkit-overflow-scrolling:touch; }
+.tile{ flex:0 0 118px; height:84px; background:var(--panel); border:1px solid var(--gridHi);
+  border-radius:4px; padding:6px 7px; cursor:pointer; position:relative; overflow:hidden;
+  display:flex; flex-direction:column; }
+.tile.on{ border-width:2px; }
+.tile.lock{ background:#101618; opacity:.7; }
+.tile.poor{ opacity:.75; }
+.tile .ico{ position:absolute; right:7px; top:5px; font-size:18px; }
+.tile .nm{ font-weight:700; font-size:11px; }
+.tile .fp{ position:absolute; right:7px; bottom:24px; font-size:8px; color:var(--dim); }
+.tile .cost{ font-weight:700; font-size:11px; margin-top:auto; }
+.tile .desc{ font-size:8px; color:var(--dim); line-height:1.2;
+  overflow:hidden; text-overflow:ellipsis; display:-webkit-box;
+  -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.tile.sell{ background:#181011; border-color:#3a2426; }
+.tile.sell.on{ border-color:var(--bad); }
+.tile.repair{ background:#0f1612; border-color:#24382c; }
+.tile.repair.on{ border-color:var(--ok); }
+
+/* ---------- GOTÓW ---------- */
+#ready{ left:50%; transform:translateX(-50%); bottom:calc(182px + var(--safe-b));
+  font-family:inherit; font-size:15px; font-weight:700; color:var(--warn);
+  background:var(--panelHi); border:2px solid var(--warn); border-radius:5px;
+  padding:12px 22px; cursor:pointer; z-index:8; }
+#ready:active{ background:var(--warn); color:#0f1315; }
+
+/* ---------- tip ---------- */
+#tip{ background:#080c0dee; border:1px solid var(--gridHi); border-radius:3px;
+  padding:5px 8px; font-size:10px; pointer-events:none; z-index:9; max-width:220px; }
+
+/* ---------- panel ulepszenia ---------- */
+#upgrade{ left:50%; transform:translateX(-50%); bottom:calc(148px + var(--safe-b));
+  z-index:10; display:flex; align-items:center; gap:8px; max-width:min(380px,94vw);
+  background:#0e1416f2; border:1px solid var(--warn); border-radius:6px; padding:7px 8px; }
+#upgrade .up-info{ display:flex; flex-direction:column; line-height:1.25; min-width:0; }
+#up-name{ font-weight:700; font-size:12px; color:var(--txt); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+#up-eff{ font-size:10px; color:var(--ok); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#up-btn{ font-family:inherit; font-weight:700; font-size:12px; color:#0f1315; white-space:nowrap;
+  background:var(--ok); border:none; border-radius:4px; padding:9px 12px; cursor:pointer; min-height:38px; }
+#up-btn:active{ filter:brightness(1.15); }
+#up-btn.poor{ background:var(--panelHi); color:var(--dim); border:1px solid var(--gridHi); }
+#up-close{ font-family:inherit; font-size:13px; color:var(--dim); background:transparent;
+  border:none; cursor:pointer; padding:6px 6px; min-height:38px; }
+
+/* ---------- overlaye ---------- */
+.overlay{ position:absolute; inset:0; z-index:20; display:flex; align-items:center;
+  justify-content:center; background:rgba(8,12,13,.9); backdrop-filter:blur(2px); }
+.overlay-inner{ text-align:center; padding:16px; max-width:900px; width:100%; }
+.overlay h1{ font-size:clamp(30px,9vw,48px); margin:0 0 6px; }
+.overlay h2{ font-size:clamp(16px,4vw,24px); color:var(--warn); margin:0 0 4px; }
+.overlay p{ margin:2px 0; font-size:13px; }
+#cards-row{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:16px; }
+.card{ width:min(268px,80vw); min-height:140px; background:#12181a; border:1px solid var(--gridHi);
+  border-radius:5px; padding:12px 14px; cursor:pointer; text-align:left; position:relative;
+  border-top-width:4px; }
+.card:active{ background:var(--panelHi); }
+.card .k{ font-size:8px; letter-spacing:1px; }
+.card .n{ font-weight:700; font-size:16px; margin:6px 0; }
+.card .d{ font-size:11px; color:var(--dim); line-height:1.35; }
+.card .num{ position:absolute; right:12px; bottom:8px; font-weight:700; font-size:11px; color:var(--dim); }
+.bigbtn{ font-family:inherit; font-size:16px; font-weight:700; color:var(--warn);
+  background:var(--panelHi); border:2px solid var(--warn); border-radius:5px;
+  padding:12px 22px; margin-top:18px; cursor:pointer; }
+#end-title.win{ color:var(--ok); } #end-title.lose{ color:var(--bad); }
+/* raport końca runu — do analizy „jak poszło" */
+#end .report{ display:inline-block; text-align:left; margin:14px auto 4px; padding:12px 16px;
+  max-width:min(560px,92vw); background:rgba(22,28,30,.7); border:1px solid var(--gridHi);
+  border-radius:5px; font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--txt); }
+#end .report .rl{ overflow-wrap:anywhere; }
+#end .report .rl:last-child{ color:var(--dim); margin-top:6px; font-size:11px; }
+.end-actions{ display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; }
+.minibtn{ font-family:inherit; font-size:11px; color:var(--dim); background:transparent;
+  border:1px solid var(--gridHi); border-radius:4px; padding:8px 12px; cursor:pointer; }
+.minibtn:hover{ border-color:var(--ok); color:var(--txt); }
+
+/* ---------- toasty ---------- */
+#toasts{ position:absolute; top:74px; left:50%; transform:translateX(-50%);
+  z-index:15; display:flex; flex-direction:column; gap:4px; align-items:center; pointer-events:none; }
+.toast{ background:#0e1416ee; border:1px solid var(--gridHi); border-radius:4px;
+  padding:6px 12px; font-size:12px; font-weight:700; animation:toast 2.4s forwards; }
+@keyframes toast{ 0%{ opacity:0; transform:translateY(-6px); } 10%,80%{ opacity:1; transform:none; } 100%{ opacity:0; } }
+
+/* ---------- FALA: baner nadejścia ----------
+   „Która to fala" była w pasku na górze, małą czcionką obok czterech innych
+   liczb — czyli nigdzie. Nadejście fali jest najważniejszym zdarzeniem w grze
+   i ma być widać bez szukania, ale nie ma zasłaniać pola: duże litery, krótko,
+   bez tła, na wysokości korytarza.                                            */
+#wavebanner{ position:absolute; top:26%; left:50%; transform:translateX(-50%);
+  z-index:14; pointer-events:none; text-align:center; opacity:0; }
+#wavebanner.on{ animation:wb 2.2s forwards; }
+#wavebanner .wb-n{ display:block; font-size:44px; font-weight:800; letter-spacing:6px;
+  color:var(--warn); text-shadow:0 0 18px #000, 0 2px 0 #000; }
+#wavebanner .wb-s{ display:block; font-size:13px; font-weight:700; letter-spacing:2px;
+  color:var(--txt); text-shadow:0 0 10px #000; margin-top:2px; }
+@keyframes wb{ 0%{ opacity:0; transform:translateX(-50%) scale(1.14); }
+               12%{ opacity:1; transform:translateX(-50%) scale(1); }
+               70%{ opacity:1; } 100%{ opacity:0; } }
+
+/* ---------- telefon (wąsko) ---------- */
+@media (max-width:720px){
+  .stat{ min-width:50px; } .stat .big{ font-size:16px; } .bar{ width:70px; }
+  #intel{ font-size:10px; }
+  #log{ display:none; } #log-toggle{ display:block; }
+  #log.show{ display:block; }
+  #buildbar{ height:92px; } .tile{ flex-basis:104px; height:78px; }
+  .ctrls .btn{ padding:6px 7px; font-size:10px; }
+}
+
+/* =========================================================================
+   CEL MISJI · ROZKAZ TOROWY · MENU / ODPRAWA / OCENA SZTABU
+   ========================================================================= */
+
+/* ---------- cel misji (kampania) ---------- */
+#rightcol{ right:calc(8px + var(--safe-r)); top:calc(var(--top-h) + 8px);
+  display:flex; flex-direction:column; gap:8px; align-items:flex-end; pointer-events:none; }
+#objective{ width:210px;
+  background:#0e1416ee; border:1px solid var(--gridHi); border-left:3px solid var(--warn);
+  border-radius:4px; padding:6px 9px; pointer-events:none; }
+#obj-lbl{ font-size:9px; color:var(--dim); letter-spacing:1px; }
+#obj-txt{ font-size:12px; font-weight:700; color:var(--txt); line-height:1.2; margin:2px 0 4px; }
+.obj-bar{ height:5px; background:#0a0d0e; border:1px solid var(--gridHi); overflow:hidden; }
+.obj-bar i{ display:block; height:100%; width:0; background:var(--warn); transition:width .2s linear; }
+#obj-num{ font-size:10px; color:var(--warn); margin-top:3px; font-weight:700; }
+#objective.done{ border-left-color:var(--ok); }
+#objective.done #obj-num{ color:var(--ok); }
+
+/* ---------- plan szturmu ----------
+   Drabinka fal pod celem misji. Gracz ma WIEDZIEĆ, że szósta uderzy ciasno,
+   zanim uderzy — inaczej „rozbuduj się na czas" jest zagadką, nie decyzją. */
+#waveplan{ width:210px;
+  background:#0e1416ee; border:1px solid var(--gridHi); border-left:3px solid var(--dim);
+  border-radius:4px; padding:6px 9px; pointer-events:none; }
+#wp-lbl{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:3px; }
+.wp-row{ display:flex; align-items:center; gap:5px; font-size:9px; line-height:1.45;
+  color:var(--dim); white-space:nowrap; }
+.wp-row .wp-n{ width:12px; text-align:right; color:var(--dim); }
+.wp-row .wp-sila{ flex:0 0 34px; height:4px; background:#0a0d0e; border:1px solid var(--gridHi); }
+.wp-row .wp-sila i{ display:block; height:100%; background:var(--dim); }
+.wp-row .wp-txt{ overflow:hidden; text-overflow:ellipsis; }
+.wp-row.past{ opacity:.38; }
+.wp-row.past .wp-n{ color:var(--ok); }
+.wp-row.now{ color:var(--txt); font-weight:700; }
+.wp-row.now .wp-n, .wp-row.next .wp-n{ color:var(--warn); }
+.wp-row.now .wp-sila i, .wp-row.next .wp-sila i{ background:var(--warn); }
+.wp-row.next{ color:var(--txt); }
+.wp-row.spike .wp-sila i{ background:var(--bad); }
+.wp-row.spike .wp-n{ color:var(--bad); }
+
+/* ---------- rozkaz torowy ---------- */
+#lanes{ right:calc(8px + var(--safe-r)); bottom:calc(182px + var(--safe-b));
+  display:flex; flex-direction:column; gap:4px; }
+.lane-btn{ font-family:inherit; font-size:10px; font-weight:700; color:var(--dim);
+  background:#12181ae6; border:1px solid var(--gridHi); border-radius:4px;
+  padding:7px 10px; cursor:pointer; min-width:92px; min-height:32px; }
+.lane-btn.on{ border-color:var(--warn); color:var(--warn); background:#231c0e; }
+.lane-btn.split{ border-style:dashed; }
+.lane-btn:active{ background:var(--panelHi); }
+
+/* ---------- menu (wspólne) ---------- */
+#menu{ background:#080b0ceb; backdrop-filter:blur(2px); }
+#menu.in .menu-inner{ animation:menuIn .22s ease-out; }
+@keyframes menuIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+.menu-inner{ width:100%; max-width:760px; padding:18px calc(16px + var(--safe-r)) 18px calc(16px + var(--safe-l));
+  max-height:100%; overflow-y:auto; text-align:center; }
+
+.m-title{ font-size:clamp(40px,13vw,84px); font-weight:700; letter-spacing:8px;
+  color:var(--txt); line-height:1; }
+.m-sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:6px; }
+.m-btns{ display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:26px; }
+.m-big{ font-family:inherit; font-size:15px; font-weight:700; letter-spacing:1px;
+  color:var(--warn); background:#12181a; border:1px solid var(--warn); border-radius:4px;
+  padding:14px 22px; cursor:pointer; width:min(420px,88vw); }
+.m-big:active{ background:var(--warn); color:#0f1315; }
+.m-big.alt{ color:var(--txt); border-color:var(--gridHi); }
+.m-big.go{ margin-top:14px; }
+.m-big.off{ color:#3d4b4f; border-color:#222b2e; cursor:default; }
+.m-big.off:active{ background:#12181a; color:#3d4b4f; }
+.m-mini{ font-family:inherit; font-size:10px; color:var(--dim); background:transparent;
+  border:1px solid var(--gridHi); border-radius:3px; padding:7px 12px; cursor:pointer; }
+.m-foot{ margin-top:28px; }
+
+/* ---------- nagłówek ekranu ---------- */
+.m-head{ position:relative; margin-bottom:14px; }
+.m-back{ position:absolute; left:0; top:0; font-family:inherit; font-size:10px; color:var(--dim);
+  background:transparent; border:1px solid var(--gridHi); border-radius:3px; padding:6px 10px; cursor:pointer; }
+.m-h1{ font-size:clamp(18px,5vw,26px); font-weight:700; letter-spacing:2px; padding-top:4px; }
+.m-h2{ font-size:11px; color:var(--dim); margin-top:3px; }
+
+/* ---------- lista misji ---------- */
+.m-list{ display:flex; flex-direction:column; gap:7px; text-align:left; }
+.m-row{ display:flex; align-items:center; gap:12px; font-family:inherit; text-align:left;
+  background:#12181a; border:1px solid var(--gridHi); border-left:3px solid var(--gridHi);
+  border-radius:4px; padding:11px 13px; cursor:pointer; color:var(--txt); width:100%; }
+.m-row:active{ background:var(--panelHi); }
+.m-row.done{ border-left-color:var(--ok); }
+.m-row.lock{ opacity:.42; cursor:default; }
+.m-n{ font-size:22px; font-weight:700; color:var(--dim); min-width:24px; }
+.m-row.done .m-n{ color:var(--ok); }
+.m-col{ display:flex; flex-direction:column; flex:1; min-width:0; }
+.m-code{ font-size:14px; font-weight:700; letter-spacing:1px; }
+.m-teach{ font-size:10px; color:var(--dim); margin-top:2px; }
+.m-badge{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+.m-rate{ font-size:10px; font-weight:700; letter-spacing:1px; }
+.m-rate.best{ color:var(--ok); } .m-rate.good{ color:var(--warn); }
+.m-rate.hard{ color:var(--bad); } .m-rate.next{ color:var(--blue); }
+.m-rnum{ font-size:9px; color:var(--dim); }
+
+/* ---------- odprawa ---------- */
+.m-brief{ display:flex; gap:14px; text-align:left; align-items:flex-start;
+  background:#10171a; border:1px solid var(--gridHi); border-radius:4px; padding:14px; }
+.m-portrait{ flex:0 0 84px; height:104px; background:#0a0f11 center/cover no-repeat;
+  background-image:url('assets/portrait/gen.png'); border:1px solid var(--gridHi);
+  display:flex; align-items:center; justify-content:center; color:#2b3538; font-size:30px; }
+.m-portrait span{ opacity:.5; }
+.m-say{ flex:1; min-width:0; }
+.m-quote{ font-size:14px; color:var(--warn); line-height:1.35; }
+.m-lines{ margin:10px 0 0; padding-left:16px; }
+.m-lines li{ font-size:11px; color:var(--dim); line-height:1.55; }
+.m-goal{ margin-top:12px; font-size:11px; color:var(--dim); letter-spacing:1px; }
+.m-goal b{ color:var(--warn); }
+
+/* ---------- ocena sztabu (§5 — słowo i dwie–trzy liczby, nie gwiazdki) ---------- */
+.m-word{ font-size:clamp(30px,9vw,52px); font-weight:700; letter-spacing:4px; margin-top:8px; }
+.m-word.best{ color:var(--ok); } .m-word.good{ color:var(--warn); }
+.m-word.hard{ color:var(--warn); } .m-word.lose{ color:var(--bad); }
+.m-line{ font-size:12px; color:var(--dim); letter-spacing:1px; margin-top:6px; }
+.m-won{ font-size:12px; color:var(--ok); letter-spacing:1px; margin:4px 0 6px; }
+
+/* ---------- telefon ---------- */
+@media (max-width:720px){
+  #rightcol{ top:70px; }
+  #objective{ width:150px; padding:5px 7px; }
+  #obj-txt{ font-size:10px; }
+  #waveplan{ width:150px; padding:5px 7px; }
+  .wp-row{ font-size:8px; line-height:1.35; }
+  .wp-row .wp-sila{ flex-basis:22px; }
+  #lanes{ bottom:calc(222px + var(--safe-b)); }
+  .lane-btn{ min-width:74px; font-size:9px; padding:6px 7px; }
+  .m-brief{ flex-direction:column; }
+  .m-portrait{ flex:0 0 auto; width:100%; height:78px; background-size:contain; }
+}
+
+/* HUD gaśnie razem z polem, gdy na wierzchu jest menu */
+.off{ opacity:0 !important; pointer-events:none !important; }
+
+/* ---------- minimapa (duża, przewijana mapa na jednym pasku) ---------- */
+#minimap{ left:calc(8px + var(--safe-l));
+  width:calc(100% - 16px - var(--safe-l) - var(--safe-r));
+  bottom:calc(146px + var(--safe-b)); height:30px; display:block;
+  background:#0a0f10; border:1px solid var(--gridHi); border-radius:3px;
+  cursor:crosshair; touch-action:none; }
+.btn.cam{ color:var(--dim); }
+.btn.cam.on{ border-color:var(--ok); color:var(--ok); }
+
+@media (max-width:720px){
+  #minimap{ bottom:calc(192px + var(--safe-b)); height:24px; }
+  /* Na telefonie przyciski kamery zostają ikonami — pasek górny i tak jest ciasny,
+     a dwa dodatkowe napisy zawijały go w drugi wiersz na panel wywiadu. */
+  .btn.cam .btxt{ display:none; }
+  .btn.cam{ padding:6px 8px; }
+  /* wywiad i cel obok siebie POD paskiem górnym, nie na nim */
+  #intel{ right:calc(156px + var(--safe-r)); }
+  #objective{ width:140px; }
+  #waveplan{ width:140px; }
+  #obj-lbl{ font-size:8px; }
+  #ready{ bottom:calc(228px + var(--safe-b)); }
+  #log-toggle{ bottom:calc(228px + var(--safe-b)); }
+  #log{ bottom:calc(228px + var(--safe-b)); }
+}
+
+/* ---------- rozkaz drogowy: nazwa drogi + jej cele ---------- */
+.lane-btn{ display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+  min-width:116px; line-height:1.15; text-align:left; }
+.lane-btn .ln-n{ font-weight:700; font-size:10px; }
+.lane-btn .ln-s{ font-size:9px; color:#5a6467; letter-spacing:1px; }
+.lane-btn.on .ln-s{ color:var(--warn); }
+.lane-btn.done{ border-color:var(--ok); }
+.lane-btn.done .ln-n{ color:var(--ok); }
+@media (max-width:720px){
+  .lane-btn{ min-width:92px; }
+  .lane-btn .ln-n{ font-size:9px; } .lane-btn .ln-s{ font-size:8px; }
+}
+
+/* ---------- PRZESUŃ: budynek na inną kratkę za ułamek wartości ---------- */
+.tile.move{ background:#12161b; border-color:#2a3340; }
+.tile.move.on{ border-color:var(--warn); }
