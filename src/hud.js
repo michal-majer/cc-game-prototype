@@ -270,7 +270,14 @@ function updateObjective(){
   qs('obj-txt').textContent = goalText();
   qs('obj-bar').style.width = Math.min(100, target? 100*now/target : 0)+'%';
   qs('obj-bar').style.background = done ? CO.ok : CO.warn;
-  qs('obj-num').textContent = done ? '✔ OSIĄGNIĘTY' : now+' / '+target;
+  // Cel osiągnięty, ale misja trwa, bo `after` jeszcze nie minęło. Bez tej
+  // linijki gracz widzi „2 / 2" i nie wie, czemu nic się nie dzieje — a to
+  // właśnie tu jest treść misji 4: nie zdobycie dróg, tylko ich utrzymanie.
+  // Czasownik świadomie neutralny: kredytów się nie „trzyma", a dróg tak.
+  const after = (MIS().goal||{}).after;
+  qs('obj-num').textContent = done ? '✔ OSIĄGNIĘTY'
+    : (after && S.wave < after && target && now >= target) ? 'ZALICZY SIĘ OD FALI '+after
+    : now+' / '+target;
 }
 /* Rozkaz DROGOWY. Pokazuje się tylko tam, gdzie dróg jest więcej niż jedna.
    Każdy przycisk nosi NAZWĘ drogi i jej cele — bo decyzja „którą drogą" jest

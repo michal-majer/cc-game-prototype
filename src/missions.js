@@ -279,7 +279,9 @@ export const MISSIONS = {
     gen:'Trzy drogi. Wybierz, którą oddajesz.',
     brief:['Za gardłem korytarz rozchodzi się na trzy niezależne drogi.',
            'Każda ma co innego do wzięcia. Górna i dolna są dłuższe.',
-           'Opanuj dwie. Trzeciej nie obronisz — i o to chodzi.'],
+           'Opanuj dwie. Trzeciej nie obronisz — i o to chodzi.',
+           'Zajęcie to połowa roboty: masz je UTRZYMAĆ do ósmej fali.',
+           'Do czternastej albo trzymasz dwie, albo misja przepada.'],
     grid:[7,5], gridMax:[7,6], shape:'1-3-1', len:3200, money:600,   // zajęty cel = nowe kratki
     ore:['..##...',
          '.......',
@@ -298,11 +300,43 @@ export const MISSIONS = {
       { n:'DOLNA',    y: 1, bow:0.30, sect:[{ kind:'sklad',   n:'SKŁAD',     f:0.38 },
                                             { kind:'wieza',   n:'WIEŻA',     f:0.72 }] },
     ],
+    /* SZESNAŚCIE FAL. Pomiar przed planem: misja kończyła się w 1:54 na TRZECIEJ
+       fali, ze szczytem dziesięciu wrogów na polu i zerem strat — armia startowa
+       brała dwie drogi, zanim wróg w ogóle zaistniał. „Nie możesz być wszędzie
+       naraz" nie miało jak być prawdą, bo nie było kogo nie zdążyć powstrzymać.
+
+       Stąd DWIE bramki, nie jedna: `after:8` — zajęcie dróg nie kończy misji,
+       dopóki nie przyjdzie nacisk, który każe ich BRONIĆ; `before:14` — a jeśli
+       do czternastej fali nie trzymasz dwóch, przegrywasz. Między nimi jest ta
+       misja: nie zdobycie, tylko utrzymanie dwóch dróg naraz.
+
+       Wróg rozkłada każdą falę PO DROGACH (round-robin w sim.js), więc trzecia
+       część fali to wciąż realna siła na każdym trakcie. Czołgi wchodzą w ósmej
+       fali — dokładnie wtedy, gdy zaczyna się liczyć utrzymanie.              */
+    waves:[
+      { t:48, inf:4 },                            // po jednym na drogę — rozpoznanie
+      { t:38, inf:6 },
+      { t:34, inf:9,  lazik:1 },
+      { t:30, inf:12, lazik:2 },
+      { t:26, inf:16, lazik:3 },                  // ▲ SZPIC — pierwszy raz na trzech naraz
+      { t:42, inf:9,  lazik:1 },                  // ▼ oddech
+      { t:32, inf:15, lazik:3 },
+      { t:30, inf:18, lazik:4, tank:1 },          // pierwszy czołg — i pierwsza bramka celu
+      { t:25, inf:24, lazik:5, tank:2 },          // ▲ SZPIC
+      { t:44, inf:12, lazik:2 },                  // ▼ oddech
+      { t:31, inf:21, lazik:5, tank:2 },
+      { t:29, inf:24, lazik:6, tank:3 },
+      { t:24, inf:30, lazik:7, tank:4 },          // ▲ SZPIC — ostatnia przed terminem
+      { t:40, inf:15, lazik:3, tank:1 },          // ▼ oddech
+      { t:26, inf:36, lazik:8, tank:5 },          // te dwie lecą, gdy nie zdążyłeś
+      { t:30, inf:40, lazik:9, tank:6 },
+    ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory'],
     feats:feats({ stance:4, sectors:3, radar:2, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
-    goal:{ kind:'roads', target:2 },
+    goal:{ kind:'roads', target:2, after:8, before:14 },
+    // `base` i `grow` są przy planie fal MARTWE (sim.js nie woła eBuild) —
+    // zostają jako zapis, czym ten wróg jest, gdyby plan kiedyś zdjąć.
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks'], grow:0.85, spawnF:0.97, bastion:0 },
-    waveT:[45, 30],
     par:{ sec:540, loss:16 },
   },
 
@@ -321,7 +355,9 @@ export const MISSIONS = {
     gen:'Będą bić w tory. Usłyszysz, zanim trafią.',
     brief:['Trzymasz środek. Oni ostrzeliwują tory po kolei.',
            'Ostrzał jest zapowiadany. Zdążysz ewakuować albo przyjąć i odbudować.',
-           'Sztab przysyła rozkazy — pierwsze karty do wyboru.'],
+           'Sztab przysyła rozkazy — pierwsze karty do wyboru.',
+           'Cztery fale Z RZĘDU z dwiema drogami. Utrata zeruje licznik.',
+           'Od siódmej fali sypią rakietowcami — pancerka przestaje wystarczać.'],
     grid:[7,6], shape:'1-3-1', len:3200, money:650,
     ore:['..##...',
          '.......',
@@ -339,12 +375,38 @@ export const MISSIONS = {
       { n:'DOLNA',    y: 1, bow:0.30, sect:[{ kind:'sklad',   n:'SKŁAD',   f:0.38 },
                                             { kind:'wieza',   n:'WIEŻA',   f:0.72 }] },
     ],
+    /* SZESNAŚCIE FAL, cięższych niż w czwórce — bo baza jest już rozwinięta,
+       a misja nie o zdobycie, tylko o CZTERY FALE Z RZĘDU z dwiema drogami
+       w ręku. Utrata choćby na jedną falę zeruje licznik (sim.js), więc plan
+       musi mieć czym tę utratę wymusić: rakietowcy od siódmej fali biją
+       w pancerkę, którą gracz właśnie zdążył zbudować.
+
+       Pomiar przed planem: 2/2 w 3:34, wszystkie pięć celów, ZERO strat,
+       szczyt szesnastu wrogów. Ostrzał bastionu bez nacisku z pola jest tylko
+       podatkiem — bolało dopiero, gdy jest kogo w tym czasie odpierać.        */
+    waves:[
+      { t:44, inf:5 },
+      { t:36, inf:8,  lazik:1 },
+      { t:32, inf:12, lazik:2 },
+      { t:28, inf:15, lazik:3, tank:1 },
+      { t:24, inf:20, lazik:4, tank:1 },              // ▲ SZPIC
+      { t:42, inf:10, lazik:2 },                      // ▼ oddech
+      { t:30, inf:18, lazik:4, tank:2, rkt:2 },       // rakietowcy — kontra na pancerkę
+      { t:28, inf:22, lazik:5, tank:2, rkt:2 },
+      { t:23, inf:28, lazik:6, tank:3, rkt:3 },       // ▲ SZPIC
+      { t:44, inf:12, lazik:2, tank:1 },              // ▼ oddech — tu zwykle zaczyna się licznik
+      { t:30, inf:24, lazik:5, tank:3, rkt:3 },
+      { t:28, inf:27, lazik:6, tank:4, rkt:3 },
+      { t:23, inf:33, lazik:7, tank:5, rkt:4 },       // ▲ SZPIC — ostatnia przed terminem
+      { t:42, inf:15, lazik:3, tank:2 },              // ▼ oddech
+      { t:26, inf:38, lazik:8, tank:6, rkt:4 },
+      { t:28, inf:42, lazik:9, tank:6, rkt:5 },
+    ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory','reactor'],
     feats:feats({ stance:4, sectors:3, radar:2, cards:true, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
-    goal:{ kind:'hold', target:2, waves:4 },
+    goal:{ kind:'hold', target:2, waves:4, before:14 },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks','rocket'], grow:1,
             spawnF:0.97, bastion:0, shell:{ every:26, warn:5, dmg:26, r:52 } },
-    waveT:[40, 30],
     par:{ sec:600, loss:22 },
   },
 
@@ -362,7 +424,9 @@ export const MISSIONS = {
     gen:'Wejście jest jedno. Kolejność ustalasz Ty.',
     brief:['Korytarz zwęża się przed bastionem. Wejdziecie po kilku.',
            'Bastion bije w gardło, nie w całe pole.',
-           'Artyleria i ciężka fabryka są Twoje. Reszta to kolejność.'],
+           'Artyleria i ciężka fabryka są Twoje. Reszta to kolejność.',
+           'Dziewiąta fala jest ich szczytem. Dziesiąta daje Ci okno.',
+           'Ich rezerwy są policzone — od dwunastej fali zaczną się kończyć.'],
     grid:[7,6], shape:'1-3-1', len:3600, money:700,
     ore:['..##...',
          '.......',
@@ -381,11 +445,47 @@ export const MISSIONS = {
     ],
     unlock:['power','refinery','barracks','bunker','workshop','radar','rocket','factory',
             'reactor','lab','arty','heavy'],
+    /* SZESNAŚCIE FAL, KTÓRE ROSNĄ, A POTEM SIĘ KOŃCZĄ — i to jest cała naprawa
+       finału, nie geometria leja.
+
+       Pomiar przed planem (15.09) mówił wprost: 0/2, sztab na 3%, dwadzieścia
+       cztery stracone obiekty, bastion nietknięty. Armia stawała 643 px od
+       bastionu i stała tam do końca, bo PRZEGRYWAŁA WOJNĘ NA WYCZERPANIE —
+       wróg rozbudowywał się szybciej (269 jednostek na polu wobec 182 gracza).
+       Front w tej grze przesuwa się wyłącznie przez lokalne wygrywanie starć,
+       więc przy wiecznej młynce nikt nie posuwa się ani o piksel.
+
+       Plan autorski zdejmuje to u źródła: przy `waves` baza wroga NIE ROŚNIE
+       (sim.js), więc jego siła jest zapisana, a nie wykładnicza. Kształt planu
+       jest wtedy treścią finału: fale 7–9 to szczyt ich siły, fala 10 to OKNO,
+       a od dwunastej ich rezerwy się kończą. Bastion zostaje sam — dokładnie
+       wtedy, gdy kolejność wejścia w lej zaczyna cokolwiek znaczyć.
+
+       Świadomie BEZ terminu: finał ma być o przełamaniu gardła, nie o zegarze.
+       Przegrać wciąż można normalnie — bastion ostrzeliwuje, a szczyt fal
+       potrafi zjeść bazę.                                                     */
+    waves:[
+      { t:50, inf:5 },
+      { t:40, inf:8,  lazik:1 },
+      { t:36, inf:12, lazik:2 },
+      { t:32, inf:16, lazik:3, tank:1 },
+      { t:28, inf:20, lazik:4, tank:2 },              // ▲
+      { t:46, inf:10, lazik:2 },                      // ▼ oddech
+      { t:32, inf:22, lazik:5, tank:2, rkt:2 },
+      { t:29, inf:26, lazik:6, tank:3, rkt:3 },
+      { t:25, inf:32, lazik:7, tank:4, rkt:4 },       // ▲ SZCZYT ICH SIŁY
+      { t:48, inf:12, lazik:2, tank:1 },              // ▼ OKNO — tędy wchodzi się w lej
+      { t:34, inf:24, lazik:5, tank:3, rkt:3 },       // ostatnie porządne uderzenie
+      { t:34, inf:18, lazik:4, tank:2, rkt:2 },       // ▼ ich rezerwy się kończą
+      { t:36, inf:14, lazik:3, tank:2 },
+      { t:38, inf:10, lazik:2, tank:1 },
+      { t:40, inf:7,  lazik:1 },
+      { t:44, inf:5 },                                // dalej bastion broni się sam
+    ],
     feats:feats({ stance:5, sectors:3, radar:2, cards:true, sell:true, repair:true, move:true, upgrade:true, terrIncome:true }),
     goal:{ kind:'bastion' },
     enemy:{ doc:'CZERWONA FALA', base:['barracks','barracks','barracks','rocket','factory'], grow:1,
             spawnF:0.97, bastion:2200, shell:{ every:22, warn:4, dmg:30, r:56 } },
-    waveT:[40, 30],
     par:{ sec:900, loss:30 },
   },
 };

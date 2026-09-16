@@ -199,8 +199,8 @@ Zasada nadrzędna: **jedna misja = jedna nowa rzecz dla gracza i jedna dla wroga
 | 1 | PIERWSZY DZIEŃ | Zarób X kredytów → jedna fala | elektrownia → rafineria | piechota | 1 droga |
 | 2 | ŚCIANA | Odeprzyj 10 fal | baraki, działko, rozbiórka, **PRZESUŃ** | tempo i masa | 1 droga |
 | 3 | PUNKT | Zajmij cel (od 3. fali) | łazik **albo** rakietowiec, radar, suwak (2 poz.) | mini-baza jako punkt startu fal | 1 droga |
-| 4 | ROZWIDLENIE | Opanuj 2 z 3 **dróg** | czołg, mini-baza wysunięta | pojazdy, kontry | **3 drogi** |
-| 5 | POD OSTRZAŁEM | Utrzymaj środek / dojdź do leja | budynki torowe, karty | ostrzał po torach | 3 tory → lej |
+| 4 | ROZWIDLENIE | Trzymaj 2 z 3 **dróg** (fale 8–14) | czołg, mini-baza wysunięta | pojazdy, kontry | **3 drogi** |
+| 5 | POD OSTRZAŁEM | 2 drogi przez 4 fale z rzędu (do 14.) | budynki torowe, karty | ostrzał po torach, rakietowcy | 3 tory → lej |
 | 6 | LEJ | Zniszcz bastion | pełny suwak, artyleria, ciężkie | bastion bije w gardło | lej |
 
 Treść każdej misji (czego uczy, co jest odchudzone, czego świadomie nie ma)
@@ -338,6 +338,15 @@ jest krótka i płaci kredytami; dolna daje miejsce w bazie i wywiad.
 *Odchudzona świadomie:* pierwotnie miała czołg, radar, tory, budynki torowe, kartę
 i mini-bazę — sześć nowych rzeczy naraz, nie do przetestowania.
 
+**Cel ma dwie bramki, nie jedną.** Pomiar bez planu fal: misja kończyła się
+w **1:54 na trzeciej fali**, przy dziesięciu wrogach na polu i zerze strat —
+armia startowa brała dwie drogi, zanim wróg w ogóle zaistniał. „Nie możesz być
+wszędzie naraz" nie miało jak być prawdą. Stąd `after: 8` (zajęcie nie kończy
+misji, dopóki nie przyjdzie nacisk, który każe dróg BRONIĆ) i `before: 14`
+(a jeśli do czternastej fali nie trzymasz dwóch — przegrywasz). Panel celu mówi
+o tym wprost: przy spełnionym celu przed czasem pokazuje „ZALICZY SIĘ OD FALI 8",
+bo reguła, o której gracz dowiaduje się po fakcie, nie jest regułą.
+
 ### Misja 5 — POD OSTRZAŁEM
 
 **Uczy:** utrzymanie jest trudniejsze niż zdobycie. Przygotowanie do finału.
@@ -349,6 +358,16 @@ gardle, więc gracz wchodzi do finału, już ją znając.
 
 Karty wchodzą dopiero tutaj: przez cztery misje armia rosła zabudową i terenem.
 Karty są odpowiedzią na moment, w którym zabudowa przestaje wystarczać.
+
+**Cel to CZTERY FALE Z RZĘDU z dwiema drogami w ręku** (`hold`), a utrata choćby
+na jedną falę zeruje licznik (`S.holdT` w sim.js). Plan fal musi więc mieć czym
+tę utratę wymusić: rakietowcy wchodzą w siódmej fali, dokładnie wtedy, gdy gracz
+zdążył zbudować pancerkę. Termin (`before: 14`) jest z tego samego powodu co
+w trójce — bez niego „utrzymaj" czeka się, a nie gra.
+
+Pomiar bez planu: **2/2 w 3:34, wszystkie pięć celów, zero strat.** Ostrzał
+bastionu bez nacisku z pola jest samym podatkiem; boli dopiero wtedy, gdy masz
+w tym czasie kogo odpierać.
 
 **Jeśli coś ma wypaść z zakresu — to ta misja.** Jej treść rozkłada się na 4 i 6.
 
@@ -368,7 +387,7 @@ misję 5 i nie dawało zamknięcia.
 (ostatnie, co ruszasz) · zasięg i tempo ostrzału · czas przejścia: cel 12–18 min,
 poniżej 5 = misja zepsuta.
 
-#### Pomiar 15.09.2026 — misja 6 jest dziś nieprzechodnia
+#### Pomiar 15.09.2026 — dlaczego misja 6 była nieprzechodnia
 
 Bot, styl natarcie, pole 3 600 px. Dwa przebiegi: **porażka, fala 39–42, 18–19 min
 gry, 921–1046 zabitych wrogów, BASTION 0%.** Diagnostyka mówi dokładnie gdzie:
@@ -402,9 +421,24 @@ Trzy wnioski, osobne:
    pod naciskiem bot nie kończy go nigdy: zaprojektowana odpowiedź misji 6
    (artyleria i kolejność wejścia) nie trafia do gry.
 
-Do rozstrzygnięcia — i to są Twoje liczby, nie moje:
-· tempo rozbudowy wroga w późnych falach (`grow`, `EBUILD_EVERY`, bonus z sektorów)
-· skrócenie łańcuchа do artylerii w misji 6 albo danie jej w `unlock` od startu
+#### Odpowiedź: plan fal, nie geometria
+
+Wniosek 1 mówił, że to **§9.0 — wojna na wyczerpanie**, a nie kształt leja.
+Autorski plan fal zdejmuje to u źródła, i to jednym wierszem w `sim.js`:
+**przy `waves` baza wroga NIE ROŚNIE** (`if (wavePlan()) return;` przed
+`eBuild`). Jego siła przestaje być wykładnicza i staje się zapisana.
+
+Wtedy KSZTAŁT PLANU jest treścią finału, tak jak kształt leja miał być:
+fale 7–9 to szczyt ich siły, dziesiąta to **okno**, a od dwunastej ich rezerwy
+się kończą. Bastion zostaje sam dokładnie wtedy, gdy kolejność wejścia w lej
+zaczyna cokolwiek znaczyć. Finał świadomie **bez terminu** — ma być o przełamaniu
+gardła, nie o zegarze; przegrać wciąż można normalnie, bo bastion ostrzeliwuje,
+a szczyt fal potrafi zjeść bazę.
+
+Zostaje otwarte (Twoje liczby, nie moje):
+· skrócenie łańcucha radar → fabryka → laboratorium → artyleria w misji 6 —
+  pod naciskiem bot nie kończy go nigdy, więc zaprojektowana odpowiedź misji
+  (artyleria) nie trafia do gry
 · czy lej ma być długi (dziś 674 px = ułamek pola) czy krótki i taktyczny
   (~300 px = wielokrotność zasięgów) — dziś to ułamek, więc rośnie z mapą
 
@@ -507,9 +541,31 @@ wyścigiem z zegarem, a nie progiem siły, więc rozstrzyga się o kilkanaście
 procent przejęcia. Pomiar pokazał bota na 87% w piątej fali i zmiecionego
 w szóstej — stąd szósta fala jest dziś oddechem, a nie drugim szpicem.
 
-Układ autorski jest **sprawdzany, nie poprawiany** (`checkOreLayout`): brak
-miejsca na rafinerię to błąd w danych misji i ma krzyczeć w konsoli, a nie
-znikać pod losowaniem. Poprawianie (`ensureRefinerySpot`) zostaje grze dowolnej.
+### Dwie rzeczy, których nie da się zgadnąć, pisząc plan fal
+
+Obie kosztowały mnie przebieg na ślepo, więc zapisane są tu, a nie w commicie.
+
+**1. Skala planu to LICZBA BUDYNKÓW WROGA NA FALĘ, nie liczba, która brzmi
+groźnie.** Proceduralny wróg wystawia **jedną jednostkę na budynek na falę**
+(`EB` w config) i rośnie o ~1 budynek na falę, więc czternasta fala misji 4 to
+realnie ~15 jednostek. Pierwszy plan, jaki napisałem dla misji 4–6, miał tam 31
+i wyglądał rozsądnie na papierze — w grze bot padał ze sztabem na 7 %. Krzywe
+z misji 2 nie przenoszą się na misje polowe: w dwójce cała armia siedzi na bazie
+pod gniazdami, w czwórce jest rozciągnięta na trzy drogi i ma jeszcze NACIERAĆ.
+
+**2. Misji 4–6 nie wolno mierzyć od pustej siatki.** Kampania jest ciągła —
+do czwórki wchodzi się z bazą z trójki. Pomiar od „sam sztab + 700 kredytów"
+mierzy gracza, który w tej grze nie istnieje, i każe zbijać krzywą do poziomu,
+przy którym prawdziwy gracz się nudzi. Harness dostał więc `PRE` — bazę
+przeniesioną, stawianą od razu i za darmo, osobną dla każdej misji.
+
+Dane autorskie są **sprawdzane, nie poprawiane**. `checkOreLayout`: brak miejsca
+na rafinerię to błąd w danych misji i ma krzyczeć w konsoli, a nie znikać pod
+losowaniem (poprawianie — `ensureRefinerySpot` — zostaje grze dowolnej).
+`checkWavePlan`: plan krótszy lub równy terminowi (`goal.before`), `after` poza
+planem, odstęp fali ≥ 60 s. Wszystkie trzy to błędy, których **nie widać po
+liczbach** — misja po prostu zachowuje się inaczej, niż mówi jej komentarz,
+a pierwszy z nich kosztował mnie już jeden przebieg na ślepo (10:41 zamiast 2:54).
 
 **Losowanie zostaje grze dowolnej**, gdzie różnorodność jest sensem — tam żyją
 warianty pola, eskalacja, losowa doktryna i losowa ruda.

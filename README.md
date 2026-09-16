@@ -158,6 +158,15 @@ waves:[{t:45, inf:2}, {t:38, inf:3}, …],    // t = sekundy DO tej fali
 
 Przy planie wróg się nie rozbudowuje, a szturm kończy się tam, gdzie kończy się
 lista. Losowanie (ruda, doktryna, warianty pola, eskalacja) zostaje **grze dowolnej**.
+Wszystkie sześć misji ma dziś plan z ręki; `checkWavePlan` pilnuje trzech błędów
+w danych, których nie widać po liczbach (plan krótszy od terminu, `after` poza
+planem, odstęp fali ≥ 60 s).
+
+Skala planu to **liczba budynków wroga na falę**: proceduralny przeciwnik
+wystawia jedną jednostkę na budynek i rośnie o ~1 budynek na falę, więc plan,
+który brzmi groźnie, bywa trzykrotnie za ciężki. Krzywe z misji obronnych nie
+przenoszą się na polowe — tam armia jest rozciągnięta na trzy drogi i ma jeszcze
+nacierać.
 
 Krzywe są **kalibrowane botem**, nie na wyczucie. Stan (3 przebiegi na misję):
 

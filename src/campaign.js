@@ -112,6 +112,28 @@ export function applyMission(m, carry){
   // zmiana długości pola nie zostawiała go w pustce albo za bastionem.
   S.espawn = { x: atF(m.spawnF != null ? m.spawnF : 0.97), y: LANE_Y };
   S.goalT = 0; S.holdT = 0;                     // liczniki celów „utrzymaj"
+  checkWavePlan(m);
+}
+
+/* Sprawdzenie DANYCH, nie rozgrywki — jak `checkOreLayout` dla rudy. Każdy
+   z tych trzech błędów już raz kosztował przebieg na ślepo, a żaden nie widać
+   po liczbach: misja po prostu zachowuje się nie tak, jak napisano w komentarzu.
+   Krzyczymy w konsoli i gramy dalej — dane misji poprawia człowiek.            */
+export function checkWavePlan(m){
+  const w = m.waves, g = m.goal || {};
+  if (!w || !w.length) return;
+  // Plan RÓWNY terminowi = przegrana, która nigdy nie odpala: licznik fal
+  // przestaje rosnąć na ostatniej pozycji planu (pomiar: 10:41 zamiast 2:54).
+  if (g.before != null && w.length <= g.before)
+    console.error('[fale '+m.id+'] plan ma '+w.length+' fal przy terminie '+g.before
+                  +' — przegrana nie ma czym odpalić (potrzeba > '+g.before+')');
+  // `after` RÓWNE długości planu jest poprawne (misja 1: trzy fale, `after:3` —
+  // cel zalicza się, gdy trzecia wyjdzie). Błędem jest dopiero `after` ZA planem.
+  if (g.after != null && g.after > w.length)
+    console.error('[fale '+m.id+'] `after:'+g.after+'` jest za planem '+w.length+' fal — cel nigdy się nie zaliczy');
+  // HUD pisze zegar jako „0:SS" — 60 s i więcej wychodzi poza format.
+  const zaDlugie = w.filter(x => x.t >= 60).length;
+  if (zaDlugie) console.warn('[fale '+m.id+'] '+zaDlugie+' fal z odstępem ≥ 60 s — HUD pisze 0:SS');
 }
 
 /* Cele z DANYCH DROG. Każda droga wnosi swoje — górna może mieć most i baterię,
