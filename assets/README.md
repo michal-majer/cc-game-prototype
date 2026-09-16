@@ -54,6 +54,12 @@ wgrać pliku do katalogu, którego nie ma.
 
 ## Arkusz z AI — krok pośredni
 
+> **Zamawiasz nową grafikę planszy?** Gotowy brief i prompty siedzą
+> w [`docs/grafika-plansza.md`](../docs/grafika-plansza.md). Krótko: nie zamawiaj
+> „tilesetu", tylko wielkie jednolite płachty materiału plus obiekty na
+> magentowym tle — z kafli-scenek nie da się zrobić gruntu.
+
+
 Generator zwraca **planszę poglądową**, nie tileset. Trzy wady są tu istotne
 i każda wymaga innej poprawki:
 
