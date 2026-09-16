@@ -106,7 +106,8 @@ export function setField(len, halfH){
   // kiedyś ruszysz U.arty.range, stanica pojedzie razem z nią.
   const reach = Math.max(60, ((U && U.arty ? U.arty.range : 175) - 25));
   for (const st of STANCES){
-    if (st.fromEnd === 0)   st.x = BAS_X;
+    if (st.fromBase != null) st.x = BASE_R + st.fromBase;
+    else if (st.fromEnd === 0)   st.x = BAS_X;
     else if (st.fromEnd)    st.x = Math.max(atF(0.3), BAS_X - reach);
   }
   const iMid = STANCES.findIndex(st=>st.mid);
@@ -130,7 +131,12 @@ export function setGrid(cols, rows){
    ŚRODEK liczy się jako PUNKT MIĘDZY PRZEDPOLEM A NACISKIEM, żeby na długiej
    mapie nie zostawał martwy odcinek między trzecim i czwartym stopniem suwaka. */
 export const STANCES = [
-  {n:'OBRONA',    f:0.08, x:0, d:'pod bunkrami · stos rośnie'},
+  // OBRONA liczona OD BAZY, nie ułamkiem pola — symetrycznie do NACISKU, który
+  // liczy się od bastionu. Ułamek znaczył, że na dłuższej mapie „obrona" odsuwa
+  // się od bazy: na polu 1300 linia stała 104 px za krawędzią bazy, na 3600
+  // byłaby kilkaset px w polu, poza zasięgiem własnych dział. Obrona ma znaczyć
+  // „przy drucie, pod gniazdami", niezależnie od rozmiaru mapy.
+  {n:'OBRONA',    fromBase:40, x:0, d:'pod działami bazy'},
   {n:'PRZEDPOLE', f:0.25, x:0, d:'1/4 — poza osłoną'},
   {n:'ŚRODEK',    mid:true, x:0, d:'neutralny grunt'},
   {n:'NACISK',    fromEnd:true, x:0, d:'artyleria dosięga BASTIONU'},
@@ -413,10 +419,23 @@ export const MOVE_FRAC = 0.25, MOVE_SEC = 3;
 
    Obie liczby są SUFITAMI, nie krokiem na kratkę: szyk ma czytać się tak samo
    na siatce 6×3 (misja 1) i 7×6 (finał), a przede wszystkim ma mieścić się
-   w zasięgach broni. 34 px głębokości przy zasięgu piechoty 39 znaczy, że
-   tylny żołnierz wciąż dosięga tego, z kim bije się przedni — ale ma zapas
-   mniejszy niż on. Większa głębokość zamieniłaby tylne baraki w bezużyteczne. */
-export const FORM_DEPTH = 34, FORM_SPREAD = 40;
+   w zasięgach broni.
+
+   CAŁA KOPERTA SZYKU MUSI ZMIEŚCIĆ SIĘ W NAJKRÓTSZYM ZASIĘGU. Pierwsze liczby
+   (34 w głąb, 40 w poprzek) tego nie spełniały: żołnierz ze skraju stał 40 px
+   od osi drogi przy zasięgu piechoty 39, a po przekątnej 52 — więc nie dosięgał
+   tego, z kim bił się sąsiad, i szyk zamiast wspierać się nawzajem rozłaził się
+   na osobne walki. Teraz przekątna to ~29 px, z zapasem pod 39: szyk widać,
+   ale każdy w nim strzela do tego samego celu.                               */
+export const FORM_DEPTH = 24, FORM_SPREAD = 16;
+/* --------------------- ŻOŁD: kredyty MIĘDZY misjami ----------------------
+   Baza przechodzi między misjami w całości, KREDYTY nie. Pełny portfel robił
+   z następnej misji formalność: z misji 1 wychodziło się z ~1500 kredytów, za
+   które w pierwszej sekundzie misji 2 stawiało się cztery gniazda i ulepszenie
+   — i nie trzeba było już ekonomii, czyli dokładnie tego, czego misja uczy.
+   Zostaje ŻOŁD: ułamek oszczędności do sufitu, jako premia za gospodarność,
+   a nie jako przepustka. Właściwym startem jest `money` z danych misji.      */
+export const CARRY_FRAC = 0.15, CARRY_CAP = 150;
 // Naprawa budynku: koszt = udział brakującego HP × wartość × REPAIR_FRAC.
 // Symetria ze złomem (scrap 50% wartości / naprawa 50% brakującej wartości) —
 // późną grą to STAŁY sink: utrzymanie ostrzeliwanego frontu kosztuje kredyty.

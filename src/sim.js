@@ -128,11 +128,20 @@ export function doWave(){
   for (const b of S.buildings){
     const d=B[b.type];
     if (!d.unit||!b.powered) continue;
-    // Szyk bierze się z KRATKI baraku — patrz formOf. Rozrzut przy narodzinach
-    // zostaje mały, żeby dwa baraki z tej samej kolumny stały naprawdę obok siebie.
+    /* Żołnierz staje OD RAZU NA SWOIM MIEJSCU W SZYKU, nie maszeruje z baraku.
+       Marsz z bazy na linię nie jest decyzją ani ryzykiem — to czas, w którym
+       gracz patrzy, jak nowy żołnierz idzie tam, gdzie i tak miał iść. Kosztem
+       posiłków jest zegar fali, nie długość drogi.                            */
     const fm = formOf(b);
-    for (let i=0;i<bCount(b);i++)
-      spawn(d.unit,'p', b.x+(Math.random()*10-5), b.y+(Math.random()*20-10), null, fm);
+    for (let i=0;i<bCount(b);i++){
+      const px = Math.max(BASE_R+6, lineX() - fm.d) + (Math.random()*8-4);
+      const half = roadHalf(px);
+      const lane = roadCount()>1
+        ? (S.laneOrder>=0 ? Math.min(S.laneOrder, roadCount()-1) : (S.pLaneRR||0)%roadCount())
+        : 0;
+      const py = roadY(lane, px) + clamp(fm.s, -half*0.6, half*0.6) + (Math.random()*10-5);
+      spawn(d.unit,'p', px, py, null, fm);
+    }
   }
   // SZTURM MOŻE BYĆ SKOŃCZONY. „Odeprzyj 8 fal" z nieskończonym strumieniem
   // nigdy się nie kończy: warunek czeka na czyste pole, a fale lecą dalej
@@ -158,6 +167,11 @@ export function doWave(){
   siren(); S.shake=Math.max(S.shake,4);
   if (S.wave===1) autoFollowFront();     // koniec budowania w spokoju — patrz na front
   say('FALA '+S.wave, 'warn');
+  // Baner na środku pola. Flaga na S, nie wywołanie hud.js — sim.js nie importuje
+  // HUD-u (hud importuje sim), a cykl modułów dla jednego napisu to zła cena.
+  const skl = Object.entries(eCompN(S.wave)).filter(([,v])=>v>0)
+    .map(([k,v])=>v+'× '+U[k].name).join(' · ');
+  S.waveFlash = { n:S.wave, sub:skl };
   // Rozkaz co 3 fale (było 5): przy krótkiej grze karty — jedyny tor skalowania
   // armii — musiały pojawiać się częściej, inaczej run kończył się, nim tor dmg/pancerz
   // realnie urósł. openDraft dodatkowo GWARANTUJE kartę armii w każdym drafcie.
@@ -185,9 +199,42 @@ export function doWave(){
   while (S.eBuildDebt >= 1){ S.eBuildDebt -= 1; eBuild(); }
 }
 
+/* ------------------------- PODPOWIEDZI MISJI ------------------------------
+   Wyjaśnienie podawane WTEDY, kiedy jest o czym mówić, a nie ścianą tekstu na
+   odprawie. Treść siedzi w danych misji (`hints`), tutaj są tylko WARUNKI —
+   nazwane, żeby misja pozostała danymi. Każda podpowiedź leci raz, i najwyżej
+   jedna na krok, bo trzy naraz w dzienniku czyta się jak spam, nie jak kurs.  */
+function tutorTick(dt){
+  const hints = MIS().hints;
+  if (!hints || !hints.length) return;
+  S.hintT = (S.hintT||0) + dt;
+  if (!S.hintsDone) S.hintsDone = {};
+  const done = S.hintsDone, t = S.hintT;
+  const powered = ty => S.buildings.some(b=>b.type===ty && b.powered);
+  const tapped = seamsTapped();
+  const cond = {
+    start:   () => t > 1.5,
+    noPower: () => t > 8 && !powered('power'),
+    power:   () => powered('power'),
+    refDry:  () => t > 3 && powered('refinery') && tapped === 0,
+    mining:  () => tapped > 0,
+    mining2: () => done.mining != null && t - done.mining > 14,
+    oreLow:  () => S.oreStart && oreTotal() < S.oreStart * 0.45,
+  };
+  for (const h of hints){
+    if (done[h.when] != null) continue;
+    const f = cond[h.when];
+    if (!f || !f()) continue;
+    done[h.when] = t;
+    say(h.txt, h.kind || 'info');
+    break;                       // jedna na krok — dziennik ma uczyć, nie zalewać
+  }
+}
+
 export function update(dt){
   if (S.state!=='play') return;
   if (!S.ready) return;
+  tutorTick(dt);
   regrow(dt);
   updSect(dt);
   // budowa: budynki dochodzą do gotowości; ukończony włącza się do sieci (moc/ogień/produkcja)

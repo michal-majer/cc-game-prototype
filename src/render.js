@@ -9,7 +9,8 @@ import {
   CO, U, B, BASE_X, BASE_Y, CELL, COLS, ROWS, BASE_R, LANE_Y, LANE_HALF, BAS_X,
   STANCES, CAP_R, TERR_MAX, ORE_SIP, BAL, HEX, clamp, ringOf, cellAt,
   lanesAt, laneCY, corridorHalf, shapeId, fieldX1, LANE_HALF as LH,
-  roadY, roadHalf, roadCount, roadName, splitX, mergeX, fieldHalf, sectKind, ROAD_GAP, ROAD_W
+  roadY, roadHalf, roadCount, roadName, splitX, mergeX, fieldHalf, sectKind, ROAD_GAP, ROAD_W,
+  FRONT_MAX
 } from './config.js';
 import { S, SECT, lineX } from './state.js';
 import { buildTex, unitTex, unitSheet, tex, tileTex, markTex, hasTiles } from './assets.js';
@@ -201,7 +202,10 @@ export function resizeCam(){
   const zRoad = roadCount()>1 ? bandH / (ROAD_GAP*1.8 + ROAD_W) : zFill;
   cam.min = Math.min(zAll * 0.85, zFill);
   cam.max = Math.max(zFill * 2.8, 2.2);
-  if (!cam._init){ cam.zoom = Math.min(zRoad, sw / TAC_W); cam._init=true; }
+  // `camBase` — misja bez pola do oglądania (misja 1 to sama rozbudowa bazy).
+  // Domyślny zoom liczony pod korytarz zostawiał trzy czwarte ekranu pustego.
+  const zBase = bandH / (ROWS*CELL * 1.55);
+  if (!cam._init){ cam.zoom = S.camBase ? zBase : Math.min(zRoad, sw / TAC_W); cam._init=true; }
   cam.zoom = clamp(cam.zoom, cam.min, cam.max);
   clampCam();
 }
@@ -261,6 +265,26 @@ export function fitCam(keepZoom){
 // Woła sim przy pierwszej fali. Nie nadpisuje decyzji gracza: jeśli sam przewinął
 // pole albo wybrał ⌂ BAZA po starcie, zostaje jak chciał.
 export function autoFollowFront(){ if (cam.follow==='base') setFollow('front'); }
+
+/* --------------------------- ODJAZD NA FRONT -----------------------------
+   Misja 1 pokazuje samą bazę, bo tylko o niej jest. Kiedy cel pada, kamera
+   ODJEŻDŻA i odsłania korytarz: nagroda za tutorial jest widokiem tego, po co
+   to wszystko było, a nie okienkiem z oceną. p to 0..1 postępu odjazdu.      */
+let outroZ0 = null;
+export function outroStep(p){
+  const {sw, top, bandH}=bandRect();
+  if (outroZ0 == null){ outroZ0 = cam.zoom; cam.follow=''; }
+  const zEnd = Math.min(bandH / WV.h, sw / TAC_W);
+  const e = p*p*(3-2*p);                                   // smoothstep — bez szarpnięcia
+  cam.zoom = outroZ0 + (zEnd - outroZ0) * e;
+  const fx = BASE_X + COLS*CELL/2, fy = BASE_Y + ROWS*CELL/2;
+  const tx = Math.min(FRONT_MAX, BASE_R + (BAS_X - BASE_R) * 0.45);
+  const px = fx + (tx - fx) * e, py = fy + (LANE_Y - fy) * e;
+  cam.panX = sw/2 - px*cam.zoom;
+  cam.panY = top + bandH/2 - py*cam.zoom;
+  clampCam();
+  if (p >= 1) outroZ0 = null;
+}
 // dla minimapy: widoczny wycinek świata w px świata
 export function viewport(){
   const {sw, top, bandH}=bandRect();
@@ -782,7 +806,10 @@ function drawGhost(){
     g.rect(BASE_X+(COLS-1)*CELL+1, BASE_Y+1, CELL-2, ROWS*CELL-2)
      .stroke({width:2, color:CO.ok, alpha:0.75});
   }
-  if (S.sel && S.sel!=='SELL' && cell){
+  /* Warunek MUSI pytać o `B[S.sel]`, nie wyliczać trybów po nazwie. Stało tu
+     `S.sel!=='SELL'`, więc przy włączonej NAPRAWIE (i każdym przyszłym trybie)
+     leciało `B['REPAIR'].fp` → TypeError CO KLATKĘ, czyli martwy render.       */
+  if (S.sel && B[S.sel] && cell){
     const d=B[S.sel], [w,h]=d.fp;
     const ok = fits(S.sel,cell.c,cell.r) && S.money>=d.cost;
     for (let rr=cell.r; rr<cell.r+h; rr++) for (let cc=cell.c; cc<cell.c+w; cc++){
